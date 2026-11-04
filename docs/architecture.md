@@ -1,7 +1,7 @@
 # Host-Based Intrusion Detection System (HIDS)
 ## Architecture
 
-**Document version:** 0.1  
+**Document version:** 0.1.1
 **Status:** Initial design baseline  
 **Last updated:** November 4, 2026  
 **Target platform:** Ubuntu 26.04 LTS  
@@ -11,11 +11,11 @@
 
 ### 1.1 Purpose
 
-The project aims to develop a local-first Host-Based Intrusion Detection System (HIDS) for individual Linux computers.
+The project aims to develop a local-first Host-Based Intrusion Detection System (HIDS) for individual Linux systems.
 
 The application will monitor operating system activity, identify potentially suspicious behavior, and present security information in an understandable dashboard.
 
-Unlike traditional enterprise SIEM platforms, this project focuses on making host-level security monitoring accessible to ordinary computer users.
+This project focuses on making host-level security monitoring accessible to ordinary computer users.
 
 The primary objectives are:
 
@@ -27,7 +27,7 @@ The primary objectives are:
 - Provide searchable event history and an interactive dashboard.
 - Store collected information locally by default.
 
-The long-term objective is to produce a properly packaged Linux application that users can install, operate, upgrade, and uninstall without manually configuring its development environment.
+The long-term objective is to produce a properly packaged Linux application that users can install, operate, upgrade, and uninstall without needing to manually configure its development environment.
 
 ### 1.2 Project philosophy
 
@@ -42,14 +42,20 @@ The project prioritizes:
 
 ### 1.3 Scope
 
-The initial product will be a monitoring and detection application, not an automated remediation system.
+The initial product is strictly a monitoring and detection application.
 
-The HIDS will identify suspicious activity and recommend investigation steps. It will not automatically terminate processes, block network connections, or attempt malware removal.
+The HIDS will identify potentially suspicious activity, generate
+security alerts, and explain the evidence behind each detection.
+
+It will not automatically remediate threats or provide prescriptive
+instructions for stopping or removing them.
+
+Remediation functionality is outside the scope of the initial release.
 
 ## 2. Target environment
 
 | Property | Initial specification |
-|---|---|
+-----------------------------------------
 | Operating system | Ubuntu 26.04 LTS |
 | Compatibility | Ubuntu only initially |
 | Architecture | Modular, multi-process |
@@ -60,12 +66,12 @@ The HIDS will identify suspicious activity and recommend investigation steps. It
 | Network exposure | Localhost only |
 | Data transmission | None by default |
 
-The architecture should avoid unnecessary Ubuntu-specific dependencies outside the collection and packaging layers. This will make future distribution support easier.
+The architecture should avoid unnecessary Ubuntu-specific dependencies outside the collection and packaging layers, to make future distribution support easier.
 
 ## 3. Technology stack
 
 | Component | Technology | Responsibility |
-|---|---|---|
+--------------------------------------------------------------------------------
 | Event collector | C++20 | Operating system integration and event collection |
 | System log integration | systemd journal API | Collect structured system logs |
 | Process monitoring | Linux Audit | Capture process execution and audit events |
@@ -190,7 +196,7 @@ The Python component receives normalized events and performs analysis.
 It will initially consist of five logical modules.
 
 | Module | Responsibility |
-|---|---|
+---------------------------------------------------------------
 | Ingestion | Receive, validate, and process incoming events |
 | Enrichment | Add contextual information to events |
 | Detection | Evaluate individual events against rules |
@@ -261,7 +267,7 @@ The Python backend will own database writes. The C++ collector will communicate 
 Initial database tables:
 
 | Table | Purpose |
-|---|---|
+-------------------------------------------------------------
 | `events` | Normalized system events |
 | `alerts` | Generated security alerts |
 | `alert_events` | Relationships between alerts and events |
@@ -559,7 +565,7 @@ The HIDS should be lightweight enough for continuous operation on ordinary perso
 The following features are intentionally outside the initial implementation scope.
 
 | Feature | Reason for postponement |
-|---|---|
+----------------------------------------------------------------------------
 | eBPF monitoring | Establish basic collection first |
 | Machine-learning detection | Begin with explainable rule-based detection |
 | Automatic remediation | Initial product is monitoring-only |
@@ -621,6 +627,3 @@ The following decisions constitute the initial agreed design baseline:
 - The application will eventually ship as a Debian package with systemd integration.
 - Components will communicate through documented and versioned interfaces.
 
-**This document is the working architectural baseline for HIDS v0.1.**
-
-Changes should be documented as the project develops, particularly when implementation decisions affect component boundaries, security, or shared interfaces.

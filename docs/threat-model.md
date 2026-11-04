@@ -1,6 +1,6 @@
 # HIDS Threat Model
 
-**Document version:** 0.1  
+**Document version:** 0.2.0  
 **Status:** Initial threat-model baseline  
 **Last updated:** November 4, 2026  
 **Target platform:** Ubuntu 26.04 LTS
@@ -13,20 +13,50 @@ The HIDS is a security application, so its own architecture must avoid introduci
 
 This is an initial baseline, not a complete threat analysis. Detailed attacker capabilities, attack trees, and risk ratings remain to be developed.
 
-## 2. Security objectives
+## 2. Product Security Scope
+
+The initial product is a host-based monitoring and detection application for an individual's Ubuntu computer.
+
+The HIDS will:
+
+- Collect and normalize operating-system events.
+- Identify activity matching configured detection rules.
+- Correlate related events.
+- Generate alerts with supporting evidence.
+- Explain which observations and rule conditions produced an alert.
+- Present event history and alerts through a local dashboard.
+
+The initial product will **detect and explain only**.
+
+It will not:
+
+- Automatically terminate processes.
+- Block network connections.
+- Modify system configuration to stop a suspected threat.
+- Disable accounts or services.
+- Automatically quarantine or delete files.
+- Provide prescriptive instructions for stopping or removing threats as a product feature.
+
+Remediation and intrusion-prevention functionality are outside the initial release scope.
+
+## 3. Security Objectives
 
 The architecture establishes the following objectives:
 
 - Do not run the entire application as root.
 - Give each component only the permissions it needs.
-- Keep the database local and restrict access to the application account.
+- Keep the database local and restrict direct database access.
 - Keep network services bound to localhost.
 - Avoid exposing privileged system operations through the API.
 - Validate user-supplied queries and configuration changes.
 - Report collection and transmission failures rather than silently losing events.
 - Handle collected sensitive information carefully.
+- Restrict human access to collected security information to root.
+- Prevent unauthenticated access to the dashboard and API.
+- Protect database files, backups, and application configuration against ordinary local users.
+- Preserve the distinction between observed events, rule matches, and interpretations.
 
-## 3. Assets and sensitive information
+## 4. Assets and Sensitive Information
 
 The application may collect or store:
 
@@ -38,11 +68,15 @@ The application may collect or store:
 - Filesystem change information.
 - IP addresses and other source metadata, where available.
 - Generated alerts and their supporting event references.
+- Detection rules and their configuration.
 - Collection checkpoints and application configuration.
+- Original source records retained for troubleshooting or future normalization.
 
-Command-line arguments, usernames, filenames, and IP addresses may contain sensitive information and should be handled accordingly.
+Command-line arguments, usernames, filenames, IP addresses, and original log records may contain sensitive information and should be handled accordingly.
 
-## 4. Components and trust boundaries
+The confidentiality, integrity, and availability of collected records are all relevant. An attacker who can delete or alter records may impair the HIDS even if they cannot read them.
+
+## 5. Components and Trust Boundaries
 
 The initial architecture has these major boundaries:
 
@@ -50,12 +84,13 @@ The initial architecture has these major boundaries:
 2. **Collector to Python backend:** Normalized events cross a local Unix domain socket using the initial JSON Lines serialization format.
 3. **Python backend to SQLite:** The backend validates and processes events, then owns database writes.
 4. **Browser to local API:** The dashboard communicates with the FastAPI service, which is intended to bind to localhost only.
+5. **Application to local user:** Dashboard and API access must be authenticated and authorized according to the root-only access policy.
 
 The permissions, validation requirements, and failure behavior at each boundary must be tested and documented during implementation.
 
-## 5. Privilege model
+## 6. Privilege Model
 
-### 5.1 Installation and configuration
+### 6.1 Installation and configuration
 
 Privileged installation operations may:
 
@@ -65,13 +100,17 @@ Privileged installation operations may:
 - Establish filesystem permissions.
 - Install application files.
 
-### 5.2 C++ collector
+These operations do not imply that the application services should run as root.
+
+### 6.2 C++ collector
 
 The collector runs with the minimum permissions required to access its monitoring sources.
 
 Its privileges should be evaluated individually for journald, audit, and filesystem monitoring.
 
-### 5.3 Python backend
+The collector should not receive broad administrative privileges merely for convenience.
+
+### 6.3 Python backend
 
 The Python backend runs as an unprivileged service account.
 
@@ -82,11 +121,118 @@ It owns:
 - Alert generation.
 - API operations.
 
-### 5.4 Dashboard
+The backend requires access to the database to perform its work. This service-account access is distinct from human authorization to view HIDS data.
 
-The dashboard runs as part of the local application and must not expose privileged administrative functionality.
+A compromise of the backend may expose or modify data accessible to its service account. Privilege separation limits the scope of that compromise but does not eliminate the risk.
 
-## 6. Service hardening
+### 6.4 Dashboard
+
+The dashboard is a local web interface and must not expose privileged administrative functionality.
+
+The browser should not need to run as root merely to display the dashboard. The authentication design must enforce the root-only policy without treating frontend visibility as authorization.
+
+## 7. Data Confidentiality and Access Control
+
+### 7.1 Access policy
+
+The initial release will restrict human access to collected security information to root only.
+
+This includes:
+
+- Collected system events.
+- Authentication and process history.
+- Generated security alerts.
+- Alert explanations and supporting evidence.
+- Detection rules and their configurations.
+- Application security and monitoring status.
+
+Multiple-user access is explicitly outside the scope of the initial release.
+
+The precise definition of root-only access must be settled before authentication is implemented. In particular, the project must decide whether access means the root account (UID 0) exclusively or also includes users authorized through `sudo`. Ordinary local users must not receive access by default.
+
+### 7.2 Database and file protection
+
+The SQLite database contains potentially sensitive information about system activity and security state.
+
+Requirements:
+
+- Database files must not be readable or writable by ordinary users.
+- Direct database access must be restricted to the designated application service account and root.
+- Database backups must receive equivalent protection.
+- Application configuration and sensitive files must have restrictive filesystem permissions.
+- Temporary files and exports containing event data must receive equivalent protection.
+- Database access must not be exposed through unauthenticated API endpoints.
+
+The Python backend requires database access to process and store events. This does not grant ordinary human users permission to access the database directly.
+
+### 7.3 Dashboard and API authorization
+
+All dashboard and API access involving security information must require authentication and authorization.
+
+Requirements:
+
+- Only access authorized under the root-only policy may retrieve security information.
+- Authentication and authorization must be enforced by the backend, not merely the frontend.
+- Sensitive API endpoints must enforce authorization independently.
+- Unauthenticated requests must not expose event contents, alerts, detection rules, or sensitive system metadata.
+- Localhost-only network binding must not be treated as sufficient authentication.
+- Authentication failures must not reveal sensitive information.
+
+The exact authentication mechanism remains undecided and must be specified before dashboard implementation.
+
+### 7.4 Encryption at rest
+
+Encryption at rest is a potential additional protection.
+
+Its purpose would be to protect collected information if someone obtains an offline copy of the database or storage device.
+
+However, encryption at rest does not protect against an attacker with root privileges while the application is running and its encryption keys are accessible.
+
+The encryption implementation and key-management strategy remain open design questions.
+
+## 8. API and Local Browser Security
+
+The FastAPI backend is a security-sensitive component.
+
+Although the API is intended to bind exclusively to localhost, local network isolation must not be treated as sufficient protection. Local processes and browser-based attacks may still interact with local services.
+
+Potential attack scenarios include:
+
+- Unauthorized local processes accessing the API.
+- Browser-based attacks targeting localhost.
+- Authentication bypass.
+- Broken authorization checks.
+- SQL injection.
+- Command injection.
+- Path traversal.
+- Denial of service or resource exhaustion.
+- Sensitive information disclosure.
+- Exploitation of vulnerable dependencies.
+- Unsafe handling of untrusted event data.
+
+Security requirements:
+
+1. Enforce authentication and authorization on the backend, not merely in the frontend.
+2. Restrict access to security information according to the root-only policy.
+3. Use parameterized database queries.
+4. Validate all incoming data.
+5. Do not expose arbitrary SQL execution.
+6. Do not expose arbitrary shell command execution.
+7. Do not expose unrestricted filesystem operations.
+8. Restrict request sizes and resource consumption.
+9. Validate Host and Origin headers.
+10. Implement appropriate CSRF protections for the chosen authentication design.
+11. Avoid exposing sensitive information through errors and application logs.
+12. Keep dependencies updated and conduct security testing.
+13. Treat event content and other collected source data as untrusted input when displaying or processing it.
+
+The API should expose narrowly defined application operations rather than general-purpose system access.
+
+A compromise of the API or Python backend may expose the security information accessible to that component. The backend's unprivileged service account and filesystem restrictions should limit the potential impact of such a compromise.
+
+Localhost binding does not protect against a fully compromised local operating system.
+
+## 9. Service Hardening
 
 Potential systemd hardening options include:
 
@@ -100,23 +246,9 @@ Potential systemd hardening options include:
 
 These restrictions must be tested against actual monitoring requirements. Applying them without testing could prevent required collection operations.
 
-The application should not grant broad privileges merely for convenience.
+The application should not grant broad privileges merely for convenience. Each service should receive only the filesystem access, capabilities, and group memberships it needs.
 
-## 7. API and local browser security
-
-The API should:
-
-- Bind to localhost only.
-- Validate incoming Host and Origin headers.
-- Implement appropriate authentication and CSRF protections.
-- Avoid exposing privileged system operations.
-- Validate user-supplied queries and configuration changes.
-
-Localhost-only binding is an architectural requirement, not a substitute for the other browser and API protections.
-
-The exact authentication mechanism remains an open design question.
-
-## 8. Reliability and monitoring integrity
+## 10. Reliability and Monitoring Integrity
 
 A monitoring application should report when its own collection or transmission is impaired.
 
@@ -133,17 +265,9 @@ The collector and ingestion pipeline should:
 
 The precise acknowledgment mechanism, gap detection behavior, and recovery guarantees remain open design questions.
 
-## 9. Known threat-model limitation
+An attacker who can impair collection or alter local records may undermine the HIDS even without obtaining access to the dashboard.
 
-A locally running HIDS cannot guarantee trustworthy evidence against an attacker with full root privileges.
-
-Such an attacker may disable monitoring services or modify local records.
-
-The application must not claim to provide tamper-proof evidence against a fully compromised host.
-
-Remote evidence preservation is deferred and would require additional infrastructure.
-
-## 10. Privacy requirements
+## 11. Privacy Requirements
 
 Privacy is a core design requirement.
 
@@ -154,13 +278,15 @@ Initial principles:
 - Local database storage.
 - Configurable retention.
 - Avoid unnecessary collection of sensitive information.
-- Restrict database access to the application account.
+- Restrict direct database access to the application account and root.
 - Keep network services bound to localhost.
 - Document exactly what information is collected.
+- Protect raw source records, exports, and backups.
+- Sanitize test fixtures before committing them to the repository.
 
 The initial event retention period and disk usage limits remain open design questions.
 
-## 11. Detection scope relevant to the threat model
+## 12. Initial Detection Scope
 
 The first version is intended to detect a small set of useful, testable scenarios:
 
@@ -169,25 +295,50 @@ The first version is intended to detect a small set of useful, testable scenario
 | AUTH-001 | Repeated authentication failures | Medium |
 | AUTH-002 | Successful login following repeated failures | High |
 | PROC-001 | Execution from suspicious temporary locations | Medium |
-| PRIV-001 | Unexpected privilege escalation | Medium |
+| PRIV-001 | Unexpected privilege-related activity | Medium |
 | FILE-001 | Modification of selected sensitive system files | High |
 
 These are initial classifications, not universal judgments. The scenarios are not proof that an attack occurred. Rules should be configurable, and false positives should be treated as an important engineering concern.
 
-## 12. Open threat-model questions
+The initial HIDS is detection-only. It must not automatically remediate, block, terminate, quarantine, or modify the system in response to these detections.
+
+## 13. Known Threat-Model Limitations
+
+A locally running HIDS cannot guarantee trustworthy evidence or confidentiality against an attacker with full root privileges.
+
+Such an attacker may be able to:
+
+- Read the database and application memory.
+- Access encryption keys available to running services.
+- Modify application configuration.
+- Disable monitoring services.
+- Modify or delete collected events and alerts.
+- Replace or tamper with application binaries.
+
+The application must not claim to provide tamper-proof evidence or protection against a fully compromised host.
+
+Remote evidence preservation is deferred and would require additional infrastructure.
+
+## 14. Open Threat-Model Questions
 
 The following items require further investigation:
 
 1. What minimum privileges does each collector adapter require?
 2. Which exact Linux Audit integration mechanism should the collector use?
 3. How should the application detect and communicate collection gaps?
-4. What authentication mechanism should protect the local dashboard?
-5. What retention limits should apply to potentially sensitive event data?
-6. What should happen if local database files or application configuration are modified?
-7. Which attacker capabilities are in scope for the first release, beyond the known root-compromise limitation?
+4. What authentication mechanism can enforce root-only dashboard access without requiring the browser or entire application to run as root?
+5. Does root-only access mean UID 0 exclusively, or should sudo-authorized administrators also qualify?
+6. What retention limits should apply to potentially sensitive event data?
+7. Should the SQLite database use encryption at rest, and how should encryption keys be managed?
+8. What should happen if local database files or application configuration are modified?
+9. Which attacker capabilities are in scope for the first release, beyond the known root-compromise limitation?
+10. What protections are needed for local browser-to-API requests, including Host, Origin, and CSRF handling?
+11. What is the recovery behavior when the collector, backend, or database becomes unavailable?
 
-## 13. Related documents
+## 15. Related Documents
 
 - Architecture: `architecture.md`
 - Event representation: `event-schema.md`
+- Schema research and evolution process: `schema-design-process.md`
+- Detection evidence and interpretation: `confidence.md`
 - Privilege separation and security decisions: `decisions/004-privilege-separation.md`
