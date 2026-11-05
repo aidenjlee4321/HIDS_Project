@@ -25,10 +25,20 @@ The Python backend is the single owner of database writes.
 
 ## Consequences
 
-- The backend is responsible for validating and persisting incoming events.
+- The backend receives normalized events from C++ and independently validates their contracts before persistence; this does not assign native source collection to Python.
 - Database schema changes need migrations.
 - Retention and disk usage limits need implementation.
-- Database access must be restricted to the application account.
+- Direct database access must be restricted to the designated application service
+  account and root; ordinary users must not read or write database files. Service
+  access is separate from human dashboard authorization, as in the
+  [threat model](../threat-model.md#7-data-confidentiality-and-access-control).
+
+## Clarification — November 5, 2026
+
+The earlier consequence said access was restricted to "the application account."
+The current wording explicitly includes root and distinguishes human authorization
+from service-account access. Python-owned writes and the local-storage rationale
+are unchanged.
 
 ## Open questions
 

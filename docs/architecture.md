@@ -1,11 +1,27 @@
 # Host-Based Intrusion Detection System (HIDS)
 ## Architecture
 
-**Document version:** 0.1.1
+**Document version:** 0.4.0
 **Status:** Initial design baseline  
-**Last updated:** November 4, 2026  
+**Last updated:** November 5, 2026  
 **Target platform:** Ubuntu 26.04 LTS  
 **Project name:** TBD
+
+## Status and interpretation
+
+Only documentation and empty directory scaffolding exist; no collection, detection,
+storage, API, dashboard, or tests are implemented. Accepted technology choices are
+an architecture baseline, not working functionality. Detailed fields, endpoints,
+tables, rules, and layouts below are proposals unless explicitly identified as
+requirements. Roadmap phases are planned work, not completed milestones.
+
+Initial-release requirements: consume existing Ubuntu logging and auditing without
+modifying journald configuration, PAM configuration, auditd configuration, or Linux
+Audit rules during installation, startup, discovery, or runtime; detect and
+explain only; preserve indicators and supporting evidence without confidence
+scores or automatic confidence labels; restrict human security-data access to root;
+maintain least privilege; store data locally and minimize sensitive collection.
+Additional logging/auditing configuration is a stretch goal requiring separate design and approval. Changes to HIDS application files and its own service units are distinct from changes to Ubuntu logging configuration.
 
 ## 1. Project overview
 
@@ -50,12 +66,12 @@ security alerts, and explain the evidence behind each detection.
 It will not automatically remediate threats or provide prescriptive
 instructions for stopping or removing them.
 
-Remediation functionality is outside the scope of the initial release.
+Remediation functionality and threat remediation recommendations are outside the initial scope. Monitoring coverage recommendations are within scope: explain missing fields, unavailable sources and limitations, and identify information that would improve monitoring. Recommendations do not authorize automatic configuration changes or remediation.
 
 ## 2. Target environment
 
 | Property | Initial specification |
------------------------------------------
+|---|---|
 | Operating system | Ubuntu 26.04 LTS |
 | Compatibility | Ubuntu only initially |
 | Architecture | Modular, multi-process |
@@ -71,11 +87,11 @@ The architecture should avoid unnecessary Ubuntu-specific dependencies outside t
 ## 3. Technology stack
 
 | Component | Technology | Responsibility |
---------------------------------------------------------------------------------
+|---|---|---|
 | Event collector | C++20 | Operating system integration and event collection |
 | System log integration | systemd journal API | Collect structured system logs |
-| Process monitoring | Linux Audit | Capture process execution and audit events |
-| Filesystem monitoring | inotify / fanotify | Detect selected filesystem changes |
+| Process monitoring | Existing Linux Audit records, where available | Observe only activity already recorded; coverage requires research |
+| Filesystem monitoring (future proposal) | inotify / fanotify | Candidate additional monitoring; outside the initial existing-log baseline |
 | Process information | /proc | Retrieve process metadata |
 | Inter-process communication | Unix domain sockets | Communication between collector and backend |
 | Serialization | JSON Lines | Event transmission |
@@ -87,7 +103,7 @@ The architecture should avoid unnecessary Ubuntu-specific dependencies outside t
 | Deployment | Debian packaging | Application installation |
 | Service management | systemd | Background execution and startup |
 
-Technology choices may be revised if implementation reveals significant performance, reliability, or compatibility issues.
+C++20, Unix sockets/JSON Lines, FastAPI, React/TypeScript/Vite, SSE, Debian packaging/systemd, and Python-owned SQLite writes remain accepted decisions. Any reconsideration requires explicit approval and a documented decision; implementation difficulties do not silently supersede them.
 
 ## 4. System architecture
 
@@ -107,13 +123,62 @@ The intended data flow is:
 
 The collector and Python backend operate as separate processes.
 
-The Python service initially hosts the ingestion, analysis, database, and API functionality. These will be separate internal modules rather than separate network services.
+C++ owns source collection, source-native ingestion/parsing, normalization, and collection-side event processing. Python receives normalized events from C++, validates their contracts, and owns detection, correlation, security analysis and SQLite writes. Python does not independently collect native OS records.
+
+The Python service initially hosts normalized-event receipt/validation, analysis, database, and API functionality. These will be separate internal modules rather than separate network services.
+
+#### Capability discovery and field coverage
+
+Maintain a broad, evolving [candidate field catalog](research/field-discovery.md)
+independent of the normalized event schema. Discover what existing sources
+actually provide; do not require every event to contain every candidate. Preserve
+source-native information and original-record relationships where practical and
+privacy-appropriate, leaving ambiguous ECS mappings unresolved.
+
+Three layers remain distinct: source-native records/fields, justified ECS 9.5.0
+normalization, and rule-specific detection requirements. New catalog entries do
+not automatically require schema changes or value retention.
+
+| Logical responsibility | Established boundary |
+|---|---|
+| System Capability Manager | Discover source/mechanism presence, configuration state, accessibility to actual service identities, and changes in availability |
+| Field Discovery and Coverage Analyzer | Assess information actually present in records; track scoped availability, source types, mapping uncertainty, and field coverage |
+| Detection engine | Use each rule's Required/Important/Optional evidence requirements to determine whether evaluation is possible and explain limitations |
+| Dashboard/API | Communicate source health, missing evidence, affected detections, collection gaps, and recovery to the authorized user |
+
+Support initial startup discovery, periodic reassessment, source changes,
+collection failures/gaps, and recovery when sources return. Restored access does
+not prove missing historical events were recovered. An empty history does not
+prove monitoring is healthy or that activity did not occur.
+
+Classify availability as Observed, Not observed in sample, Not emitted by source,
+Not applicable, Inaccessible, Collection failure, or Unknown, with scoped evidence.
+Rule importance is contextual; Sensitive is independent. No numerical importance
+scores, universal field rankings, confidence labels, or overall security-coverage
+percentage. Distinguish field existence discovery from retaining sensitive values.
+
+These responsibilities and principles are established requirements; process/module
+placement, interfaces, storage formats, schedules, sampling, and runtime status
+names remain proposed. The Python backend may coordinate assessments using C++
+adapter observations; this is an implementation option, not a new process mandate.
+Discovery is read-only with respect to system sources and configuration. It cannot change logging configuration, install packages, or grant privileges.
+Existing root-only human access, least privilege, and local privacy rules apply.
+No capability manager, field analyzer, or descriptive coverage report exists yet.
+See [field discovery](research/field-discovery.md) for methodology and examples.
 
 ### 4.2 Collection layer (C++)
 
 The collector is responsible for interacting with Linux and capturing system events.
 
-It should be designed around independent source adapters.
+It must support independently operating source adapters.
+
+Graceful degradation is an initial-release requirement. If a collection source
+is missing, inaccessible, or failing, other functioning sources must continue
+operating. The dashboard and stored data must remain accessible under the existing
+authorization policy. Report the affected source's status and limitations of rules
+that require unavailable information; recovery must be detectable. This does not
+promise historical backfill. Concurrency, process isolation, and supervision
+mechanisms remain undecided.
 
 #### Journal adapter
 
@@ -129,9 +194,9 @@ Responsibilities:
 
 #### Audit adapter
 
-Uses the Linux Audit infrastructure to capture events that are not reliably represented in ordinary system logs.
+The proposed adapter consumes existing Linux Audit records where available. Do not assume auditd is installed, enabled, or recording a particular activity. Missing sources or fields must be reported as visibility limitations, not interpreted as absence of activity.
 
-Initial focus:
+Candidate activities, subject to existing records and source validation:
 
 - Process execution.
 - User and privilege information.
@@ -139,7 +204,7 @@ Initial focus:
 
 The existing audit daemon (`auditd`) should manage the kernel audit interface.
 
-The collector must not attempt to compete with `auditd` for ownership of the audit event stream. Integration should use an appropriate audit dispatcher mechanism or a carefully implemented audit-log consumer.
+The collector must not attempt to compete with `auditd` for ownership of the audit event stream. Initial integration must use an already available read path, such as an existing audit log, without changing auditd or Audit rules. A dispatcher requiring configuration changes is a future option, not an initial installation step.
 
 #### Filesystem adapter
 
@@ -170,7 +235,9 @@ Process snapshots should be treated as contextual information rather than a guar
 
 #### Normalization layer
 
-Converts source-specific records into a common event format.
+Ubuntu sources produce native records, not ECS events. C++ ingests and parses these records and produces normalized events. Preserve native information and provenance where practical, including useful information with unresolved ECS mappings; do not require every native field to map immediately or silently discard unmapped information. Raw-record retention remains subject to privacy controls.
+
+C++ validates native inputs and outgoing normalized representations; Python independently validates received normalized contracts. Neither IPC endpoint may rely solely on validation at the other endpoint. Exact checks and failure behavior remain open.
 
 The detection engine should not need to understand the original source format. See [Event Schema](event-schema.md).
 
@@ -193,11 +260,11 @@ Reliability requirements:
 
 The Python component receives normalized events and performs analysis.
 
-It will initially consist of five logical modules.
+The initial event-processing design has five logical modules below. Capability and field-coverage responsibilities are described separately above; exact module placement remains open.
 
 | Module | Responsibility |
----------------------------------------------------------------
-| Ingestion | Receive, validate, and process incoming events |
+|---|---|
+| Normalized-event receipt (backend ingestion) | Receive normalized C++ events and independently validate their contracts; no native OS collection |
 | Enrichment | Add contextual information to events |
 | Detection | Evaluate individual events against rules |
 | Correlation | Identify patterns across multiple events |
@@ -218,10 +285,10 @@ Potential rule configuration fields:
 - Matching conditions.
 - Time window.
 - Severity.
-- Confidence.
+- Detection indicators and supporting evidence.
 - Enabled/disabled state.
 
-YAML is the proposed configuration format.
+YAML is the proposed configuration format. Each rule must declare Required, Important, and Optional evidence by applicable event/role, with independent sensitivity annotations, source-semantic constraints, and explicit missing-data behavior. A missing Required field must not become a negative match or a claim of safety. See [rule field requirements](research/field-discovery.md#9-detection-rule-field-requirements).
 
 #### Correlation engine
 
@@ -246,7 +313,7 @@ Every generated alert should contain:
 - Associated detection rule.
 - Title.
 - Severity.
-- Confidence.
+- Detection indicators and supporting evidence.
 - Description of what happened.
 - Explanation of why the alert triggered.
 - Supporting event references.
@@ -256,7 +323,7 @@ Every generated alert should contain:
 
 Severity and confidence must remain separate concepts.
 
-Severity describes the potential impact of the activity. Confidence describes how strongly the available evidence supports the detection.
+Severity describes potential impact; confidence concerns interpretation of evidence. HIDS assigns neither numerical confidence scores nor automatic qualitative confidence labels. Preserve detection indicators, matched conditions, and source evidence; present missing information, benign explanations, and limitations. Users interpret findings, potentially with optional future AI assistance. See [evidence policy](confidence.md).
 
 ### 4.4 Data storage
 
@@ -264,10 +331,10 @@ SQLite will be the application's primary persistent storage system.
 
 The Python backend will own database writes. The C++ collector will communicate with Python rather than independently modifying the database.
 
-Initial database tables:
+Proposed initial database tables:
 
 | Table | Purpose |
--------------------------------------------------------------
+|---|---|
 | `events` | Normalized system events |
 | `alerts` | Generated security alerts |
 | `alert_events` | Relationships between alerts and events |
@@ -310,7 +377,8 @@ The API should:
 
 - Bind to localhost only.
 - Validate incoming Host and Origin headers.
-- Implement appropriate authentication and CSRF protections.
+- Enforce root-only human access to dashboard and security data through backend authentication and authorization, with appropriate CSRF protections. Authentication and whether sudo-authorized administrators qualify remain undecided. Localhost binding alone is insufficient.
+- Keep the backend unprivileged and grant collector permissions only as required per source; root-only human access does not require root services or a root browser.
 - Avoid exposing privileged system operations.
 - Validate user-supplied queries and configuration changes.
 
@@ -329,12 +397,13 @@ Proposed dashboard sections:
 - Recent security activity.
 - Monitoring health.
 - Collector status.
+- Descriptive source and field coverage, affected rule requirements, assessment freshness, and gap/recovery explanations; no overall security percentage.
 
 #### Alert Explorer
 
 - Alert list.
 - Severity indicators.
-- Confidence indicators.
+- Detection indicators, matched conditions, and evidence limitations.
 - Alert explanations.
 - Supporting event references.
 - Investigation suggestions.
@@ -374,7 +443,7 @@ Proposed dashboard sections:
 
 ## 5. Repository structure
 
-The repository is organized as follows:
+The following is a proposed target layout, not an inventory of implemented files. Entry points, build files, machine-readable schemas, and the root README shown here do not yet exist. Existing directories are scaffolding; see [documentation index](README.md) for current documents:
 
 ```text
 hids/
@@ -441,6 +510,7 @@ Development should proceed incrementally, with every milestone producing a funct
 - Define the IPC protocol.
 - Establish repository structure.
 - Document component responsibilities.
+- Establish the candidate catalog and rule-specific field requirements; define capability/field-assessment interfaces after research.
 
 **Acceptance criteria:** The architecture and interfaces are documented sufficiently to begin implementation.
 
@@ -461,22 +531,22 @@ Development should proceed incrementally, with every milestone producing a funct
 - Store and retrieve events.
 - Implement collector checkpointing and basic reliability mechanisms.
 
-**Acceptance criteria:** Events collected from Ubuntu reliably arrive in SQLite.
+**Acceptance criteria:** Events collected from Ubuntu reliably arrive in SQLite. Source unavailability must not stop functioning sources or authorized dashboard/stored-data access; source status, affected rule limitations, and detectable recovery must be demonstrated.
 
 ### Phase 3: Process and authentication monitoring
 
-- Integrate Linux Audit.
-- Capture process execution events.
+- Consume existing Linux Audit records where available, without logging configuration changes.
+- Observe process execution only where source records support it; report coverage gaps.
 - Collect authentication activity.
 - Enrich events with process and user metadata.
 
-**Acceptance criteria:** The application can demonstrate meaningful visibility into process and authentication activity.
+**Acceptance criteria:** Supported process and authentication visibility is demonstrated against actual existing Ubuntu records, with unavailable activity and fields explicitly reported.
 
 ### Phase 4: Detection engine
 
 - Implement rule evaluation.
-- Support YAML configuration.
-- Implement severity and confidence.
+- Finalize rule format; YAML remains proposed.
+- Implement severity, detection indicators, traceable supporting evidence, and limitations; no confidence scores or automatic labels.
 - Generate alerts.
 - Build automated detection tests.
 
@@ -488,7 +558,7 @@ Development should proceed incrementally, with every milestone producing a funct
 - Build React dashboard.
 - Add event search and filtering.
 - Add alert investigation.
-- Display system health.
+- Display system health, source/access changes, descriptive field coverage, and detection limitations.
 
 **Acceptance criteria:** Users can investigate collected events and generated alerts through a browser.
 
@@ -497,7 +567,7 @@ Development should proceed incrementally, with every milestone producing a funct
 - Implement time-window correlation.
 - Associate related events.
 - Improve process relationship tracking.
-- Add filesystem monitoring.
+- Evaluate additional filesystem monitoring as future work outside the initial existing-log scope.
 - Improve alert explanations.
 
 **Acceptance criteria:** The HIDS can recognize and explain meaningful multi-event patterns.
@@ -510,7 +580,7 @@ Development should proceed incrementally, with every milestone producing a funct
 - Configure automatic startup.
 - Implement installation, upgrade, and removal procedures.
 
-**Acceptance criteria:** A clean Ubuntu installation can install and operate the application without requiring the development environment.
+**Acceptance criteria:** A clean Ubuntu installation can install and operate the application without the development environment or changes to journald configuration, PAM configuration, auditd configuration, or Linux Audit rules at installation, startup, discovery, or runtime. Limited source availability is reported explicitly.
 
 ## 7. Testing and quality requirements
 
@@ -547,6 +617,8 @@ Testing must be incorporated throughout development.
 - Journal rotation.
 - Database growth.
 - Interrupted event transmission.
+- Missing, inaccessible and failing sources while other sources and authorized dashboard/stored-data access remain available.
+- Affected rule limitations and detectable source recovery without implying historical backfill.
 
 ### Performance testing
 
@@ -565,7 +637,10 @@ The HIDS should be lightweight enough for continuous operation on ordinary perso
 The following features are intentionally outside the initial implementation scope.
 
 | Feature | Reason for postponement |
-----------------------------------------------------------------------------
+|---|---|
+| Automatic logging/auditing configuration | Stretch goal requiring separate design/approval; the entire initial release preserves existing configuration |
+| Optional AI interpretation | Future assistance; independent of deterministic detection and subject to privacy design |
+| Additional filesystem monitoring | Evaluate after existing-log pipeline; source/interface choice remains proposed |
 | eBPF monitoring | Establish basic collection first |
 | Machine-learning detection | Begin with explainable rule-based detection |
 | Automatic remediation | Initial product is monitoring-only |
@@ -587,6 +662,11 @@ The following details require further investigation before implementation:
 5. What authentication mechanism should protect the local dashboard?
 6. What should the initial rule configuration schema support?
 7. How should the application handle collection gaps and monitoring interruptions?
+8. Does root-only access include sudo-authorized administrators?
+9. Which event fields and custom namespace, if any, should become the validated contract?
+10. How should capability/field assessments be sampled, stored, refreshed, and connected to rule readiness and recovery?
+11. How should missing or unreliable activity timestamps be represented? No fallback policy is finalized.
+12. Which concurrency, source-isolation and supervision mechanisms implement the established graceful-degradation requirement?
 
 These questions do not prevent us from proceeding with the overall architecture.
 
@@ -615,15 +695,20 @@ The following decisions constitute the initial agreed design baseline:
 - Ubuntu 26.04 LTS is the initial target platform.
 - The application will be local-first.
 - The collector will be written in C++20.
-- Analysis and detection will be implemented in Python.
+- Python receives/validates normalized C++ events and performs analysis, detection and correlation; native source ingestion/parsing remains in C++.
 - SQLite will provide local persistent storage.
 - Unix domain sockets will connect the collector and backend.
 - JSON Lines will provide the initial IPC serialization format.
 - FastAPI will expose the application API.
 - React and TypeScript will provide the dashboard.
-- Linux Audit and journald will provide the initial event sources.
+- Existing journald and available Linux Audit records are initial candidate sources; coverage is not guaranteed.
+- Throughout the initial release, HIDS must not modify journald configuration, PAM configuration, auditd configuration, or Linux Audit rules. This applies during installation, startup, discovery, and runtime.
+- Graceful degradation must preserve other sources, authorized dashboard/stored-data access, source status reporting, rule limitations, and detectable recovery.
+- ECS 9.5.0 is the initial reference: prefer Core and relevant Extended fields; `hids.*` is provisional.
+- Root-only human access, least privilege, and evidence-first detection without confidence scores or automatic labels are initial requirements.
 - Detection will use configurable rules and event correlation.
 - The application will not automatically remediate threats.
 - The application will eventually ship as a Debian package with systemd integration.
-- Components will communicate through documented and versioned interfaces.
+- Components will communicate through documented and versioned interfaces, with appropriate validation on both sides of IPC.
+- Activity time, collection time and processing/storage time remain distinct. Missing/unreliable activity timestamps are an unresolved schema decision; never invent them or silently substitute collection time.
 

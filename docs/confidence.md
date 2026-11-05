@@ -1,9 +1,11 @@
 # HIDS Detection Confidence and Evidence Context
 
-**Document version:** 0.3  
+**Document version:** 0.5  
 **Status:** Initial design baseline  
-**Last updated:** November 4, 2026  
+**Last updated:** November 5, 2026  
 **Applies to:** Detection rules, security alerts, and alert investigation
+
+This document defines initial-release requirements, not implemented behavior. The repository currently contains documentation and scaffolding only.
 
 ## 1. Purpose
 
@@ -54,6 +56,19 @@ HIDS must not present statements such as:
 This is a deliberate design decision, not merely a limitation of the first release.
 
 HIDS should provide evidence and relevant context rather than decide how certain the user should be.
+
+Monitoring coverage recommendations are within initial scope: explain missing
+fields, unavailable sources and limitations, and identify information that would
+improve monitoring. Threat remediation recommendations are outside initial scope.
+Neither evidence interpretation nor coverage recommendations authorize automatic
+remediation or logging configuration changes; additional logging configuration
+requires separate design and approval.
+
+Detection indicators must be preserved: observed attributes, matched conditions,
+counts, time windows, and related source records can explain why a rule fired.
+They are not confidence scores. Do not remove useful indicators merely because
+confidence scoring is prohibited, or combine them into an automatic certainty
+verdict. A severity indicator also remains distinct from confidence.
 
 ## 4. Evidence HIDS Should Present
 
@@ -227,7 +242,7 @@ The initial alert representation should prioritize storing and presenting:
 - Known limitations and missing evidence.
 - The rule's severity classification, where applicable.
 
-Any HIDS-specific alert fields should be defined in the HIDS custom namespace and documented separately from raw ECS event fields.
+Prefer existing ECS 9.5.0 Core and relevant Extended fields. Introduce custom alert fields only where ECS is inadequate, and document them separately from raw source records and normalized events. The proposed `hids.*` namespace is provisional; exact field paths and namespace selection remain undecided.
 
 Do not use `event.severity` or `event.risk_score` as substitutes for confidence. Those ECS fields have their own meanings.
 

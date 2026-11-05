@@ -1,8 +1,8 @@
 # HIDS Event Schema Design Process
 
-**Document version:** 0.1  
+**Document version:** 0.3  
 **Status:** Initial process baseline  
-**Last updated:** November 4, 2026  
+**Last updated:** November 5, 2026  
 **Applies to:** Research, design, validation, and evolution of the HIDS event schema
 
 ## 1. Purpose
@@ -50,13 +50,16 @@ Use the official ECS documentation and field reference to determine:
 - Whether it is Core or Extended.
 - Its allowed values or conventions, where defined.
 
-Useful references:
+Primary, pinned references:
 
-- ECS documentation: https://www.elastic.co/guide/en/ecs/current/index.html
-- ECS field reference: https://www.elastic.co/guide/en/ecs/current/ecs-field-reference.html
-- ECS GitHub repository: https://github.com/elastic/ecs
+- [ECS 9.5.0 source and documentation](https://github.com/elastic/ecs/tree/v9.5.0)
+- [ECS 9.5.0 field definitions](https://github.com/elastic/ecs/tree/v9.5.0/schemas)
 
-The project should pin its reference version and record any later decision to update it.
+Moving documentation is supplementary only:
+[latest guide](https://www.elastic.co/guide/en/ecs/current/index.html) and
+[latest field reference](https://www.elastic.co/guide/en/ecs/current/ecs-field-reference.html).
+These links do not change the pinned reference. A version change requires explicit
+approval and a recorded decision.
 
 ### 3.3 Linux source references
 
@@ -72,6 +75,23 @@ Initial candidates include:
 - Kernel journal records.
 
 These are candidates for investigation, not a commitment to use every source.
+Initial-release research must distinguish records available with existing Ubuntu
+configuration from records requiring additional logging. Throughout the initial release, HIDS must not modify journald configuration, PAM configuration, auditd configuration, or Linux Audit rules. This applies during installation, startup, discovery, and runtime. Additional logging configuration is a stretch goal requiring separate design and approval. Extra filesystem monitoring remains a future
+proposal. Report unavailable sources and consequent visibility limits; do not
+assume auditd or process execution records exist.
+
+## Broad field discovery
+
+Use the [field catalog and availability methodology](research/field-discovery.md)
+alongside this event-family process. A broad candidate catalog is not an event
+schema or an instruction to collect every value. Keep native observations,
+justified ECS mappings, and per-rule requirements separate. C++ owns native
+collection/ingestion/parsing/normalization; Python receives and validates normalized
+events, with appropriate validation preserved on both IPC endpoints. Discover native keys
+and types even before a mapping is clear; preserve practical, privacy-appropriate
+originals with provenance. Required/Important/Optional are rule-specific and
+Sensitive is independent; event-family priorities below are historical planning
+guidance, not universal field importance rankings.
 
 ## 4. Event Inventory
 
@@ -163,7 +183,7 @@ For each source field:
 3. Prefer an appropriate ECS Core field.
 4. Use an ECS Extended field if it is appropriate.
 5. If neither fits, document the gap.
-6. Propose a HIDS-specific field only when there is a concrete need.
+6. Propose a HIDS-specific field only when there is a concrete need and ECS is inadequate. The `hids.*` namespace is provisional, not required.
 
 Do not repurpose an existing ECS field to avoid creating a custom field.
 
@@ -188,7 +208,7 @@ Verify:
 
 - Field names and types.
 - ECS semantics.
-- Timestamp meaning.
+- Timestamp meaning; missing/unreliable activity time remains unresolved. Do not invent it or silently substitute collection time; retain collection and processing/storage times separately.
 - Source provenance.
 - Preservation of relevant source information.
 - Correct handling of missing fields.
@@ -216,7 +236,7 @@ This matrix tracks research and implementation status. Proposed ECS mappings are
 | Failed login | systemd journal, authentication logs, Linux Audit | `event.category`, `event.type`, `event.outcome`, `user.*` | Not investigated | Not implemented |
 | Process execution | Linux Audit, process metadata | `process.*`, `user.*`, `event.*` | Not investigated | Not implemented |
 | Process termination | Linux Audit or another verified source | `process.*`, `event.*` | Not investigated | Not implemented |
-| Privilege-related activity | Linux Audit, systemd journal | `process.*`, `user.*`, `event.*` | Not investigated | Not implemented |
+| Privilege-related activity | Linux Audit, systemd journal | `process.*`, `user.*`, `event.*` | Investigating: initial owner-reported sudo observations only; broader privilege activity and raw fixtures pending | Not implemented |
 | File creation or modification | Linux Audit; filesystem monitoring if needed | `file.*`, `process.*`, `user.*`, `event.*` | Not investigated | Not implemented |
 | Permission or ownership change | Linux Audit | `file.*`, `user.*`, `event.*` | Not investigated | Not implemented |
 | Service changes | systemd and Linux Audit | `service.*`, `user.*`, `process.*`, `event.*` | Not investigated | Not implemented |
@@ -246,7 +266,7 @@ For each event family, maintain a mapping record with the following information:
 | ECS field | Selected ECS field, if one applies |
 | Data type | Source and normalized data types |
 | Transformation | Any parsing, conversion, or normalization required |
-| Availability | Always present, conditional, optional, or unavailable |
+| Availability | Scoped Observed / Not observed in sample / Not emitted by source / Not applicable / Inaccessible / Collection failure / Unknown, with evidence and assessment time; see field discovery |
 | Reliability | Known limitations or ambiguity |
 | Provenance | How to trace the normalized value to its source |
 | Tests | Fixture and test cases validating the mapping |
@@ -322,7 +342,12 @@ Related ADR or issue:
 
 ### Research entries
 
-No event-family research has been completed yet. Initial status is recorded in the coverage matrix above.
+Initial owner-reported [sudo authentication observations](research/authentication.md)
+are now documented: successful and failed checks in one Ubuntu 26.04.1 VM. Complete
+raw fixtures, exact source-native keys/types, query transcripts, and finalized
+mappings remain pending; no event family meets all completion criteria below.
+The matrix's broad login families remain uninvestigated beyond this narrow sudo
+case. Apply the [field discovery methodology](research/field-discovery.md) next.
 
 ## 11. Completion Criteria
 
@@ -342,8 +367,8 @@ Completion does not mean the event family captures every possible detail. It mea
 
 ## 12. Related Documents
 
-- Current event contract: `event-schema.md`
+- Proposed event contract: [event-schema.md](event-schema.md)
 - Detection evidence and interpretation: `confidence.md`
 - Security assumptions and requirements: `threat-model.md`
 - Machine-readable schemas and fixtures: `../shared/schemas/`
-- Immediate work items: `../TODO.md`
+- Immediate work items: [todo.md](../todo.md)

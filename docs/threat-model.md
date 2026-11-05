@@ -1,8 +1,8 @@
 # HIDS Threat Model
 
-**Document version:** 0.2.0  
+**Document version:** 0.4.0  
 **Status:** Initial threat-model baseline  
-**Last updated:** November 4, 2026  
+**Last updated:** November 5, 2026  
 **Target platform:** Ubuntu 26.04 LTS
 
 ## 1. Purpose
@@ -11,7 +11,7 @@ This document records the initial security assumptions, trust boundaries, privil
 
 The HIDS is a security application, so its own architecture must avoid introducing unnecessary security risks.
 
-This is an initial baseline, not a complete threat analysis. Detailed attacker capabilities, attack trees, and risk ratings remain to be developed.
+These are requirements and design assumptions, not implemented protections. The repository currently contains documentation and directory scaffolding only. This is an initial baseline, not a complete threat analysis. Detailed attacker capabilities, attack trees, and risk ratings remain to be developed.
 
 ## 2. Product Security Scope
 
@@ -37,7 +37,7 @@ It will not:
 - Automatically quarantine or delete files.
 - Provide prescriptive instructions for stopping or removing threats as a product feature.
 
-Remediation and intrusion-prevention functionality are outside the initial release scope.
+Remediation, threat remediation recommendations, and intrusion prevention are outside initial scope. Monitoring coverage recommendations are within scope: explain missing fields, unavailable sources, limitations, and information that would improve monitoring. They do not authorize automatic configuration changes or threat remediation.
 
 ## 3. Security Objectives
 
@@ -82,7 +82,7 @@ The initial architecture has these major boundaries:
 
 1. **Operating system to collector:** The collector reads system logs, audit information, process metadata, and eventually selected filesystem activity.
 2. **Collector to Python backend:** Normalized events cross a local Unix domain socket using the initial JSON Lines serialization format.
-3. **Python backend to SQLite:** The backend validates and processes events, then owns database writes.
+3. **Python backend to SQLite:** The backend independently validates normalized C++ events, performs detection/correlation/security analysis, and owns database writes. It does not independently ingest native OS records. C++ validates native input and outgoing normalized representations; preserve validation on both IPC endpoints.
 4. **Browser to local API:** The dashboard communicates with the FastAPI service, which is intended to bind to localhost only.
 5. **Application to local user:** Dashboard and API access must be authenticated and authorized according to the root-only access policy.
 
@@ -95,16 +95,21 @@ The permissions, validation requirements, and failure behavior at each boundary 
 Privileged installation operations may:
 
 - Create service accounts.
-- Configure systemd units.
-- Configure required audit rules.
+- Configure HIDS application systemd units.
 - Establish filesystem permissions.
 - Install application files.
+
+Throughout the initial release, HIDS must not modify journald configuration, PAM configuration, auditd configuration, or Linux Audit rules. This applies during installation, startup, discovery, and runtime.
+It uses existing Ubuntu logging and auditing infrastructure. Automatically
+configuring additional logging or auditing is a stretch goal requiring separate design and approval. Changes to HIDS application files and its own service units are distinct from changes to Ubuntu logging configuration. The earlier baseline
+allowed audit-rule configuration; that permission is superseded as recorded in
+[ADR-004](decisions/004-privilege-separation.md).
 
 These operations do not imply that the application services should run as root.
 
 ### 6.2 C++ collector
 
-The collector runs with the minimum permissions required to access its monitoring sources.
+The C++ collector owns source collection, native ingestion/parsing, normalization and collection-side event processing, with the minimum permissions required for its monitoring sources.
 
 Its privileges should be evaluated individually for journald, audit, and filesystem monitoring.
 
@@ -263,7 +268,22 @@ The collector and ingestion pipeline should:
 - Maintain collection checkpoints.
 - Handle collector and system restarts.
 
+Graceful degradation is an initial-release requirement. If a collection source
+is missing, inaccessible, or failing, other functioning sources must continue
+operating. The dashboard and stored data must remain accessible under the existing
+authorization policy. Report the affected source's status and limitations of rules
+that require unavailable information; recovery must be detectable. This does not
+promise historical backfill. Concurrency, process isolation, and supervision
+mechanisms remain undecided.
+
 The precise acknowledgment mechanism, gap detection behavior, and recovery guarantees remain open design questions.
+
+[Capability and field discovery](research/field-discovery.md) must distinguish
+source availability/access from fields actually observed and from rule readiness.
+Reassess at startup, periodically, and after source changes; identify gaps and
+failures and explain recovery limits. Empty history does not establish a healthy
+collector. Check actual service identities without automatically granting access.
+Protect capability inventories and coverage reports as security data.
 
 An attacker who can impair collection or alter local records may undermine the HIDS even without obtaining access to the dashboard.
 
@@ -283,12 +303,23 @@ Initial principles:
 - Document exactly what information is collected.
 - Protect raw source records, exports, and backups.
 - Sanitize test fixtures before committing them to the repository.
+- Distinguish discovery of field existence/types from retention of actual values;
+  broad catalogs do not authorize indiscriminate collection.
+- Arguments, environment variables and original messages may contain credentials;
+  usernames, IP addresses and linked identifiers also need privacy review.
+- Preserve representative raw research records only in a protected environment,
+  under bounded retention; avoid leaking sensitive payloads through diagnostics.
 
 The initial event retention period and disk usage limits remain open design questions.
 
+Source availability is not guaranteed: do not assume auditd is present or that
+process execution or filesystem changes are recorded. Report missing sources,
+fields, collection gaps, and resulting visibility limitations. Missing records
+are not proof that activity did not occur.
+
 ## 12. Initial Detection Scope
 
-The first version is intended to detect a small set of useful, testable scenarios:
+The following are proposed initial scenarios and severity defaults, not implemented rules or guaranteed initial-release coverage. Each requires source feasibility research under the existing-logging constraint:
 
 | Rule ID | Detection | Initial severity |
 |---|---|---|
@@ -299,6 +330,8 @@ The first version is intended to detect a small set of useful, testable scenario
 | FILE-001 | Modification of selected sensitive system files | High |
 
 These are initial classifications, not universal judgments. The scenarios are not proof that an attack occurred. Rules should be configurable, and false positives should be treated as an important engineering concern.
+
+Preserve detection indicators, matched conditions, and supporting evidence. Do not assign numerical confidence scores or automatic qualitative confidence labels; severity is separate from confidence. Users interpret findings, potentially with optional AI assistance. See [confidence.md](confidence.md).
 
 The initial HIDS is detection-only. It must not automatically remediate, block, terminate, quarantine, or modify the system in response to these detections.
 
@@ -334,6 +367,7 @@ The following items require further investigation:
 9. Which attacker capabilities are in scope for the first release, beyond the known root-compromise limitation?
 10. What protections are needed for local browser-to-API requests, including Host, Origin, and CSRF handling?
 11. What is the recovery behavior when the collector, backend, or database becomes unavailable?
+12. Which concurrency, isolation and supervision mechanisms will implement graceful degradation without coupling source availability?
 
 ## 15. Related Documents
 
