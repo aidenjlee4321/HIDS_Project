@@ -1,0 +1,32 @@
+{
+  "protocol_version": 1,
+  "message_type": "event",
+  "contract_version": "m1.process-exec/0.1.0",
+  "ecs_reference_version": "9.5.0",
+  "event_id": "84990d10-90c8-4ed5-a96a-9dbaebf3cfba",
+  "producer_instance_id": "15729e8d-54b8-4cd0-a74f-09e7492ad870",
+  "source": {
+    "adapter": "linux.cn_proc",
+    "mode": "sanitized_fixture",
+    "fixture_id": "synthetic-exec-001",
+    "boot_id": null
+  },
+  "native": {
+    "what": "PROC_EVENT_EXEC",
+    "what_code": 2,
+    "pid": 4242,
+    "tgid": 4242,
+    "parent": null,
+    "cpu": 3,
+    "connector_sequence": 2,
+    "timestamp_ns": "12345678901234567",
+    "timestamp_unit": "ns",
+    "timestamp_clock": "linux.cn_proc.timestamp_ns"
+  },
+  "timestamps": {
+    "activity_wall_time": null,
+    "activity_wall_time_reason": "not_emitted_by_source",
+    "observed_at": "2026-11-07T20:00:00.000000Z",
+    "observation": "fixture_decode"
+  }
+}

@@ -92,7 +92,8 @@ current documentation-only task.
 - [x] Authorize and implement a narrow C++ cn_proc adapter/native parser with bounded polling, explicit cleanup, source status/diagnostics and offline tests; [adapter scope](collector/README.md).
 - [x] Record successful Ubuntu 26.04.1 / kernel 7.0.0-42-generic / aarch64 / GCC 15.2.0 strict compilation, both offline unit suites and complete production link smoke test; [validation evidence](docs/validation/collector-ubuntu-validation.md).
 - [ ] Validate live production connector operation, intended service-account access, shutdown and runtime reliability under a separately approved bounded plan; neither offline tests nor the research experiment closes this gate.
-- [ ] Review the [readiness decision register](docs/implementation/v0.1-implementation-plan.md#decision-register) and approve the constrained fixture pilot before production envelope/IPC/SQLite integration.
+- [x] Owner approved constrained synthetic M1 P-01–08 on November 7, 2026; broader production decisions remain in the [readiness register](docs/implementation/v0.1-implementation-plan.md#decision-register).
+- [ ] Complete [M1 acceptance](docs/validation/m1-pilot-validation.md): synthetic implementation and local boundary tests exist; actual Ubuntu two-process/failure-suite and retrieval evidence remain pending.
 - [ ] Design best-effort `/proc` enrichment, process/boot identity and privacy policy; no automatic collection of arguments or environments.
 - [ ] Resolve shared normalization/IPC contracts and integration after the native milestone.
 
@@ -131,6 +132,6 @@ Monitoring coverage recommendations are within initial scope; threat remediation
 recommendations and automatic remediation are outside initial scope. Accepted
 technology choices remain unchanged and require explicit approval for reconsideration.
 No automatic remediation. This backlog does not itself authorize dependency installation, host changes or
-new implementation or benchmarking during the current product-direction documentation task. The native adapter
-was previously authorized; future v0.1 pipeline work needs a subsequent implementation
-task, and v0.2 remains a planned direction requiring separate design/approval.
+implementation outside the expressly approved synthetic M1 task or new benchmarking.
+M1 authorization covers its fixture pipeline and private tests; live-source integration,
+later v0.1 milestones and v0.2 require separate authorization.

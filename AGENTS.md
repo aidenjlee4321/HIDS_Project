@@ -14,9 +14,12 @@ production operation, intended service-account access, runtime reliability and
 normalized integration remain unvalidated. See
 [Ubuntu validation](docs/validation/collector-ubuntu-validation.md),
 [research tooling](scripts/research/README.md) and [adapter scope](collector/README.md).
-There are no application service entry points,
-dependency manifests, build configuration, machine-readable event schemas, or
-integrated application tests yet. Do not describe planned functionality as working coverage.
+The approved synthetic M1 pilot now has separate C++ normalization/transport,
+Python validation/storage and test harnesses; Ubuntu acceptance is pending. See
+[M1 validation](docs/validation/m1-pilot-validation.md) and
+[test commands](tests/integration/README.md). There are no production service entry
+points, dependency manifests/build framework or real-source integrated pipeline.
+Do not describe planned functionality or skipped tests as working coverage.
 
 ## Decision authority and reading order
 
@@ -240,10 +243,15 @@ task supersedes the earlier documentation-only task scope only for temporary
 observational research scripts, private local reports and harmless owned test
 processes. A prior owner task authorized the narrow production C++ process adapter described
 in [ADR-006](docs/decisions/006-provisional-process-collection.md). The current task
-incorporates the November 7 agreed v0.1 product/first-run/resource direction:
-add documentation only, with no additional application functionality or benchmarks.
+is the owner-authorized November 7 synthetic M1 implementation under accepted
+[P-01–08](docs/implementation/m1-pilot-contract.md): fixture/parser/normalization,
+Unix stream JSON Lines, independent Python validation, Python-owned SQLite and
+retrieval with private non-root tests only. No live collection, privileges/accounts,
+HTTP/dashboard, rules/alerts, v0.2 work or configuration changes are authorized.
+The vendored dependency is already verified; install no additional dependencies.
 The plan and decision register are recommendations and approval gates, not new
-authorizations or finalized contracts. Planning a future v0.1 backend/dashboard
+authorizations or finalized production contracts beyond the approved M1 scope.
+Planning a future v0.1 backend/dashboard
 is not implementation authorization; do not add correlation, remediation or finalized ECS/IPC contracts.
 Install no dependencies, change no host configuration, execute no destructive
 commands, and perform no Git operations. Further production scope requires a new user task; this file does not authorize

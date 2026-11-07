@@ -9,7 +9,9 @@ This directory contains the design and technical documentation for the HIDS proj
 | [product-experience.md](product-experience.md) | Accepted v0.1 product/first-run confirmation and measured lightweight operation; navigation/severity labels proposed |
 | [validation/collector-ubuntu-validation.md](validation/collector-ubuntu-validation.md) | Owner-reported Ubuntu ARM64/GCC 15.2.0 strict compilation, offline suites and production link success; live/account/reliability unvalidated |
 | [implementation/v0.1-implementation-plan.md](implementation/v0.1-implementation-plan.md) | Readiness inventory, proposed end-to-end design, permission matrix, decision register and gated milestones |
-| [implementation/m1-pilot-contract.md](implementation/m1-pilot-contract.md) | M0 proposal for one synthetic EXEC through C++/Unix JSON Lines/Python/SQLite/retrieval; concrete choices awaiting approval, not implemented |
+| [implementation/m1-pilot-contract.md](implementation/m1-pilot-contract.md) | Owner-approved P-01–08 for synthetic M1 only; authoritative envelope/IPC/storage/security contract |
+| [validation/m1-pilot-validation.md](validation/m1-pilot-validation.md) | M1 implementation/local test evidence; actual Ubuntu acceptance pending |
+| [../tests/integration/README.md](../tests/integration/README.md) | Exact M1 build/regression/integration commands and private harness boundaries |
 | [release-scope.md](release-scope.md) | Accepted minimal v0.1 requirements and completion criteria; correlation/multi-event evidence deferred to planned v0.2 |
 | [architecture.md](architecture.md) | Overall system architecture, components, technology stack, roadmap, and implementation objective |
 | [event-schema.md](event-schema.md) | Proposed canonical event structure and normalization conventions; ECS reference is established, detailed contract is not |

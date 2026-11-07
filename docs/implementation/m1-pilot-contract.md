@@ -1,10 +1,11 @@
-# M1 fixture-to-database pilot contract proposal
+# M1 fixture-to-database pilot contract
 
-**Status:** Architecture approved in principle; P-01–08 await explicit owner approval before implementation  
+**Status:** Approved by project owner for M1 only; implementation authorized  
 **Recorded:** November 7, 2026  
-**Proposed event contract:** `m1.process-exec/0.1.0`  
-**Proposed wire protocol:** integer version `1`  
-**Scope:** M0 design for one sanitized EXEC fixture; no pipeline implemented
+**Owner approval:** November 7, 2026 — P-01 through P-08 accepted for the synthetic M1 pilot only  
+**Approved M1 event contract:** `m1.process-exec/0.1.0`  
+**Approved M1 wire protocol:** integer version `1`  
+**Scope:** Synthetic EXEC fixture-to-database M1 implementation; no live collection or production deployment
 
 ## 1. Purpose and decision boundary
 
@@ -16,9 +17,9 @@ Python-owned SQLite commit → retrieval by event ID.**
 
 The accepted C++20/Python split, Unix sockets/JSON Lines, Python-owned SQLite,
 ECS 9.5.0 foundation and [ADR-001–007](../decisions/) remain unchanged. This note
-supplies specific **recommended pilot choices**, not an accepted production
-schema, service deployment or permission policy. Approval of this exact pilot
-would settle only the listed M1 choices. Changes discovered during coding must
+records **approved M1-only choices**, not a canonical production
+schema, service deployment or permission policy. Owner approval accepts exactly
+P-01–08 below for this pilot. Changes discovered during coding must
 return for review rather than silently changing the contract.
 
 The [readiness plan](v0.1-implementation-plan.md#decision-register) retains the
@@ -515,6 +516,11 @@ handles may it remove the exact fresh directory it created; no broad `/tmp` clea
 
 ### What was actually checked
 
+The inventory below is historical M0 evidence, before dependency vendoring. The
+current canonical dependency matches all owner-verified Ubuntu transfer hashes;
+see [M1 validation](../validation/m1-pilot-validation.md). No new dependencies are
+needed or authorized for M1.
+
 The repository has no CMake/Make configuration, Python dependency manifest,
 lockfile, vendored JSON library or shared executable schema. Its existing C++
 adapter uses standard/system headers, not a JSON dependency. The current local
@@ -551,9 +557,10 @@ Version/license evidence: [nlohmann/json 3.12.0 release](https://github.com/nloh
 license notices must accompany any future redistribution; no dependency was
 downloaded, installed or added to manifests during this proposal.
 
-**Recommendation requiring approval:** vendor the pinned upstream single
+**Accepted P-07:** vendor the pinned upstream single
 `json.hpp` with MIT license and a provenance/digest note under
-`collector/third_party/nlohmann/` in the future M1 change. No configure-time
+`collector/third_party/nlohmann/`; acquisition is complete and those files remain
+unchanged during M1. No configure-time
 network fetch, system package install or new build framework. Review upstream
 artifact provenance and record its digest when obtaining it; no checksum is
 invented here. Use existing `c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror`,
@@ -820,9 +827,10 @@ No benchmark or experiment is run by writing this design.
 
 ## 10. Owner approval package and remaining gates
 
-The architecture is approved in principle; each concrete P-01–08 package below
-still requires **explicit owner approval**. Approve or amend these together before
-M1 coding; there should be no hidden architectural choice left to implementers.
+The owner explicitly approved **all eight packages P-01–08 on November 7, 2026**:
+P-01 fixture integration; P-02 envelope/time; P-03 identity; P-04 IPC; P-05 harness
+security; P-06 storage; P-07 dependency/build; P-08 evidence/limits. These decisions
+are accepted for M1 only; unrelated production questions remain open.
 
 | Approval | Concrete choice to review | Scope retained as unresolved |
 |---|---|---|
@@ -835,13 +843,13 @@ M1 coding; there should be no hidden architectural choice left to implementers.
 | P-07 — dependency/build (D-13) | Approval to obtain/vendor nlohmann/json 3.12.0 with MIT/provenance; no other added dependency; existing compiler recipes and standard-library Python validators/tests | Global build/package tooling, deployed dependency/runtime versions |
 | P-08 — evidence/limits | Full matrix, separately recorded Ubuntu execution/preflight and unchanged native regressions; pilot thresholds explicitly not product budgets | Live connector/service-account validation, v0.1 resource benchmarking and release acceptance |
 
-Approve acquisition method/version/license before adding the JSON header. If VM
+The pinned dependency has been acquired and verified; preserve its exact files. If VM
 preflight finds an absent or incompatible tool/runtime, report the exact blocker
 and request a separate dependency decision; do not install or silently change
 technology. Owner approval of this document alone does not install accounts,
 grant privileges, authorize real collection or finalize production contracts.
 
-**Next action after review:** a separate M1 implementation task referencing the
-approved P-01–08 choices, limited to the fixture/parser/normalization/IPC/validation/
+**Authorized implementation:** the owner has issued the separate M1 task,
+limited to the approved fixture/parser/normalization/IPC/validation/
 SQLite/retrieval slice and tests. Preserve broader product/security decisions and
 return any discovered contract conflict to the owner before changing this pilot.

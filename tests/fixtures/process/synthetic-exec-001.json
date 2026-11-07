@@ -1,0 +1,12 @@
+{
+  "what": "PROC_EVENT_EXEC",
+  "what_code": 2,
+  "pid": 4242,
+  "tgid": 4242,
+  "parent": null,
+  "cpu": 3,
+  "connector_sequence": 2,
+  "timestamp_ns": "12345678901234567",
+  "timestamp_unit": "ns",
+  "timestamp_clock": "linux.cn_proc.timestamp_ns"
+}

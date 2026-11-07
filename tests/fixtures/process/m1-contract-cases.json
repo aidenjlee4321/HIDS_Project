@@ -1,0 +1,312 @@
+[
+  {
+    "name": "valid",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "valid"
+  },
+  {
+    "name": "missing_protocol_version",
+    "input": "{\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "missing_message_type",
+    "input": "{\"protocol_version\":1,\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "missing_contract_version",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "missing_ecs_reference_version",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "missing_event_id",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "missing_producer_instance_id",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "missing_source",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "missing_native",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "missing_timestamps",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "unsupported_protocol_version",
+    "input": "{\"protocol_version\":2,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "unsupported_version"
+  },
+  {
+    "name": "typed_protocol_version",
+    "input": "{\"protocol_version\":true,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "unsupported_contract_version",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"unsupported\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "unsupported_version"
+  },
+  {
+    "name": "typed_contract_version",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":true,\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "unsupported_ecs_reference_version",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"unsupported\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "unsupported_version"
+  },
+  {
+    "name": "typed_ecs_reference_version",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":true,\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_pid_True",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":true,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_pid_1.0",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":1.0,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_pid_'1'",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":\"1\",\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_pid_None",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":null,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_pid_-1",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":-1,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_tgid_True",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":true,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_tgid_1.0",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":1.0,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_tgid_'1'",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":\"1\",\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_tgid_None",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":null,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_tgid_-1",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":-1,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_cpu_True",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":true,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_cpu_1.0",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":1.0,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_cpu_'1'",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":\"1\",\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_cpu_None",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":null,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_cpu_-1",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":-1,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_connector_sequence_True",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":true,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_connector_sequence_1.0",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":1.0,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_connector_sequence_'1'",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":\"1\",\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_connector_sequence_None",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":null,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_connector_sequence_-1",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":-1,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_what_code_True",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":true,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_what_code_1.0",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":1.0,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_what_code_'1'",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":\"1\",\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_what_code_None",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":null,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_what_code_-1",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":-1,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "monotonic_",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "monotonic_00",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"00\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "monotonic_-1",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"-1\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "monotonic_1e5",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"1e5\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "monotonic_18446744073709551616",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"18446744073709551616\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "native_boundaries",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":7,\"tgid\":8,\"parent\":null,\"cpu\":4294967295,\"connector_sequence\":0,\"timestamp_ns\":\"18446744073709551615\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "valid"
+  },
+  {
+    "name": "bad_date_0000-01-01T00:00:00.000000Z",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"0000-01-01T00:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "bad_date_2026-02-29T00:00:00.000000Z",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-02-29T00:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "bad_date_2026-01-01T00:00:60.000000Z",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-01-01T00:00:60.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "bad_event_id50",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990D10-90C8-4ED5-A96A-9DBAEBF3CFBA\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "bad_event_id51",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "bad_source52",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"unexpected\":\"\\u00e9\"},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "bad_extra53",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":null,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"},\"extra\":7}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "invented_activity_2026-11-07T20:00:00.000000Z",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":\"2026-11-07T20:00:00.000000Z\",\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "invented_activity_0",
+    "input": "{\"protocol_version\":1,\"message_type\":\"event\",\"contract_version\":\"m1.process-exec/0.1.0\",\"ecs_reference_version\":\"9.5.0\",\"event_id\":\"84990d10-90c8-4ed5-a96a-9dbaebf3cfba\",\"producer_instance_id\":\"15729e8d-54b8-4cd0-a74f-09e7492ad870\",\"source\":{\"adapter\":\"linux.cn_proc\",\"mode\":\"sanitized_fixture\",\"fixture_id\":\"synthetic-exec-001\",\"boot_id\":null},\"native\":{\"what\":\"PROC_EVENT_EXEC\",\"what_code\":2,\"pid\":4242,\"tgid\":4242,\"parent\":null,\"cpu\":3,\"connector_sequence\":2,\"timestamp_ns\":\"12345678901234567\",\"timestamp_unit\":\"ns\",\"timestamp_clock\":\"linux.cn_proc.timestamp_ns\"},\"timestamps\":{\"activity_wall_time\":0,\"activity_wall_time_reason\":\"not_emitted_by_source\",\"observed_at\":\"2026-11-07T20:00:00.000000Z\",\"observation\":\"fixture_decode\"}}",
+    "expected": "invalid_event"
+  },
+  {
+    "name": "malformed_56",
+    "input": "",
+    "expected": "invalid_json"
+  },
+  {
+    "name": "malformed_57",
+    "input": "{\"a\":1,\"a\":2}",
+    "expected": "invalid_json"
+  },
+  {
+    "name": "malformed_58",
+    "input": "{\"a\":1,\"\\u0061\":2}",
+    "expected": "invalid_json"
+  },
+  {
+    "name": "malformed_59",
+    "input": "{\"a\":NaN}",
+    "expected": "invalid_json"
+  },
+  {
+    "name": "malformed_60",
+    "input": "{} {}",
+    "expected": "invalid_json"
+  },
+  {
+    "name": "malformed_61",
+    "input": "{\"x\":[[[[[[[[[]]]]]]]]]}",
+    "expected": "invalid_json"
+  }
+]
