@@ -1,4 +1,4 @@
-# Ubuntu authentication research: sudo
+# Ubuntu authentication research: sudo and SSH
 
 **Status:** Initial observations; candidate mappings only, no implementation  
 **Documented:** November 5, 2026  
@@ -7,8 +7,9 @@
 
 ## 1. Purpose and research scope
 
-Record the project's first Ubuntu authentication experiments: one successful sudo
-operation and one deliberately incorrect password entry. The evidence is the VM
+Record the project's Ubuntu authentication experiments: one successful sudo
+operation, one deliberately incorrect sudo password entry, and additional SSH
+journald investigation. The evidence is the VM
 observations supplied by the project owner, not experiments rerun while writing
 this document. Complete source records and capture transcripts were not supplied.
 
@@ -21,8 +22,9 @@ See the [schema research process](../schema-design-process.md),
 [proposed schema](../event-schema.md), [evidence policy](../confidence.md), and
 [threat model](../threat-model.md). See also the
 [field-discovery catalog and methodology](field-discovery.md), which uses these
-observations as its initial example. Observed concepts here do not establish exact
-source-native journal keys, serialization types, or universal field availability.
+observations as research examples. The SSH follow-up identifies native journal
+keys separately from message content; complete serialization types, per-record
+field presence, and universal field availability remain unverified.
 
 ## 2. Test environment
 
@@ -218,12 +220,97 @@ metadata, not a field observed in the original Ubuntu records. Exact `event.type
 `event.action`, provider/dataset, and higher-level activity representation remain
 undecided.
 
+## 7a. SSH journald follow-up
+
+**Evidence scope — owner-reported observations:** Ubuntu 26.04.1 LTS,
+systemd 259.9, OpenSSH 10.2p1. The SSH session process was
+`/usr/lib/openssh/sshd-session`, PID `5855`. Do not carry the sudo experiment's
+kernel, architecture, Audit status or configuration into this follow-up without
+confirmation. The experiment date, full capture commands, time window, and
+complete structured exports were not supplied.
+
+The reported journal selectors were `_COMM=sshd-session`,
+`_EXE=/usr/lib/openssh/sshd-session`, and `_PID=5855`. They returned overlapping
+records, not three independent sets of events. The earlier `_COMM=sshd` query
+missed these records because the actual process name was `sshd-session`.
+This is a demonstrated query-selection limitation in this environment, not proof
+that all SSH processes or versions use this name. No full command transcript or
+exhaustive collection filter has been established.
+
+**Observed message excerpts — sanitized, not complete records or fixtures:**
+
+| Record | Reported content |
+|---|---|
+| PAM authentication failure | `pam_unix(sshd:auth): authentication failure`; `uid=0`, `euid=0`, `tty=ssh`, `rhost=127.0.0.1`, `user=test-user` |
+| SSH authentication failure | `Failed password for test-user from 127.0.0.1 port 60018 ssh2` |
+| SSH authentication success | `Accepted password for test-user from 127.0.0.1 port 60018 ssh2` |
+| PAM session opening | `session opened for user test-user(uid=1000) by test-user(uid=0)` |
+| Logout-related error | `syslogin_perform_logout: logout() returned an error`; associated with systemd session `5` and Audit session `5` |
+
+The personal username is replaced consistently with `test-user`. Loopback address,
+client port, process and local session/UID numbers are retained for source semantics
+and local linkage; no cursor, boot or invocation identifier values are committed.
+The session-opening excerpt preserves the reported name/UID pairing; its identity
+roles require investigation rather than correction or inferred equivalence.
+
+Native journal metadata reported present in these records included `_PID`, `_EXE`,
+`_COMM`, `_SYSTEMD_UNIT`, `_SYSTEMD_INVOCATION_ID`, `_BOOT_ID`, `__CURSOR`,
+`__REALTIME_TIMESTAMP`, `__MONOTONIC_TIMESTAMP`, `_UID`, and `_GID`. This list
+establishes observed key presence across the inspected records, not that every
+record contained every key. Values other than the process selectors were not
+supplied. The native keys for the reported systemd/Audit session associations
+were not supplied. Message `uid`, `euid`, `user`, `rhost` and `tty` are distinct
+from emitter metadata such as `_UID` and `_GID`.
+
+**Interpretation and record boundaries:** The PAM failure and SSH Failed password
+messages appear to describe the same failed authentication attempt. Preserve both
+original records and their provenance; do not automatically count them as two
+attempts. This is different from retrieving the same journal entry through multiple
+selectors, which requires source-record deduplication. A correlated authentication
+activity may reference several distinct records; neither their grouping nor
+attempt identity is a finalized contract. The accepted-password and session-open
+messages describe different steps, and shared PID/peer/port alone does not finalize
+correlation or attempt counting. Journald supplies authentication method (`password`)
+and client source port in the SSH messages. The `ssh2` token is not a transport
+or cipher field by itself. The loopback observation does not establish external
+remote-login coverage.
+
+The logout error's meaning remains unresolved. Do not classify it as failed session
+closure, infer that the session stayed open, or assign a session-close failure
+outcome from this text alone. Systemd and Audit session IDs remain distinct even
+though both were reported as `5`. Journald and Linux Audit are complementary;
+this follow-up supplies no complete corresponding SSH Audit record set and does
+not establish cross-source equivalence or independent corroboration.
+
+### Additional candidate ECS mappings
+
+These are research candidates, not changes to the normalized contract. The pinned
+[ECS 9.5.0 source definitions](https://github.com/elastic/ecs/blob/v9.5.0/schemas/source.yml)
+and [process definitions](https://github.com/elastic/ecs/blob/v9.5.0/schemas/process.yml)
+support the field names and types below; source interpretation still needs fixtures.
+
+| SSH information | Candidate representation | Constraint / unresolved detail |
+|---|---|---|
+| `_PID`, `_EXE`, `_COMM` | `process.pid` (long), `process.executable` (keyword), `process.name` (keyword) | Emitting SSH session process; not the authenticated user's shell |
+| `rhost` / SSH client address | `source.ip` (ip); `source.address` (keyword) for original address | Validate address and client role; observed address is loopback |
+| SSH client port | `source.port` (long, Core) | Parse `60018` from message; not a server listening port |
+| Failed / Accepted password | `event.outcome` for the authentication check | Candidate failure/success; preserve method separately with mapping unresolved |
+| Account named in SSH message | `user.name`, with `user.id` only where justified | Distinguish authenticated account, opener and emitter credentials |
+| `_UID`, `_GID`; message UID/effective UID | Identity mappings unresolved per source role | Do not assign emitter credentials to the authenticated account |
+| Unit, invocation, boot, cursor and session context | Preserve native provenance; normalized mappings unresolved | No automatic `event.id`, process-session or service identity mapping |
+| Journal realtime / monotonic timestamps | Preserve native clocks and representations; mapping unresolved | No numeric times supplied; receipt timestamps are not automatically activity time; scope monotonic time by boot |
+| Logout error | Retained message; classification unresolved | No inferred failed session closure |
+
+Authentication-method, PAM service/module, `tty=ssh`, session identifiers and unit
+mappings need further pinned-field review. No custom namespace or field is approved.
+
 ## 8. Missing information and limitations
 
 - No complete raw journal entries, Audit records, timestamps, cursors, boot/host
-  identifiers, query transcripts, or sanitized machine-readable fixtures accompany
-  these observations. Field origin (journal metadata versus message content) is
-  not established. The tables cannot validate a parser.
+  identifier values, full query transcripts, or sanitized machine-readable fixtures
+  accompany these observations. SSH native key names and message content are now
+  distinguished, but complete per-record layout/types and sudo field origins remain
+  unverified. The tables cannot validate a parser.
 - Successful-record values and field presence were summarized, not enumerated per
   event. Parent PID, child execution details, command result/output, and exit
   status are not established by the supplied evidence.
@@ -247,7 +334,9 @@ undecided.
    ECS 9.5.0? Is any custom field actually necessary?
 4. What differs with a cached sudo credential, repeated failures, cancellation,
    noninteractive attempts, or a different target account?
-5. What observations are available for SSH, console, graphical login, and `su`?
+5. What differs across SSH methods, invalid users, retries, disconnects and normal
+   closure? What causes the logout error, and which session records establish
+   closure? Console, graphical login and `su` remain uninvestigated.
 6. What minimum read permissions and existing interfaces can HIDS use without
    modifying logging configuration or competing with auditd?
 7. How do source availability, rotation, reboot, and log loss affect visibility?
@@ -258,14 +347,19 @@ undecided.
 both journald and Linux Audit without explicitly configured Audit rules. The
 successful sequence spans five distinct Audit events; the failed check has an
 explicit failure result. These are account/activity observations, not proof of
-legitimate intent or a complete command execution trace.
+legitimate intent or a complete command execution trace. The SSH follow-up adds
+journal password outcomes, method, client port and session-opening context, with
+an unresolved logout diagnostic and important selection/deduplication limits.
 
 **Next experiments (proposed, not executed here):** Repeat both cases while recording
 exact commands, observation windows, complete sanitized structured source records,
 source timestamps and identifiers, and per-record field availability. Record
 Audit status before and after each run without changing rules. Compare cached
 credentials, one failure followed by success, cancellation, and alternate targets
-in the test VM. Then investigate other login paths and source access permissions.
+in the test VM. Capture complete SSH entries with cursor/boot/time context, compare
+overlapping selectors and paired PAM/SSH failures without double counting, and
+investigate logout semantics and corresponding existing Audit records. Investigate
+other login paths and source access permissions.
 
 Use those fixtures to review identity semantics, correlation boundaries and ECS
 mappings before finalizing contracts or implementing normalization. Keep any

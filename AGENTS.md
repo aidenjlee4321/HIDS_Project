@@ -6,10 +6,17 @@ Build a functional, local-first Host-Based Intrusion Detection System for an
 individual's computer, initially supporting **Ubuntu 26.04 LTS only**, with a local
 web dashboard. The product name is undecided.
 
-The repository currently contains design documentation and empty `.gitkeep`
-scaffolding, not an implemented HIDS. There are no application entry points,
+The repository contains design documentation, empty `.gitkeep` application
+scaffolding and temporary utilities under `scripts/research/`, not an implemented
+HIDS pipeline. A narrow production C++ process adapter and offline tests now exist;
+the owner reports successful Ubuntu offline compilation/unit/link checks. Live
+production operation, intended service-account access, runtime reliability and
+normalized integration remain unvalidated. See
+[Ubuntu validation](docs/validation/collector-ubuntu-validation.md),
+[research tooling](scripts/research/README.md) and [adapter scope](collector/README.md).
+There are no application service entry points,
 dependency manifests, build configuration, machine-readable event schemas, or
-executable tests yet. Do not describe planned functionality as working coverage.
+integrated application tests yet. Do not describe planned functionality as working coverage.
 
 ## Decision authority and reading order
 
@@ -18,12 +25,16 @@ owner's current decisions and take precedence over conflicting older documents.
 Do not silently revise them; explain conflicts and record agreed changes and their
 rationale in documentation and, where appropriate, an ADR.
 
-Read [architecture](docs/architecture.md), the five
-[ADRs (including the ADR-004 amendment)](docs/decisions/), [threat model](docs/threat-model.md),
+Read [product experience](docs/product-experience.md),
+[release scope](docs/release-scope.md), the
+[v0.1 readiness plan](docs/implementation/v0.1-implementation-plan.md),
+[architecture](docs/architecture.md), the
+[ADRs (including the ADR-004 amendment and provisional ADR-006 and accepted release-scope ADR-007)](docs/decisions/), [threat model](docs/threat-model.md),
 [evidence policy](docs/confidence.md), and
 [schema research process](docs/schema-design-process.md),
 [field discovery](docs/research/field-discovery.md), and
-[authentication research](docs/research/authentication.md) before relevant work.
+[authentication research](docs/research/authentication.md) and
+[process connector research](docs/research/process-connector.md) before relevant work.
 [proposed event schema](docs/event-schema.md) contains the unfinalized field
 contract. The former misleading filename is retained as a compatibility pointer. [todo.md](todo.md) is a backlog, not decision authority
 or proof that an item has not already been documented.
@@ -36,13 +47,13 @@ FastAPI → local dashboard.
 | Location | Responsibility / accepted baseline |
 |---|---|
 | `collector/` | C++20 OS collection, source-native ingestion/parsing, normalization, collection-side event processing, and transport |
-| `engine/` | Python normalized-event receipt/contract validation, enrichment, detection rules, correlation, security analysis, alerts, and SQLite writes; no independent OS collection |
+| `engine/` | Python normalized-event receipt/contract validation, enrichment, individual-event detection, alerts and SQLite writes in v0.1; correlation/multi-event evidence deferred to v0.2; no independent OS collection |
 | `rules/` | Rule definitions separate from engine implementation; authentication, process, and filesystem scaffolding |
 | `api/` | FastAPI routes and API schemas; initially modules within the Python service |
 | `frontend/` | React + TypeScript dashboard, Vite tooling, SSE for initial live updates |
 | `shared/schemas/` | Planned shared, versioned event contracts and schema fixtures |
 | `packaging/` | Planned Debian package, systemd units, and application configuration |
-| `tests/` | Unit, integration, detection, and sanitized source fixture scaffolding |
+| `tests/` | Native process adapter offline unit tests; integration, detection and sanitized source fixture scaffolding remain planned |
 | `docs/` | Architecture, security requirements, schema work, evidence policy, and ADRs |
 
 - Collector and backend are separate processes, communicating through Unix domain
@@ -58,6 +69,38 @@ FastAPI → local dashboard.
 - Prioritize a reliable end-to-end real-event pipeline before sophisticated rules
   or frontend features. Detection and multi-event correlation remain distinct.
 
+## Release scope
+
+[ADR-007](docs/decisions/007-initial-release-scope.md) accepts v0.1 as a complete
+minimal collection-to-dashboard HIDS: cn_proc lifecycle, best-effort `/proc`
+context, supported existing authentication/system logs, health/degradation,
+C++ normalization, Unix socket/JSON Lines, Python validation/SQLite and a root-only
+search/detail/basic-alert dashboard. Simple deterministic rules evaluate one event;
+repeated failures, success-after-failures, detection windows, process/behavioral
+sequences and cross-source correlation are v0.2 plans, not v0.1 requirements.
+
+Preserve event identifiers, provenance, original type/native information, available
+timestamps and process/parent IDs, and rule identity. A v0.1 alert must link to its
+one triggering event and explain its matched condition. Do not build multi-event
+supporting-evidence stores, aggregation, graphs or complex relationships in v0.1;
+do not hide correlation inside enrichment/normalization. Native multi-record
+parsing and transport deduplication are distinct operational responsibilities.
+v0.2 remains a planned direction, not a finalized specification or delivery promise.
+Do not finalize schemas or add dependencies based solely on these release goals.
+
+The accepted product direction also requires root-authorized first-run source
+recommendations/individual selection and confirmation **before** security-event
+collection. Preflight is metadata/non-collecting access assessment, not log payload
+sampling, `/proc` context gathering or a hidden cn_proc subscription. Discovery,
+assessment, draft/confirmed configuration, selected initialization and runtime
+health are separate. Source selection controls HIDS only, and failed initialization
+must not stop working confirmed subsets or authorized configuration/history access.
+Overview is the landing page; alerts sort severity then recency, ordinary events
+belong in Activity, and technical detail uses progressive disclosure. Navigation
+and severity labels remain proposals; no confidence/suspiciousness scores. Require
+idle/typical CPU, memory, disk/burst and slow receiver/database benchmarks, with
+actual acceptance thresholds established after measurement, not invented budgets.
+
 ## Product and security constraints
 
 - **Detection and explanation only.** Do not automatically block, terminate,
@@ -71,8 +114,10 @@ FastAPI → local dashboard.
   HIDS application files and its own service units are distinct from Ubuntu logging
   configuration. Additional logging configuration requires separate design and
   approval as a stretch goal.
-- Research actual Ubuntu source availability and behavior. Journald is the first
-  planned collector; Audit is an intended source whose usable coverage depends on
+- Research actual Ubuntu source availability and behavior. The owner now prioritizes
+  the narrow production process adapter; cn_proc is the provisional primary live
+  lifecycle candidate, `/proc` provides best-effort enrichment, and journald remains
+  a complementary planned source; Audit is an intended source whose usable coverage depends on
   existing configuration. Do not assume auditd is installed or that execution
   events are recorded. Never compete with auditd for the kernel audit stream.
   `/proc` snapshots are context, not a complete execution history.
@@ -122,7 +167,9 @@ FastAPI → local dashboard.
 - Validate normalized events at Python receipt. Future normalization and rule work needs
   representative sanitized fixtures and meaningful positive, negative, incomplete,
   duplicate, and failure cases. Test reliability, bounded resource use, and access
-  controls as those features are implemented; no test command currently exists.
+  controls as those features are implemented. Native adapter compilation, offline
+  unit-test commands and the complete production link smoke test are documented
+  in [collector/README.md](collector/README.md); integrated pipeline tests remain pending.
 
 ## Field and capability discovery
 
@@ -179,7 +226,8 @@ installation-time audit-rule permission as explicitly superseded history.
 `docs/event-schema.md` holds the schema draft; the old misleading path is a pointer.
 The architecture tree is explicitly a proposed target layout containing absent
 planned files. The index and lowercase `todo.md` distinguish documentation progress, initial
-owner-reported sudo research, and implementation (none). Complete raw fixtures and
+owner-reported authentication/process research, and the narrow native adapter
+implementation (no integrated HIDS pipeline). Complete raw fixtures and
 validated source mappings remain pending. Field discovery formalizes broad research
 without treating candidate concepts as tested source fields.
 
@@ -187,8 +235,16 @@ without treating candidate concepts as tested source fields.
 
 Prefer understandable, maintainable implementations and small, justified changes.
 Research instead of guessing; document decisions and limits without overengineering.
-Preserve useful historical reasoning and user work. The current task authorizes
-documentation reconciliation only: implement no HIDS functionality, install no
-dependencies, change no host configuration, execute no destructive commands, and
-perform no Git operations. Future implementation requires a new user task; this
-file does not authorize installation or deployment actions.
+Preserve useful historical reasoning and user work. The November 6 research-tooling
+task supersedes the earlier documentation-only task scope only for temporary
+observational research scripts, private local reports and harmless owned test
+processes. A prior owner task authorized the narrow production C++ process adapter described
+in [ADR-006](docs/decisions/006-provisional-process-collection.md). The current task
+incorporates the November 7 agreed v0.1 product/first-run/resource direction:
+add documentation only, with no additional application functionality or benchmarks.
+The plan and decision register are recommendations and approval gates, not new
+authorizations or finalized contracts. Planning a future v0.1 backend/dashboard
+is not implementation authorization; do not add correlation, remediation or finalized ECS/IPC contracts.
+Install no dependencies, change no host configuration, execute no destructive
+commands, and perform no Git operations. Further production scope requires a new user task; this file does not authorize
+installation or deployment actions.

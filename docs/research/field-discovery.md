@@ -2,6 +2,7 @@
 
 **Status:** Established design principles; proposed implementation, not implemented  
 **Documented:** November 5, 2026  
+**Last updated:** November 7, 2026  
 **Initial ECS reference:** 9.5.0
 
 ## 1. Purpose and design philosophy
@@ -27,6 +28,12 @@ Related documents: [architecture](../architecture.md),
 [authentication observations](authentication.md), [threat model](../threat-model.md),
 and [evidence policy](../confidence.md).
 
+Temporary [Ubuntu research scripts](../../scripts/research/README.md) can gather
+bounded inventory and controlled process observations for this methodology. They
+are manually run research aids, not the capability manager or field analyzer.
+One owner-reported [cn_proc lifecycle experiment](process-connector.md) now supplies
+scoped Ubuntu evidence; broad validation and sanitized full fixtures remain pending.
+
 ## 2. Relationship to capability discovery
 
 No separate capability-discovery specification existed when this document was
@@ -50,9 +57,18 @@ mechanisms remain undecided.
 
 The architecture must support startup discovery, periodic reassessment, changes
 in source availability, collection-gap/failure identification, and recovery when
-sources become available again. A proposed lifecycle is: inspect source/access
-state, inspect bounded samples and health signals, update scoped field evidence,
-reevaluate affected rules, and publish changes with reasons and assessment time.
+sources become available again. For first run, the accepted [product experience](../product-experience.md#first-run-experience)
+requires metadata/non-collecting access discovery, explained draft selections and
+explicit confirmation before any security-event sampling, event-reader initialization
+or subscription. Before confirmation, field information is documented possibility
+or scoped prior authorized evidence, not current sampled/Observed values. Static
+capability/access evidence is distinct from demonstrated runtime functionality.
+
+After confirmation for selected sources (or separately authorized research), a
+proposed assessment lifecycle is: inspect source/access state, inspect bounded
+samples and health signals, update scoped field evidence, reevaluate affected
+individual rules and publish changes with reasons/freshness. Unselected or newly
+discovered sources must not start collecting as a side effect of reassessment.
 A source returning does not erase a prior gap or prove historical backfill.
 Revalidate access and record continuity before describing monitoring as restored.
 
@@ -133,7 +149,12 @@ Research status legend:
 - **O-A:** Observed information in the owner-reported Audit authentication sample;
   complete raw field layout/types remain unverified.
 - **O-J:** Observed information in the owner-reported journal authentication sample;
-  exact structured key versus message origin remains unverified.
+  sudo key versus message origin remains unverified; see O-S for SSH.
+- **O-S:** Observed in the owner-reported SSH journald follow-up (Ubuntu 26.04.1,
+  systemd 259.9, OpenSSH 10.2p1); native keys and message content distinguished,
+  complete exports/types and per-record availability pending.
+- **O-P:** Observed in one owner-reported ordinary-user cn_proc lifecycle experiment;
+  full report/compiler provenance and broader coverage pending.
 - **O-E:** Reported experiment environment/status, not an event field observation.
 - **D-J:** Documented journal-field possibility in the reference above, not observed
   as that exact key in supplied records.
@@ -155,8 +176,26 @@ sensitive in combination with others.
 | Source clock/precision | Investigate timestamp provenance | Unresolved | string + units | Avoid invalid cross-source ordering | Low alone | U |
 | Observation time | Future collector clock | `event.created` | time | Measure observation delay | Behavioral timeline | U |
 | Storage arrival time | Future backend clock | `event.ingested` | time | Pipeline-gap analysis | Behavioral timeline | U |
-| Journal cursor | Investigate journal read metadata | Unresolved | opaque string | Checkpoint continuity | Linkability | U |
+| Journal cursor | SSH journal `__CURSOR` key observed; value not supplied | Unresolved | opaque string | Checkpoint continuity and overlapping-query deduplication | Linkability | O-S |
 | Message type ID | Journal `MESSAGE_ID` | `event.code` if semantically suitable | ID string | Stable message classification | Application use | D-J |
+
+Additional SSH native candidates (expected semantic types; export types unverified):
+
+| Candidate | Observed source | Candidate mapping / limitation | Expected type | Sensitivity |
+|---|---|---|---|---|
+| Journal realtime time | `__REALTIME_TIMESTAMP` | Unresolved clock/role mapping; no automatic activity-time substitution | time with units pending | Behavioral timeline |
+| Journal monotonic time | `__MONOTONIC_TIMESTAMP` | Preserve with boot scope; not wall-clock `@timestamp` | duration/ticks with units pending | Behavioral timeline |
+| Emitter GID | `_GID` | Credential role/mapping unresolved; distinct from account group | ID string | Sensitive membership |
+| Journal unit | `_SYSTEMD_UNIT` | Preserve native unit; service mapping unresolved | string | Service inventory |
+| Systemd session | Reported association `5`; native key unspecified | Unresolved; distinct from Audit session `5` and POSIX session | ID string | Sensitive linkability |
+| SSH protocol token | Message `ssh2` | Mapping unresolved; does not establish transport/cipher | string | Activity |
+| Logout-related diagnostic | `syslogin_perform_logout: logout() returned an error` | Meaning unresolved; not evidence of failed closure | string | Session history |
+
+All rows above have O-S scope. SSH PAM message `uid=0`, `euid=0`, `tty=ssh`,
+`user=test-user`, and session-opening name/UID roles are also observed; see the
+[sanitized SSH record summary](authentication.md#7a-ssh-journald-follow-up).
+They do not establish equivalence with emitter `_UID`/`_GID`. Audit session `5`
+is reported as associated context, not a supplied corresponding Audit record set.
 
 ### Host and operating system
 
@@ -164,7 +203,7 @@ sensitive in combination with others.
 |---|---|---|---|---|---|---|
 | Host identifier | Investigate existing host metadata | `host.id` | ID string | Scope correlations | Persistent identifier | U |
 | Host name | Investigate journal/system metadata | `host.name` | string | Attribute events | Device/person names | U |
-| Boot identifier | Investigate journal boot metadata | Unresolved | ID string | Bound PID/time reuse | Session linkability | U |
+| Boot identifier | SSH journal `_BOOT_ID` key observed | Unresolved | ID string | Bound PID/time reuse | Session linkability | O-S |
 | OS name/release | Reported Ubuntu 26.04.1 LTS | `host.os.name`, `host.os.version` | strings | Scope source behavior | Fingerprinting | O-E |
 | Kernel release | Reported `7.0.0-42-generic` | `host.os.kernel` | string | Compatibility limitations | Fingerprinting | O-E |
 | CPU architecture | Reported `aarch64` | `host.architecture` | string | Interpret platform-specific data | Fingerprinting | O-E |
@@ -175,7 +214,7 @@ sensitive in combination with others.
 | Candidate | Description / potential source | Proposed ECS equivalent | Expected type | Detection use | Sensitivity | Status |
 |---|---|---|---|---|---|---|
 | Record UID | Audit `uid`; role must be verified | `user.id` or `process.real_user.id` only if justified | ID string | Attribute subject identity | Sensitive identity | O-A |
-| Journal UID key | Journal `_UID`; distinct from message UID | `process.user.id` only after semantic review | ID string | Identify emitting process credentials | Sensitive identity | D-J |
+| Journal UID key | SSH journal `_UID`; distinct from message `uid`/`euid` | Identity mapping unresolved pending credential semantics | ID string | Identify emitting process credentials | Sensitive identity | O-S |
 | Effective UID | Failed journal observation; raw origin unknown | `process.user.id` | ID string | Explain process privilege | Sensitive identity | O-J |
 | Audit login UID | Audit `auid` semantic observation | Unresolved; not `user.audit.id` | ID string | Login attribution across privilege changes | Sensitive identity | O-A |
 | Journal login UID key | Journal `_AUDIT_LOGINUID` | Unresolved | ID string | Compare attribution across sources | Sensitive identity | D-J |
@@ -191,10 +230,10 @@ sensitive in combination with others.
 | Candidate | Description / potential source | Proposed ECS equivalent | Expected type | Detection use | Sensitivity | Status |
 |---|---|---|---|---|---|---|
 | Sudo PID | Audit and journal experiment PIDs | `process.pid` | integer | Link sudo steps within scope | Linkability | O-A, O-J |
-| Journal PID key | Journal `_PID`; exact key not supplied | `process.pid` | integer | Emitting process context | Linkability | D-J |
+| Journal PID key | SSH journal `_PID=5855` | `process.pid` | integer | Emitting process context | Linkability | O-S |
 | Executable path | Audit executable information; failed journal executable | `process.executable` | string | Executable-based rules | Private paths | O-A, O-J |
-| Journal executable key | Journal `_EXE` | `process.executable` | string | Compare executable attribution | Private paths | D-J |
-| Command name | Journal `_COMM` | `process.name` | string | Process selection | Application use | D-J |
+| Journal executable key | SSH `_EXE=/usr/lib/openssh/sshd-session` | `process.executable` | string | Compare executable attribution | Private paths | O-S |
+| Command name | SSH `_COMM=sshd-session`; `sshd` query missed these records | `process.name` | string | Process selection | Application use | O-S |
 | Full command line | Failed journal `sudo id` observation | `process.command_line` | string | Explain invoked action | Sensitive; credentials possible | O-J |
 | Argument vector | Investigate existing execution records; not reconstructible reliably from display text | `process.args` | list of strings | Argument-sensitive rules | Sensitive; credentials possible | U |
 | Working directory | Successful journal observation | `process.working_directory` pending semantic review | string | Execution context | Private paths | O-J |
@@ -202,11 +241,29 @@ sensitive in combination with others.
 | Exit status | Investigate completion records | `process.exit_code` | integer | Separate request from completion | Activity | U |
 | Environment keys/values | Future restricted research; no blanket collection | Unresolved | names / strings | Selected execution context | Sensitive; tokens/passwords possible | U |
 
+### Process connector observations (O-P scope)
+
+| Native concept | Observed information | Mapping / limitation |
+|---|---|---|
+| Lifecycle kind | FORK, EXEC, EXIT | Candidate process event classification; action/type contract unresolved |
+| Kernel PID / TGID | Child `13184` / `13184` | Preserve thread ID versus process ID; equal in this single-thread test only |
+| Parent PID / TGID | `13178` / `13178` on FORK/EXIT | Preserve roles; EXEC does not provide parents |
+| Emitting CPU | FORK CPU 2, EXEC/EXIT CPU 3 | Source provenance; not permanent process affinity |
+| Connector sequence | 1, 2, 3 with CPU scope | Not a global event ID or an exact loss counter |
+| Kernel monotonic time | Actual nanosecond values in [research record](process-connector.md#actual-reported-results) | No wall-clock substitution or mandatory ECS mapping |
+| Child termination | Successfully reaped with status 0 | User-space experiment observation; do not equate with a normalized native EXIT code |
+
+These additions do not establish executable-path, command-line or credential
+availability from the requested lifecycle mask. `/proc` enrichment remains
+best-effort future work; short-lived processes can disappear before inspection.
+The live subscription is distinct from historical source records, and ordinary-user
+access in this experiment does not prove access for the eventual service identity.
+
 ### Parent and child relationships
 
 | Candidate | Description / potential source | Proposed ECS equivalent | Expected type | Detection use | Sensitivity | Status |
 |---|---|---|---|---|---|---|
-| Parent PID | Investigate existing execution records or `/proc` context | `process.parent.pid` | integer | Parent-child patterns | Linkability | U |
+| Parent PID | Observed cn_proc FORK/EXIT parent ID; retain PID/TGID roles | `process.parent.pid` only after role review | integer | Parent-child patterns | Linkability | O-P |
 | Parent executable | Investigate parent context at event time | `process.parent.executable` | string | Unexpected launch origin | Private paths | U |
 | Parent start time | Investigate time-scoped parent identity | `process.parent.start` | time | Avoid parent PID reuse errors | Behavioral timeline | U |
 | Child execution identity | Investigate actual child execution evidence | Separate child event's `process.pid`; relationship unresolved | ID / integer | Distinguish sudo request and child execution | Linkability | U |
@@ -218,7 +275,7 @@ sensitive in combination with others.
 |---|---|---|---|---|---|---|
 | Authentication result | Audit `res` semantic result; journal PAM result | `event.outcome` for that check | string | Failed/successful check patterns | Security history | O-A, O-J |
 | Authentication operation | Audit `USER_AUTH` and journal PAM context | `event.action` naming unresolved | string | Distinguish checking credentials from opening session | Security history | O-A, O-J |
-| Authentication mechanism | Investigate PAM/application records | Unresolved | string | Differentiate mechanisms | Security configuration | U |
+| Authentication mechanism | SSH Failed/Accepted messages report `password`; PAM reports `pam_unix(sshd:auth)` | Unresolved; method and module/service are distinct | string | Differentiate mechanisms | Security configuration | O-S |
 | Grantors | Audit observation `?` | Unresolved | raw string / parsed list if justified | Explain authentication path | Security configuration | O-A |
 | Failure reason | Investigate explicit error information | `event.reason` if supported | string | Explain failed checks | Account/policy details | U |
 | Attempt sequence/retry marker | Investigate source markers, not inferred from duplicates | Unresolved | ID / integer | Count genuine attempts | Behavioral timeline | U |
@@ -232,8 +289,8 @@ sensitive in combination with others.
 
 | Candidate | Description / potential source | Proposed ECS equivalent | Expected type | Detection use | Sensitivity | Status |
 |---|---|---|---|---|---|---|
-| Authentication peer address | Investigate Audit `addr` / application logs; not supplied in sudo sample | `source.ip` only when IP/source meaning established | IP or original string | Remote authentication patterns | Sensitive identifier | U |
-| Source address/port | Investigate existing connection/application records | `source.ip`, `source.port` | IP + integer | Connection origin | Sensitive identifier | U |
+| Authentication peer address | SSH message address and PAM `rhost=127.0.0.1` | `source.ip`; original `source.address` after role validation | IP or original string | Authentication origin; loopback only observed | Sensitive identifier | O-S |
+| Source address/port | SSH messages report client `127.0.0.1` port `60018` | `source.ip`, `source.port` after parsing | IP + integer | Connection origin; not server port | Sensitive identifier | O-S |
 | Destination address/port | Investigate existing connection/application records | `destination.ip`, `destination.port` | IP + integer | Unexpected destinations | Sensitive identifier | U |
 | Protocol/transport | Investigate existing network records | `network.protocol`, `network.transport` | strings | Protocol-specific behavior | Activity | U |
 | Direction | Investigate host-relative network context | `network.direction` | string | Incoming/outgoing patterns | Activity | U |
@@ -266,7 +323,7 @@ sensitive in combination with others.
 | Emitting systemd unit | Journal `_SYSTEMD_UNIT` | Unresolved; unit is not automatically `service.name` | string | Attribute service logs | Service inventory | D-J |
 | Service name/state | Investigate existing service messages/state | `service.name`, `service.state` if equivalent | strings | Unexpected service transitions | Service inventory | U |
 | Unit definition path | Investigate existing unit metadata | `file.path` only for a file-centric event | string | Persistence investigation | Private paths | U |
-| Unit invocation identifier | Investigate existing journal/unit context | Unresolved | ID string | Bound service restarts | Linkability | U |
+| Unit invocation identifier | SSH journal `_SYSTEMD_INVOCATION_ID` key observed | Unresolved | ID string | Bound service restarts | Linkability | O-S |
 | Service enablement / override | Investigate existing records/configuration context | Unresolved | state / path | Persistence changes | Security configuration | U |
 | Credential lifecycle step | Audit `CRED_REFR` observed | `event.action` naming unresolved | string | Separate credential setup from authentication | Security history | O-A |
 | Privilege transition | Investigate before/after credentials; target root alone insufficient | User/effective/target fields where justified | identity pair + operation | Explain privilege changes | Sensitive identity | U |
@@ -298,8 +355,8 @@ sensitive in combination with others.
 
 All U entries remain Unknown, including candidates that would need configuration
 not allowed initially. No row establishes a requirement to enable a source.
-D-J establishes documented possibility only. O-A/O-J/O-E are bounded by the one
-reported VM investigation; they are not availability promises for other events.
+D-J establishes documented possibility only. O-A/O-J/O-S/O-P/O-E are bounded by their
+reported experiment scopes; they are not availability promises for other events.
 
 ## 5. Field importance and sensitivity
 
@@ -349,6 +406,13 @@ values, and inferred negatives as substitutes for these distinctions. The older
 schema draft's broad missing-data terms must be read with these finer research
 states; no new mandatory per-event custom diagnostic fields are introduced here.
 
+The product's recommendation/preselection is a usability choice, not a source
+ranking or proof of coverage. Explain usable/partial/unavailable/unsupported/
+unverified evidence to the authorized user, preserve draft versus confirmed versus
+runtime state and allow subsets. Runtime initialization can fail after confirmation.
+None of these distinctions finalizes the assessment schema or creates a capability
+manager implementation.
+
 ## 7. Initial collection methodology
 
 For every controlled experiment:
@@ -376,15 +440,24 @@ For every controlled experiment:
 11. Record unanswered questions, sanitizer transformations, fixture references,
     follow-up experiments, and which results have or have not been validated.
 
-The [sudo research](authentication.md) is the initial example, not a complete
+The [sudo research](authentication.md) is an initial example, not a complete
 execution of this protocol. It reports UID, login UID, account, session, terminal,
 PID, executable, authentication result, and other context. Exact journal keys,
 source serialization, timestamps and complete source records remain unavailable
-in the documentation. Do not label `_UID` Observed just because a message summary
-mentions UID. The reported `?` grantors value is present but unresolved, not a
+for sudo in the documentation. The SSH follow-up separately reports `_UID` and
+other native keys as observed; a message UID alone would not establish that. The reported `?` grantors value is present but unresolved, not a
 known named grantor. Audit serials 407–411 describe five separate events; linking
 them into one sudo activity must not erase that distinction. Audit status zeroes
 and absence of explicit rules do not prove complete execution auditing.
+
+The SSH follow-up establishes native key presence and message-level method/client
+port information in one scoped sample. Its three selectors overlap; deduplicate
+retrievals of the same source record separately from correlating distinct PAM and
+SSH records that appear to describe one failure. Preserve both failure records
+without automatically counting two attempts. Unit/boot/cursor/time key presence
+does not supply their values, guarantee continuity, or finalize mappings. The
+logout diagnostic remains unresolved, and the earlier `sshd` query miss is a
+selection gap rather than evidence of absent SSH activity.
 
 ## 8. Field coverage assessment
 
@@ -416,22 +489,34 @@ an empty alert list for a healthy capability/coverage report.
 
 ## 9. Detection-rule field requirements
 
+[Release scope](../release-scope.md) and
+[ADR-007](../decisions/007-initial-release-scope.md) limit v0.1 to individual-event
+rules and alert-to-triggering-event/rule traceability. The broad catalog also
+supports future research: time-window requirements, multi-event relationships,
+aggregation and behavioral sequences belong to v0.2 planning. A single failed
+authentication event may be categorized in v0.1; repeated failures and a subsequent
+success cannot be a v0.1 rule. Source-native multi-record parsing and per-event
+context are distinct from security correlation and must not conceal it.
+
 Each rule must declare its objective, applicable event families and roles,
 Required/Important/Optional information, source-semantic constraints, acceptable
-alternative mappings, freshness/window requirements, supporting-evidence links,
+alternative mappings, per-event freshness/context needs (correlation windows in
+v0.2 only), and triggering-event provenance (multiple supporting events in v0.2),
 missing-data behavior, and limitations/benign explanations. Sensitivity annotations
 and retention needs belong alongside these declarations, not in a ranking.
 An observed source value is not yet usable normalized evidence if mapping or
 validation is unresolved. Rules should consume justified normalized semantics,
 not silently depend on a particular raw source spelling.
 
-Examples below are proposed research requirements, not finalized or implemented rules:
+Examples below are proposed research requirements, not finalized or implemented
+rules or a mandatory v0.1 checklist. The inventory can grow without implementing
+evidence aggregation/relationship machinery or prematurely finalizing contracts:
 
 | Example detection | Required | Important | Optional | Missing-data consequence |
 |---|---|---|---|---|
-| Repeated authentication failures per account | Identifiable authentication check, failed result, account key with defined role, usable times/window, distinct event/evidence identities | Complete collection interval, terminal/session context | Executable, requested command | No valid account/result/time or deduplication basis: cannot evaluate this rule as specified; incomplete interval must be disclosed |
-| Success after failures for same account | Above plus successful check and validated same-account linkage | Session context and continuity across sources | Working directory | No reliable linkage or success result: cannot assert the specified sequence |
-| Execution from selected temporary paths | Actual execution evidence, executable path, evidence identity | Actor and reliable parent context | Requested command or session detail | Sudo command request alone is insufficient execution evidence |
+| Repeated authentication failures per account (v0.2 planning) | Identifiable authentication check, failed result, account key with defined role, usable times/window, distinct event/evidence identities | Complete collection interval, terminal/session context | Executable, requested command | No valid account/result/time or deduplication basis: cannot evaluate this rule as specified; incomplete interval must be disclosed |
+| Success after failures for same account (v0.2 planning) | Above plus successful check and validated same-account linkage | Session context and continuity across sources | Working directory | No reliable linkage or success result: cannot assert the specified sequence |
+| Execution from selected temporary paths (v0.1 candidate, source-dependent) | Actual execution evidence, executable path, evidence identity | Actor and reliable parent context | Requested command or session detail | Sudo command request alone is insufficient execution evidence |
 | Selected sensitive-file integrity change | Comparable before/after digests for identified object, baseline provenance, compatible algorithm, observation times | Ownership/mode and collection continuity | Package context | A file path or modification message alone cannot establish content integrity change |
 
 Rule readiness must be reassessed when sources/access/field evidence change and
@@ -512,6 +597,7 @@ Do not confuse any of these with a security-coverage percentage.
 Next: repeat sudo experiments with protected complete records and exact capture
 transcripts; inventory fields and types before mapping. Compare read access using
 intended identities in a separately authorized VM experiment. Then investigate
-existing SSH/console records and source continuity across naturally occurring
+additional SSH methods, paired failure records and logout semantics, console
+records, and source continuity across naturally occurring
 rotation/restart boundaries. No experiments or implementation occurred in this
 documentation task; no configuration change is authorized by these proposals.

@@ -2,10 +2,15 @@
 
 **Document version:** 0.5  
 **Status:** Initial design baseline  
-**Last updated:** November 5, 2026  
+**Last updated:** November 6, 2026  
 **Applies to:** Detection rules, security alerts, and alert investigation
 
-This document defines initial-release requirements, not implemented behavior. The repository currently contains documentation and scaffolding only.
+This document defines evidence/interpretation principles, not implemented alert
+behavior. The repository has a native process adapter and offline tests, not an
+integrated HIDS pipeline. [Release scope](release-scope.md) and
+[ADR-007](decisions/007-initial-release-scope.md) distinguish v0.1 single-event
+traceability from v0.2 multi-event supporting evidence and correlation. The
+prohibition on numerical and automatic qualitative confidence scoring is unchanged.
 
 ## 1. Purpose
 
@@ -30,13 +35,13 @@ These concepts must not be conflated.
 
 | Concept | Meaning | Example question |
 |---|---|---|
-| Detection | A configured rule matched an observed event or sequence of events | What behavior matched the rule? |
+| Detection | A configured rule matched an individual event (v0.1), or a supported sequence after future v0.2 design | What behavior matched the rule? |
 | Severity | The potential impact if the observed activity represents a security problem | How serious could this activity be? |
 | Confidence | An assessment of how strongly the available evidence supports an interpretation | How much does the evidence support this interpretation? |
 
 A rule match confirms that the rule's stated conditions were met. It does not, by itself, prove that an attack occurred.
 
-An alert can describe potentially serious activity while leaving its meaning uncertain. For example, HIDS may reliably observe a successful login after several failed attempts without knowing whether the login was performed by an attacker or by the legitimate user.
+An alert can describe potentially serious activity while leaving its meaning uncertain. For example, a future v0.2 rule may observe a successful login after several failed attempts without knowing whether the login was performed by an attacker or by the legitimate user.
 
 HIDS may assign a severity classification as part of a detection rule, but it must not present that classification as proof of malicious intent.
 
@@ -65,22 +70,31 @@ remediation or logging configuration changes; additional logging configuration
 requires separate design and approval.
 
 Detection indicators must be preserved: observed attributes, matched conditions,
-counts, time windows, and related source records can explain why a rule fired.
+the single triggering event and its source records can explain a v0.1 match.
+Counts, detection time windows and related independent events are v0.2 evidence
+concepts, not v0.1 implementation requirements.
 They are not confidence scores. Do not remove useful indicators merely because
 confidence scoring is prohibited, or combine them into an automatic certainty
 verdict. A severity indicator also remains distinct from confidence.
 
 ## 4. Evidence HIDS Should Present
 
-Every alert should make its supporting evidence accessible.
+Every v0.1 alert must be traceable to its one triggering normalized event, the
+identity of its generating rule and the condition that matched. Make available
+source provenance, native type/information and timestamp meanings inspectable
+under privacy/retention controls. Do not invent missing time or context.
+Multiple supporting independent events, aggregation, correlation graphs and
+relationship management are v0.2 plans, not required evidence infrastructure for
+v0.1. Native records forming one source-defined event are provenance, not permission
+to correlate a behavioral sequence inside a synthetic event.
 
 Where available, the alert should include or reference:
 
 - The detection rule that matched.
 - The observed activity and relevant timestamps.
-- The source of each supporting event.
+- v0.1: source provenance of the individual triggering event; v0.2: provenance of each supporting event.
 - The relevant user, process, file, service, or network information.
-- Related events used by the rule.
+- Related independent events used by a future v0.2 rule; excluded from v0.1 rule evaluation.
 - The conditions that caused the rule to match.
 - Missing, incomplete, or unreliable information.
 - Relevant collection gaps or parsing problems.
@@ -129,6 +143,8 @@ For example:
 Specificity depends on the rule and the normal behavior of the host. The location of an executable alone is not proof of malicious behavior.
 
 ### 5.3 Corroborating events
+
+**v0.2 planned investigation capability; not a v0.1 requirement.**
 
 Do other events provide relevant context?
 
@@ -180,7 +196,7 @@ Each rule should specify:
 3. **Required evidence:** Which fields or events are necessary for the rule to operate?
 4. **Limitations:** What cannot be established from the rule's evidence?
 5. **Benign explanations:** What legitimate activities may match the rule?
-6. **Supporting evidence:** Which event records should be attached to the alert?
+6. **Supporting evidence:** v0.1 references the single triggering event; v0.2 may define multiple supporting events after further design.
 7. **Tests:** Which positive, negative, and ambiguous cases validate the rule?
 
 Rules should describe what they detect, not claim more than their conditions establish.
@@ -196,7 +212,7 @@ The alert should explain:
 - The executing user.
 - The event source and timestamp.
 - Why the rule considers the location noteworthy.
-- Whether related process or filesystem events were observed.
+- In v0.2 planning, whether related independent process/filesystem events support a pattern; v0.1 does not evaluate those relationships.
 - What information is unavailable.
 
 The rule can accurately report that the execution matched its conditions. It should not conclude that the process is malware solely because it ran from a temporary directory.
@@ -237,7 +253,7 @@ The initial alert representation should prioritize storing and presenting:
 
 - The matched rule identifier and description.
 - The rule's match conditions.
-- References to supporting events.
+- v0.1: reference to the single triggering event; v0.2 planning: multiple supporting-event relationships.
 - Relevant source and collection metadata.
 - Known limitations and missing evidence.
 - The rule's severity classification, where applicable.
@@ -260,7 +276,7 @@ For each rule, build test cases covering:
 - Common benign behavior.
 - Missing fields.
 - Duplicate events.
-- Correlated event sequences.
+- Correlated event sequences (v0.2 tests only, not a v0.1 completion gate).
 - Collection or parsing failures.
 
 Testing should establish whether:

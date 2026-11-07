@@ -3,14 +3,21 @@
 
 **Document version:** 0.4.0
 **Status:** Initial design baseline  
-**Last updated:** November 5, 2026  
+**Last updated:** November 7, 2026  
 **Target platform:** Ubuntu 26.04 LTS  
 **Project name:** TBD
 
 ## Status and interpretation
 
-Only documentation and empty directory scaffolding exist; no collection, detection,
-storage, API, dashboard, or tests are implemented. Accepted technology choices are
+Documentation, empty application scaffolding and temporary
+[research utilities](../scripts/research/README.md) exist; the utilities are separate
+from the HIDS application. A narrow production C++ process-source adapter and
+offline tests now exist. Owner-reported Ubuntu ARM64/GCC 15.2.0 strict compilation,
+unit suites and production linking passed; [validation record](validation/collector-ubuntu-validation.md).
+Live production operation, service-account access and runtime reliability remain
+unvalidated.
+Normalization/IPC integration, Python receipt, storage, detection, API and
+dashboard are not implemented. Accepted technology choices are
 an architecture baseline, not working functionality. Detailed fields, endpoints,
 tables, rules, and layouts below are proposals unless explicitly identified as
 requirements. Roadmap phases are planned work, not completed milestones.
@@ -23,6 +30,13 @@ scores or automatic confidence labels; restrict human security-data access to ro
 maintain least privilege; store data locally and minimize sensitive collection.
 Additional logging/auditing configuration is a stretch goal requiring separate design and approval. Changes to HIDS application files and its own service units are distinct from changes to Ubuntu logging configuration.
 
+Release boundaries are defined in [release scope](release-scope.md) and accepted
+[ADR-007](decisions/007-initial-release-scope.md): v0.1 is the complete minimal
+pipeline, deterministic individual-event rules and a protected basic dashboard;
+correlation and multi-event supporting evidence are deferred to v0.2 planning.
+Future capabilities below are architectural direction, not implemented coverage
+or a commitment to deliver v0.2 as specified.
+
 ## 1. Project overview
 
 ### 1.1 Purpose
@@ -33,12 +47,17 @@ The application will monitor operating system activity, identify potentially sus
 
 This project focuses on making host-level security monitoring accessible to ordinary computer users.
 
+The intended [product experience](product-experience.md) lets an authorized user
+install, choose available HIDS sources and operate without Linux logging expertise.
+This usability goal preserves root-only access and least privilege. First-run
+source confirmation and lightweight measured operation are v0.1 requirements.
+
 The primary objectives are:
 
 - Collect and normalize operating system events.
 - Monitor process execution, authentication activity, and potentially suspicious system changes.
 - Identify suspicious activity through configurable detection rules.
-- Correlate related events to identify more complex behavioral patterns.
+- In v0.2 planning, correlate related events to identify behavioral patterns.
 - Explain security alerts in understandable language.
 - Provide searchable event history and an interactive dashboard.
 - Store collected information locally by default.
@@ -90,9 +109,9 @@ The architecture should avoid unnecessary Ubuntu-specific dependencies outside t
 |---|---|---|
 | Event collector | C++20 | Operating system integration and event collection |
 | System log integration | systemd journal API | Collect structured system logs |
-| Process monitoring | Existing Linux Audit records, where available | Observe only activity already recorded; coverage requires research |
+| Process monitoring | cn_proc (provisional primary lifecycle candidate) | Live FORK/EXEC/EXIT; one controlled ordinary-user feasibility observation, no complete-delivery guarantee |
 | Filesystem monitoring (future proposal) | inotify / fanotify | Candidate additional monitoring; outside the initial existing-log baseline |
-| Process information | /proc | Retrieve process metadata |
+| Process information | /proc | Proposed best-effort context/enrichment; short-lived processes can disappear before reads |
 | Inter-process communication | Unix domain sockets | Communication between collector and backend |
 | Serialization | JSON Lines | Event transmission |
 | Analysis engine | Python | Detection, enrichment, and correlation |
@@ -123,7 +142,8 @@ The intended data flow is:
 
 The collector and Python backend operate as separate processes.
 
-C++ owns source collection, source-native ingestion/parsing, normalization, and collection-side event processing. Python receives normalized events from C++, validates their contracts, and owns detection, correlation, security analysis and SQLite writes. Python does not independently collect native OS records.
+C++ owns source collection, source-native ingestion/parsing, normalization, and collection-side event processing. Python receives normalized events from C++, validates their contracts, and owns detection, correlation, security analysis and SQLite writes. Python does not independently collect native OS records. Correlation remains
+Python-owned future work for v0.2; v0.1 implements individual-event detection only.
 
 The Python service initially hosts normalized-event receipt/validation, analysis, database, and API functionality. These will be separate internal modules rather than separate network services.
 
@@ -146,10 +166,27 @@ not automatically require schema changes or value retention.
 | Detection engine | Use each rule's Required/Important/Optional evidence requirements to determine whether evaluation is possible and explain limitations |
 | Dashboard/API | Communicate source health, missing evidence, affected detections, collection gaps, and recovery to the authorized user |
 
-Support initial startup discovery, periodic reassessment, source changes,
-collection failures/gaps, and recovery when sources return. Restored access does
-not prove missing historical events were recovered. An empty history does not
-prove monitoring is healthy or that activity did not occur.
+Support initial read-only startup discovery, periodic metadata/access reassessment,
+source changes, collection failures/gaps and recovery. First-run operations are
+separate, as defined in [product experience](product-experience.md#first-run-experience):
+
+| Operation | Boundary |
+|---|---|
+| Source discovery | Identify recognized mechanisms/configuration using metadata; do not start subscriptions or event readers |
+| Availability/field assessment | Check scoped access/capabilities under actual identities; pre-confirmation fields are documented possibilities/prior authorized evidence, not newly sampled event values |
+| User configuration | Explain recommendations and preselect usable candidates, allow source-by-source draft choices and explicit authorized confirmation; choices affect HIDS only |
+| Collector initialization | Initialize only confirmed selected sources; a requested source may fail to initialize |
+| Runtime health | Report actual initialization, ACK/delivery, access, incomplete intervals and freshness separately from selection/static support; assess actual fields only after consent |
+
+Before confirmation, do not inspect security-event payloads, subscribe to cn_proc or
+initialize event readers for a hidden health/field probe. All consent/start checks
+must be enforced in backend/orchestration, not only frontend controls. Unselected
+or newly recognized sources cannot auto-enable. Previously confirmed settings,
+new drafts and boot-resume/retry policy require explicit design, not assumed consent.
+Working confirmed subsets and authorized configuration/history remain usable if
+another selected source fails. Restored access does not prove backfill, static
+availability does not prove live delivery, and empty history proves neither health
+nor absence of activity.
 
 Classify availability as Observed, Not observed in sample, Not emitted by source,
 Not applicable, Inaccessible, Collection failure, or Unknown, with scoped evidence.
@@ -164,7 +201,9 @@ adapter observations; this is an implementation option, not a new process mandat
 Discovery is read-only with respect to system sources and configuration. It cannot change logging configuration, install packages, or grant privileges.
 Existing root-only human access, least privilege, and local privacy rules apply.
 No capability manager, field analyzer, or descriptive coverage report exists yet.
-See [field discovery](research/field-discovery.md) for methodology and examples.
+See [field discovery](research/field-discovery.md) for methodology and examples;
+its record-sampling workflow applies only after confirmed collection or separately
+authorized research, not as automatic pre-confirmation discovery.
 
 ### 4.2 Collection layer (C++)
 
@@ -191,6 +230,27 @@ Responsibilities:
 - Preserve original timestamps and metadata.
 - Maintain journal cursors.
 - Handle service restarts and log rotation.
+
+#### Process lifecycle adapter (provisional)
+
+[ADR-006](decisions/006-provisional-process-collection.md) records the owner's
+provisional direction: cn_proc for live lifecycle, `/proc` for best-effort context,
+Audit for complementary security/authentication evidence, and journald for existing
+system logs. The [single controlled experiment](research/process-connector.md)
+received FORK/EXEC/EXIT as an ordinary user; this is not a reliability benchmark or
+comprehensive monitoring. ACK confirmation and observed delivery remain distinct.
+
+The first production milestone implements a bounded C++ adapter/native parser with
+explicit unsubscription, error/status reporting and offline tests. It supplies
+internal native records to a trusted caller, not a finalized ECS/IPC event or a
+public event-printing executable. No Python collection, automatic escalation,
+logging changes, `/proc` enrichment or database writes are introduced. Source
+failure is local to the adapter; whole-service supervision remains open.
+
+The owner now prioritizes this process adapter before the earlier journald-first
+implementation sequence. Journal collection remains planned and the reliable
+end-to-end pipeline remains the integration priority. Source-native monotonic time
+is preserved without wall-clock substitution; sequence gaps are not a loss count.
 
 #### Audit adapter
 
@@ -260,15 +320,16 @@ Reliability requirements:
 
 The Python component receives normalized events and performs analysis.
 
-The initial event-processing design has five logical modules below. Capability and field-coverage responsibilities are described separately above; exact module placement remains open.
+The long-term event-processing design has five logical modules below, with
+correlation deferred to v0.2. Capability and field-coverage responsibilities are described separately above; exact module placement remains open.
 
 | Module | Responsibility |
 |---|---|
 | Normalized-event receipt (backend ingestion) | Receive normalized C++ events and independently validate their contracts; no native OS collection |
 | Enrichment | Add contextual information to events |
-| Detection | Evaluate individual events against rules |
-| Correlation | Identify patterns across multiple events |
-| Alerts | Generate, group, and manage security alerts |
+| Detection | v0.1: deterministic rules on individual events and their available per-event context |
+| Correlation | v0.2 planned: patterns across multiple events, windows and sequences; not a v0.1 module requirement |
+| Alerts | v0.1: generate/display traceable single-event findings; v0.2: multi-event aggregation and relationship management |
 
 #### Detection engine
 
@@ -283,14 +344,17 @@ Potential rule configuration fields:
 - Description.
 - Event type.
 - Matching conditions.
-- Time window.
+- Time window (v0.2 correlation only; not a v0.1 rule option).
 - Severity.
-- Detection indicators and supporting evidence.
+- Detection indicators from the triggering event; multi-event evidence is v0.2.
 - Enabled/disabled state.
 
 YAML is the proposed configuration format. Each rule must declare Required, Important, and Optional evidence by applicable event/role, with independent sensitivity annotations, source-semantic constraints, and explicit missing-data behavior. A missing Required field must not become a negative match or a claim of safety. See [rule field requirements](research/field-discovery.md#9-detection-rule-field-requirements).
 
 #### Correlation engine
+
+**v0.2 planned direction; explicitly excluded from v0.1.** No implementation
+commitment, final correlation specification or v0.1 completion dependency is implied.
 
 The correlation engine connects multiple events into potentially suspicious patterns.
 
@@ -303,23 +367,29 @@ Examples:
 
 Detection and correlation are separate operations.
 
-Detection evaluates individual events. Correlation evaluates relationships between events.
+Detection evaluates individual events in v0.1. Correlation evaluates relationships
+between events in v0.2. Recognizing one failed authentication event is v0.1;
+repeated failures or failures followed by success require v0.2 analysis. One
+process execution matching a simple condition is v0.1; a creation/execution/
+privilege-change sequence is v0.2. Rules must not query other events/history in
+v0.1; enrichment cannot disguise such a sequence as a single-event match.
 
 #### Alert generation
 
-Every generated alert should contain:
+A v0.1 alert must identify its individual triggering event and generating rule,
+explain the matched condition, and retain available provenance and limitations.
+The following are proposed presentation concepts, not final field/table contracts:
 
-- Unique alert identifier.
-- Associated detection rule.
-- Title.
-- Severity.
-- Detection indicators and supporting evidence.
-- Description of what happened.
-- Explanation of why the alert triggered.
-- Supporting event references.
-- Timestamp.
-- Suggested investigation steps.
-- Alert status.
+- Unique alert identifier and rule identity.
+- Title, severity and description of the observed event/condition.
+- One triggering-event reference with source provenance and available native context.
+- Explanation of the condition that matched, missing information and benign explanations.
+- Available times with distinct activity/observation/storage meanings; no invented time.
+- Alert status and investigation context/suggestions supported by that individual event; no threat-remediation recommendations.
+
+In v0.2 planning, alerts may gain multiple supporting events, evidence aggregation,
+relationship management, and richer behavioral explanations/timelines. None of
+those systems is a v0.1 prerequisite. A rule match does not prove malicious intent.
 
 Severity and confidence must remain separate concepts.
 
@@ -331,13 +401,15 @@ SQLite will be the application's primary persistent storage system.
 
 The Python backend will own database writes. The C++ collector will communicate with Python rather than independently modifying the database.
 
-Proposed initial database tables:
+Proposed storage concepts, not finalized database tables. v0.1 requires an alert
+to resolve to its one triggering event and preserve provenance; exact storage and
+retention behavior still need design. A multi-event join system is not required.
 
 | Table | Purpose |
 |---|---|
 | `events` | Normalized system events |
-| `alerts` | Generated security alerts |
-| `alert_events` | Relationships between alerts and events |
+| `alerts` | v0.1 individual-event findings, with traceability to one triggering event and rule |
+| `alert_events` | Historical proposal retained as a v0.2 candidate for multi-event supporting evidence; deferred, not a v0.1 requirement or approved table |
 | `rules` | Detection rule definitions and settings |
 | `collector_state` | Collection checkpoints and source state |
 | `settings` | Application configuration |
@@ -388,62 +460,39 @@ The frontend will use React and TypeScript.
 
 It should prioritize usability and understandable security information over complex visualizations.
 
-Proposed dashboard sections:
+Intended [product experience](product-experience.md): Overview is the default
+landing page of an approachable security console. Proposed navigation consolidates
+the earlier Event Explorer/Process Activity/Authentication views into Activity
+filters/details; rule controls belong under Settings or alert detail. Future
+investigation capabilities are retained as v0.2 plans, not additional v0.1 menus.
 
-#### Overview
+| Proposed navigation | v0.1 purpose |
+|---|---|
+| Overview | Default landing page; central alert feed ordered by severity then recency, concise collection summary and essential missing-data warnings |
+| Alerts | Basic list/detail; matched rule/condition and direct link to one triggering event; multi-event evidence/timelines remain v0.2 |
+| Activity | Searchable ordinary events; individual detail and supported process/authentication/source/time filters; native parent IDs are context, not a process graph |
+| Sources | First-run discovery, explained recommendations, draft choices/confirmation and selected-versus-actual runtime status |
+| System Health | Source access/errors/gaps, backpressure, receiver/database status and assessment freshness |
+| Settings | HIDS-owned preferences, approved retention/privacy and simple rule configuration; no arbitrary OS administration |
 
-- Total events collected.
-- Active alerts.
-- Recent security activity.
-- Monitoring health.
-- Collector status.
-- Descriptive source and field coverage, affected rule requirements, assessment freshness, and gap/recovery explanations; no overall security percentage.
+Proposed display severity bands are Critical / Emergency, High, Moderate, Low and
+Informational. Final top-band wording, rule assignments/internal mapping, recency
+clock and stable tie-break remain open; do not silently remap historical Medium
+examples or invent missing activity time. No numerical confidence/suspiciousness
+score is introduced. Ordinary collected events do not automatically become alerts.
+Operational notices in health/source views are distinct from security rule findings.
 
-#### Alert Explorer
-
-- Alert list.
-- Severity indicators.
-- Detection indicators, matched conditions, and evidence limitations.
-- Alert explanations.
-- Supporting event references.
-- Investigation suggestions.
-
-#### Event Explorer
-
-- Searchable event history.
-- Filtering by timestamp, type, source, user, and process.
-- Detailed event inspection.
-
-#### Process Activity
-
-- Process execution history.
-- Parent-child process relationships where available.
-- Executable paths.
-- Associated users.
-
-#### Authentication
-
-- Successful and unsuccessful logins.
-- Repeated authentication failures.
-- Relevant privilege activity.
-
-#### Detection Rules
-
-- Enabled and disabled rules.
-- Rule descriptions.
-- Severity configuration.
-- Rule management.
-
-#### Settings
-
-- Data retention.
-- Monitoring configuration.
-- Application status.
-- Privacy settings.
+Show clear explanations first and expose technical fields/errno/native diagnostics
+on demand, with the same backend authorization on every view/endpoint/SSE stream.
+Progressive disclosure must not conceal essential failures. Root-only human access
+is retained; neither source selection nor a usable browser experience implies an
+all-root backend or root browser. Technical layout/routes remain proposals.
 
 ## 5. Repository structure
 
-The following is a proposed target layout, not an inventory of implemented files. Entry points, build files, machine-readable schemas, and the root README shown here do not yet exist. Existing directories are scaffolding; see [documentation index](README.md) for current documents:
+The following is a proposed target layout, not an inventory of implemented files. Entry points, build files, machine-readable schemas, and the root README shown here do not yet exist. Most application directories remain scaffolding; actual native adapter/test files
+are listed in [collector scope](../collector/README.md). See the
+[documentation index](README.md) for current documents:
 
 ```text
 hids/
@@ -501,27 +550,36 @@ The repository should contain documentation for architectural decisions and shar
 ## 6. Development roadmap
 
 Development should proceed incrementally, with every milestone producing a functional and testable result.
+The numbered phases are engineering work, not product version numbers. Phases
+0–5 and operational packaging/hardening from Phase 7 support v0.1; correlation
+in Phase 6 is v0.2 planned work and cannot block a minimal v0.1 release. See the
+[release acceptance criteria](release-scope.md#v01-completion-criteria).
 
 ### Phase 0: Architecture and specifications
 
-- Finalize architecture.
+- Refine the accepted architecture for supported v0.1 behavior.
 - Document the threat model.
-- Define the canonical event schema.
-- Define the IPC protocol.
+- Design/validate supported event mappings and IPC incrementally; do not finalize a speculative comprehensive schema.
 - Establish repository structure.
 - Document component responsibilities.
-- Establish the candidate catalog and rule-specific field requirements; define capability/field-assessment interfaces after research.
+- Establish the candidate catalog and rule-specific field requirements; define separate discovery, assessment, confirmed source configuration, initialization and runtime-health boundaries without pre-confirmation event sampling.
 
 **Acceptance criteria:** The architecture and interfaces are documented sufficiently to begin implementation.
 
 ### Phase 1: Initial event collection
 
-- Implement C++ collector.
-- Integrate with journald.
-- Normalize collected events.
-- Implement basic event transmission.
+- Previously authorized native milestone: the narrow C++ cn_proc adapter,
+  source-local status/error handling and offline tests (present; Ubuntu offline
+  compilation/unit/link checks passed, live/account/reliability validation pending).
+- Next integration: define/validate justified normalization and shared contracts,
+  then basic event transmission; these are not implemented by the native adapter.
+- Integrate complementary journald collection; the earlier journal-first order is
+  superseded by the owner's process-adapter priority in ADR-006.
 
-**Acceptance criteria:** Real system events can be collected and converted into the canonical format.
+**Acceptance criteria:** First, native behavior is verified without overstating
+source coverage. The later integrated milestone requires real system events to
+reach a validated normalized representation and documented transport. That
+end-to-end acceptance criterion is not yet met.
 
 ### Phase 2: Ingestion and storage
 
@@ -536,7 +594,8 @@ Development should proceed incrementally, with every milestone producing a funct
 ### Phase 3: Process and authentication monitoring
 
 - Consume existing Linux Audit records where available, without logging configuration changes.
-- Observe process execution only where source records support it; report coverage gaps.
+- Use provisional cn_proc lifecycle notifications with best-effort `/proc` context;
+  observe only supported activity and report gaps, with Audit/journal complementary.
 - Collect authentication activity.
 - Enrich events with process and user metadata.
 
@@ -544,33 +603,38 @@ Development should proceed incrementally, with every milestone producing a funct
 
 ### Phase 4: Detection engine
 
+v0.1: deterministic individual-event rules only.
+
 - Implement rule evaluation.
 - Finalize rule format; YAML remains proposed.
-- Implement severity, detection indicators, traceable supporting evidence, and limitations; no confidence scores or automatic labels.
+- Implement severity, indicators from one event, triggering-event/rule traceability and matched-condition explanations; no confidence scores or automatic labels. Multi-event evidence is v0.2.
 - Generate alerts.
 - Build automated detection tests.
 
-**Acceptance criteria:** Controlled suspicious scenarios trigger the expected alerts.
+**Acceptance criteria:** Controlled positive, negative and incomplete individual-event cases produce the expected rule findings/limitations. No test requires event counts, windows or behavioral sequences.
 
 ### Phase 5: Dashboard and API
 
 - Implement FastAPI endpoints.
 - Build React dashboard.
-- Add event search and filtering.
-- Add alert investigation.
+- Add Overview landing, severity/recency alert feed and Activity search/filter/detail.
+- Add root-authorized first-run recommendations and individual source selection/confirmation; no collection before backend-enforced confirmation.
+- Add one-event alert investigation and progressive disclosure of technical diagnostics.
 - Display system health, source/access changes, descriptive field coverage, and detection limitations.
 
-**Acceptance criteria:** Users can investigate collected events and generated alerts through a browser.
+**Acceptance criteria:** Authorized users can confirm selected source subsets, see actual failures/health, and investigate individual events/alerts through an approachable Overview/Activity interface. No collector starts before confirmation; no v0.2 relationship view is needed.
 
 ### Phase 6: Correlation and advanced monitoring
 
-- Implement time-window correlation.
-- Associate related events.
-- Improve process relationship tracking.
-- Evaluate additional filesystem monitoring as future work outside the initial existing-log scope.
-- Improve alert explanations.
+v0.2 planned direction; separate future design/approval, not a v0.1 release gate.
 
-**Acceptance criteria:** The HIDS can recognize and explain meaningful multi-event patterns.
+- Implement time-window correlation.
+- Associate related events; design multiple supporting events, evidence aggregation and relationship management.
+- Improve process relationship tracking.
+- Separately deferred, not a v0.2 commitment: evaluate additional filesystem monitoring outside the existing-log scope.
+- Add richer investigation timelines and explanations of behavioral patterns.
+
+**Candidate future acceptance criteria:** Approved multi-event patterns can be recognized and explained with inspectable event relationships. The specification and delivery commitment remain open.
 
 ### Phase 7: Packaging and deployment
 
@@ -591,7 +655,7 @@ Testing must be incorporated throughout development.
 - Event normalization.
 - Schema validation.
 - Rule evaluation.
-- Correlation logic.
+- Correlation logic (v0.2 only; not a v0.1 unit-test dependency).
 - Database operations.
 
 ### Integration testing
@@ -622,15 +686,16 @@ Testing must be incorporated throughout development.
 
 ### Performance testing
 
-Monitor:
+Lightweight operation is an explicit v0.1 requirement. Use event-driven waiting,
+bounded queues/work/memory, incremental log retrieval, efficient bounded SQLite
+writes and controlled retention, with backpressure and source-health visibility.
 
-- CPU utilization.
-- Memory consumption.
-- Disk usage.
-- Event processing throughput.
-- Storage growth.
-
-The HIDS should be lightweight enough for continuous operation on ordinary personal computers.
+Benchmark idle CPU, typical CPU, memory consumption, disk growth, event bursts and
+slow receiver/database behavior under recorded prototype/source/workload conditions.
+Establish actual acceptance thresholds after measurement; no CPU/memory budget is
+invented by this architecture. Fixture/simulated bursts should precede separately
+authorized actual-source runtime tests; no implicit connector stress/concurrent-
+subscriber experiment is authorized. See the [benchmark requirement](product-experience.md#lightweight-operation-and-benchmark-requirement).
 
 ## 8. Deferred features
 
@@ -638,6 +703,9 @@ The following features are intentionally outside the initial implementation scop
 
 | Feature | Reason for postponement |
 |---|---|
+| Multi-event correlation, event counts/windows and sequences | v0.2 planning; first validate the complete v0.1 pipeline |
+| Multiple supporting events, evidence aggregation/relationships and richer timelines | v0.2 planning; v0.1 links one alert to one triggering event |
+| Advanced/context-dependent behavioral evaluation | v0.2 planning; exact rules/semantics are not finalized |
 | Automatic logging/auditing configuration | Stretch goal requiring separate design/approval; the entire initial release preserves existing configuration |
 | Optional AI interpretation | Future assistance; independent of deterministic detection and subject to privacy design |
 | Additional filesystem monitoring | Evaluate after existing-log pipeline; source/interface choice remains proposed |
@@ -650,6 +718,11 @@ The following features are intentionally outside the initial implementation scop
 | Remote evidence preservation | Requires additional infrastructure |
 
 These features may be reconsidered as the project develops.
+
+The [implementation-readiness plan](implementation/v0.1-implementation-plan.md)
+provides proposed component details, permission/decision matrices and gated small
+milestones. It is not a new implementation or dependency authorization and does
+not change the accepted v0.1/v0.2 boundary.
 
 ## 9. Open design questions
 
@@ -688,6 +761,12 @@ This is the first meaningful demonstration that the project is a functioning sec
 
 **Development should prioritize a reliable end-to-end pipeline before implementing sophisticated detection rules or frontend features.**
 
+For v0.1 release completion, also demonstrate a basic individual-event rule alert,
+its matched condition and traceable triggering event, root-only search/detail and
+health views, and graceful degradation/security checks. Correlation, multi-event
+evidence management and behavioral timelines are v0.2 plans, not hidden pipeline
+acceptance criteria.
+
 ## 11. Architecture baseline
 
 The following decisions constitute the initial agreed design baseline:
@@ -706,7 +785,7 @@ The following decisions constitute the initial agreed design baseline:
 - Graceful degradation must preserve other sources, authorized dashboard/stored-data access, source status reporting, rule limitations, and detectable recovery.
 - ECS 9.5.0 is the initial reference: prefer Core and relevant Extended fields; `hids.*` is provisional.
 - Root-only human access, least privilege, and evidence-first detection without confidence scores or automatic labels are initial requirements.
-- Detection will use configurable rules and event correlation.
+- v0.1 detection uses simple deterministic individual-event rules; event correlation and multi-event supporting evidence are deferred to v0.2 by ADR-007.
 - The application will not automatically remediate threats.
 - The application will eventually ship as a Debian package with systemd integration.
 - Components will communicate through documented and versioned interfaces, with appropriate validation on both sides of IPC.

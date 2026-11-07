@@ -2,7 +2,7 @@
 
 **Document version:** 0.2.2  
 **Status:** Proposed initial schema  
-**Last updated:** November 5, 2026  
+**Last updated:** November 6, 2026  
 **ECS reference version:** 9.5.0
 
 The ECS reference choice is established; the field contract, custom namespace,
@@ -20,6 +20,12 @@ Different Linux sources produce different kinds of records. The canonical schema
 The canonical event format is shared between the C++ collector and Python analysis engine.
 
 ECS is a data model, not a requirement to use Elasticsearch or the Elastic Stack. HIDS will use ECS field names and semantics while retaining its own local processing, storage, and detection architecture.
+
+Release scope is governed by [ADR-007](decisions/007-initial-release-scope.md)
+and [release scope](release-scope.md). v0.1 implements individual-event detection
+and basic categorization; correlation, detection windows/sequences and multi-event
+supporting evidence are v0.2 plans. Preserving information for future use does not
+make those consumers v0.1 requirements.
 
 ## 2. ECS Adoption
 
@@ -82,14 +88,35 @@ Missing or unreliable activity timestamps are an unresolved schema decision.
 Do not invent an activity timestamp or silently substitute collection time.
 Collection/observation time and processing/storage time remain separate from
 activity time; neither resolves missing activity time. Representation, acceptance
-and time-dependent rule handling require further source research and explicit
-schema decisions. No fallback policy is finalized.
+and any future time-dependent rule handling require further source research and explicit
+schema decisions. Detection windows and event-sequence rules are v0.2 work, not
+a reason to invent activity time for v0.1. No fallback policy is finalized.
 
 Historically this draft required `@timestamp` and suggested the "best defensible
 timestamp." That language did not settle missing-time handling and is superseded
 by the explicit unresolved status above; no collection-time fallback is authorized.
 
 All normalized timestamps should use an unambiguous UTC representation.
+
+### 3.3 v0.1 traceability foundations
+
+Preserve stable event identification, source provenance, original event type and
+useful available native information; retain available timestamps with distinct
+activity/observation/storage roles and process/parent identifiers where provided.
+Exact field paths, required fields by event family and identifier construction
+remain proposed. Source fields such as PID or per-CPU sequence are not by
+themselves globally unique event identifiers. No new ECS field becomes mandatory
+merely to anticipate v0.2.
+
+A v0.1 alert must reference its one triggering normalized event and identify its
+rule and matched condition. This is a logical traceability requirement, not a
+final alert schema, foreign key or `alert_events` table decision. Preserve the
+provenance of the native records forming that individual event under privacy and
+retention controls; this does not implement a multi-event evidence store.
+Evidence aggregation, complex relationships and correlation graphs are v0.2 plans.
+A parent's identifier in one event is context, not a v0.1 requirement to construct
+or analyze a process lifecycle graph. No detection-history query may be hidden
+inside normalization or enrichment to circumvent the one-event boundary.
 
 ## 4. ECS Field Mapping
 
@@ -167,8 +194,8 @@ The architecture anticipates the following event families:
 
 | Event family | Candidate sources | Research status |
 |---|---|---|
-| Authentication activity | systemd journal, authentication logs, Linux Audit | Initial owner-reported sudo observations only; other login paths and raw fixtures pending |
-| Process execution | Linux Audit, process metadata | Not investigated |
+| Authentication activity | systemd journal, authentication logs, Linux Audit | Owner-reported sudo and SSH password journald observations; full fixtures, validated mappings and other login paths pending |
+| Process execution | cn_proc lifecycle (provisional), `/proc` context, complementary Audit/journal | One owner-reported FORK/EXEC/EXIT experiment; [evidence and limits](research/process-connector.md); normalized mapping remains open |
 | User and privilege activity | Linux Audit, systemd journal | Investigating: initial owner-reported sudo observations only; broader privilege activity and raw fixtures pending |
 | Filesystem changes | Linux Audit; filesystem monitoring where needed | Not investigated |
 | Service and persistence changes | systemd journal, systemd state, Linux Audit | Not investigated |
@@ -180,6 +207,17 @@ Use existing Ubuntu logging and auditing. Throughout the initial release, HIDS m
 These are candidate sources, not guarantees of coverage. The schema design process must establish which events each source actually provides, which permissions are required, and what information can be collected reliably.
 
 A single logical source event may consist of multiple records. The collector must investigate source-specific grouping requirements rather than assuming that every input record is a complete event.
+This source-native parsing is distinct from v0.2 correlation of independent
+normalized events; it cannot be used to hide multi-event behavioral analysis in
+v0.1. The broad inventory includes future candidates and is not a promise that
+all event families ship in v0.1; [release scope](release-scope.md) defines that gate.
+
+The process adapter's internal native C++ records are not a shared normalized
+contract. Preserve kernel PID/TGID roles, event-dependent parents, CPU/sequence and
+monotonic nanoseconds with provenance; do not require all ECS events to contain
+them or populate wall-clock `@timestamp` from these values. No schema field or
+version change is implied by adding this adapter. See
+[ADR-006](decisions/006-provisional-process-collection.md).
 
 ## 8. Missing, Unknown, and Inapplicable Information
 

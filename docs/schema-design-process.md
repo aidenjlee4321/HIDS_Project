@@ -2,7 +2,7 @@
 
 **Document version:** 0.3  
 **Status:** Initial process baseline  
-**Last updated:** November 5, 2026  
+**Last updated:** November 6, 2026  
 **Applies to:** Research, design, validation, and evolution of the HIDS event schema
 
 ## 1. Purpose
@@ -14,6 +14,28 @@ The schema is a foundational interface shared by the collector, analysis engine,
 The goal is not to design a comprehensive schema in advance. The goal is to develop a useful, accurate, and extensible representation based on real operating-system data and actual detection requirements.
 
 HIDS uses Elastic Common Schema (ECS) as its foundational event model. This process describes how to map real Linux events into ECS and when HIDS-specific extensions may be justified.
+
+## Release boundaries for schema work
+
+[ADR-007](decisions/007-initial-release-scope.md) accepts a complete minimal v0.1
+pipeline with simple deterministic individual-event rules and defers correlation
+and multi-event supporting evidence to v0.2 planning. The broad research inventory
+below can evolve across releases; it is not a v0.1 collection checklist.
+
+For supported v0.1 events, preserve identifiers, source provenance, original type
+and useful available native information, timestamp roles and available process/
+parent identifiers. Each alert must be traceable to its one triggering event and
+matched rule identity/condition. This does not require evidence aggregation,
+correlation graphs or a relationship manager. Exact normalized/IPC and database
+contracts remain open and should be resolved incrementally through this process.
+No speculative field/table is approved just because a future consumer might need it.
+
+A v0.1 mapping/rule test may categorize one failed authentication event or match
+one execution condition. Repeated failures, failure-to-success sequences and
+process/privilege sequences need multiple events and belong to v0.2. Per-event
+context/enrichment and source-defined multi-record parsing must not silently
+implement cross-event behavior. Health checks, retries and source-record
+provenance are operational foundations, not security-event correlation.
 
 ## 2. Design Principles
 
@@ -202,6 +224,12 @@ A field should not be added to the schema merely because it would be useful if n
 
 ### 5.7 Validate the normalized event
 
+v0.1 validation must include event identification, source traceability and the
+alert-to-one-event rule/condition link. Do not make a supported v0.1 event family
+wait for time-window rules or multi-event evidence machinery. Such tests and
+relationship contracts are v0.2 work. This does not relax native or normalized
+validation on either side of the C++/Python boundary.
+
 Create a normalized ECS-based example and test it against the proposed HIDS schema.
 
 Verify:
@@ -216,6 +244,10 @@ Verify:
 - Compatibility with the collector/backend interface.
 
 ### 5.8 Update project artifacts
+
+Label each proposal/test as v0.1 support, v0.2 planning or a separately deferred
+capability, using [release scope](release-scope.md). Documentation of a candidate
+is not an implementation commitment or evidence that a release criterion passed.
 
 When an event family has been researched:
 
@@ -232,10 +264,10 @@ This matrix tracks research and implementation status. Proposed ECS mappings are
 
 | Activity | Candidate source | Candidate ECS fields | Research status | Implementation status |
 |---|---|---|---|---|
-| Successful login | systemd journal, authentication logs, Linux Audit | `event.category`, `event.type`, `event.outcome`, `user.*` | Not investigated | Not implemented |
-| Failed login | systemd journal, authentication logs, Linux Audit | `event.category`, `event.type`, `event.outcome`, `user.*` | Not investigated | Not implemented |
-| Process execution | Linux Audit, process metadata | `process.*`, `user.*`, `event.*` | Not investigated | Not implemented |
-| Process termination | Linux Audit or another verified source | `process.*`, `event.*` | Not investigated | Not implemented |
+| Successful login | systemd journal, authentication logs, Linux Audit | `event.category`, `event.type`, `event.outcome`, `user.*` | Investigating: owner-reported SSH password journald observations; full fixtures/mappings pending | Not implemented |
+| Failed login | systemd journal, authentication logs, Linux Audit | `event.category`, `event.type`, `event.outcome`, `user.*` | Investigating: owner-reported SSH password journald observations; full fixtures/mappings pending | Not implemented |
+| Process execution | cn_proc lifecycle; `/proc` context; complementary Audit/journal | `process.*`, `event.*` after role/time review | Investigating: owner-reported ordinary-user controlled EXEC; mappings/fixtures pending | Native C++ adapter/offline tests only; no normalization/IPC integration; Ubuntu offline compilation/unit/link passed; live/account validation pending |
+| Process termination | cn_proc EXIT (provisional); complementary existing sources | `process.*`, `event.*` after semantic review | Investigating: controlled EXIT and child reaping observed once | Native C++ adapter/offline tests only; Ubuntu offline compilation/unit/link passed; live/account validation pending |
 | Privilege-related activity | Linux Audit, systemd journal | `process.*`, `user.*`, `event.*` | Investigating: initial owner-reported sudo observations only; broader privilege activity and raw fixtures pending | Not implemented |
 | File creation or modification | Linux Audit; filesystem monitoring if needed | `file.*`, `process.*`, `user.*`, `event.*` | Not investigated | Not implemented |
 | Permission or ownership change | Linux Audit | `file.*`, `user.*`, `event.*` | Not investigated | Not implemented |
@@ -346,8 +378,24 @@ Initial owner-reported [sudo authentication observations](research/authenticatio
 are now documented: successful and failed checks in one Ubuntu 26.04.1 VM. Complete
 raw fixtures, exact source-native keys/types, query transcripts, and finalized
 mappings remain pending; no event family meets all completion criteria below.
-The matrix's broad login families remain uninvestigated beyond this narrow sudo
-case. Apply the [field discovery methodology](research/field-discovery.md) next.
+The SSH journald follow-up now documents password failure/success, PAM session
+opening, native journal keys, overlapping selectors and an unresolved logout
+error. Login research remains narrow; no full SSH Audit set or parser fixtures
+were supplied. Apply the [field discovery methodology](research/field-discovery.md) next.
+
+The owner-reported [process connector experiment](research/process-connector.md)
+received all three child lifecycle notifications on Ubuntu as an ordinary user.
+No formal LISTEN ACK was observed. Compiler provenance and original sanitized
+fixtures remain incomplete. A narrow native adapter is authorized by
+[ADR-006](decisions/006-provisional-process-collection.md) while normalization,
+shared-contract validation and full event-family completion criteria remain open.
+Do not equate the experimental run with a completed normalized pipeline.
+
+The separate [production Ubuntu validation record](validation/collector-ubuntu-validation.md)
+now reports strict compilation, offline suites and complete linking on ARM64/GCC
+15.2.0. It does not finalize mappings/contracts or establish live/account/runtime
+coverage. The [readiness plan](implementation/v0.1-implementation-plan.md) describes
+proposed pilot gates rather than bypassing the completion criteria below.
 
 ## 11. Completion Criteria
 

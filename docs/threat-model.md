@@ -2,7 +2,7 @@
 
 **Document version:** 0.4.0  
 **Status:** Initial threat-model baseline  
-**Last updated:** November 5, 2026  
+**Last updated:** November 7, 2026  
 **Target platform:** Ubuntu 26.04 LTS
 
 ## 1. Purpose
@@ -11,7 +11,8 @@ This document records the initial security assumptions, trust boundaries, privil
 
 The HIDS is a security application, so its own architecture must avoid introducing unnecessary security risks.
 
-These are requirements and design assumptions, not implemented protections. The repository currently contains documentation and directory scaffolding only. This is an initial baseline, not a complete threat analysis. Detailed attacker capabilities, attack trees, and risk ratings remain to be developed.
+These are requirements and design assumptions, not implemented protections. The repository includes temporary research tools and a narrow native C++ process
+adapter with offline tests; integrated HIDS protection remains unimplemented. This is an initial baseline, not a complete threat analysis. Detailed attacker capabilities, attack trees, and risk ratings remain to be developed.
 
 ## 2. Product Security Scope
 
@@ -21,8 +22,8 @@ The HIDS will:
 
 - Collect and normalize operating-system events.
 - Identify activity matching configured detection rules.
-- Correlate related events.
-- Generate alerts with supporting evidence.
+- In v0.2 planning, correlate related events; v0.1 uses individual-event rules.
+- Generate v0.1 alerts traceable to one triggering event and matched rule condition; multi-event evidence is v0.2 planning.
 - Explain which observations and rule conditions produced an alert.
 - Present event history and alerts through a local dashboard.
 
@@ -38,6 +39,36 @@ It will not:
 - Provide prescriptive instructions for stopping or removing threats as a product feature.
 
 Remediation, threat remediation recommendations, and intrusion prevention are outside initial scope. Monitoring coverage recommendations are within scope: explain missing fields, unavailable sources, limitations, and information that would improve monitoring. They do not authorize automatic configuration changes or threat remediation.
+
+### First-run consent and source-control boundary
+
+The accepted [product experience](product-experience.md#first-run-experience)
+requires explicit authorized confirmation before security-event collection.
+Discovery results, source recommendations, selection/configuration and runtime
+health are protected security data. The ordinary-user usability goal does not
+relax root-only human access or require a root browser/backend.
+
+Pre-confirmation discovery may inspect recognized-source metadata/configuration
+and non-collecting access evidence under the intended service identity. It cannot
+sample log payloads, subscribe to cn_proc, initialize an event reader or inspect
+unrelated process context to prove field presence. Read-only payload reads are
+still collection. Static support or prior authorized evidence is not demonstrated
+current runtime function; unverified fields must remain labeled as such.
+
+Treat draft, confirmed selection, initialization results and runtime status as
+separate facts. Backend and collector orchestration must reject unconfirmed,
+unselected, stale/unauthorized source-start requests and arbitrary paths/commands;
+frontend checkbox state alone is not authorization. New sources/permission changes
+must not silently expand collection. Exact confirmation persistence, restart,
+edit/retry and control-contract behavior remain open in D-14 of the
+[readiness register](implementation/v0.1-implementation-plan.md#decision-register).
+
+Selections control HIDS collection only: never change journald/PAM/auditd settings,
+Audit rules, kernel settings, service privileges or OS logging services. A selected
+source can fail; show actual runtime status and preserve the functioning confirmed
+subset plus authorized configuration/history access. Disabled or awaiting-confirmation
+is not an intrusion finding or proof of a healthy system. No hidden initialization,
+privilege escalation or automatic configuration repair is authorized.
 
 ## 3. Security Objectives
 
@@ -87,6 +118,9 @@ The initial architecture has these major boundaries:
 5. **Application to local user:** Dashboard and API access must be authenticated and authorized according to the root-only access policy.
 
 The permissions, validation requirements, and failure behavior at each boundary must be tested and documented during implementation.
+[ADR-007](decisions/007-initial-release-scope.md) defers correlation/multi-event
+evidence to v0.2 without weakening these boundaries or root-only access. The
+backend's eventual correlation ownership is not a v0.1 module requirement.
 
 ## 6. Privilege Model
 
@@ -185,7 +219,28 @@ Requirements:
 
 The exact authentication mechanism remains undecided and must be specified before dashboard implementation.
 
-### 7.4 Encryption at rest
+### 7.4 Independent process observation
+
+The [owner-reported cn_proc experiment](research/process-connector.md) successfully
+subscribed to a system-wide process-notification interface as an ordinary user,
+without sudo, on Ubuntu 26.04.1 / kernel 7.0.0-42-generic ARM64. The report printed
+only its controlled child. It does not establish access to every other user's
+activity or every Linux configuration, but it demonstrates that dashboard
+credentials are not necessarily required to obtain process notifications directly
+from the kernel on this tested environment.
+
+Root-only dashboard/API and file access protect HIDS-retained history, enriched
+data and analysis; they do not prevent an independent local listener from observing
+available lifecycle timing and identifiers. Combining such observations can expose
+usage patterns and process relationships. This does not mean the tested mask
+provided executable paths, arguments or credentials. Protect any enrichment and
+stored correlation separately, minimize values and avoid public debug/stdout
+streams. Service-account permissions and other-user visibility need scoped testing.
+Do not weaken root-only HIDS access or change kernel/logging permissions to conceal
+this limitation. No confidentiality guarantee against independent OS-level
+observation is asserted.
+
+### 7.5 Encryption at rest
 
 Encryption at rest is a potential additional protection.
 
@@ -278,6 +333,14 @@ mechanisms remain undecided.
 
 The precise acknowledgment mechanism, gap detection behavior, and recovery guarantees remain open design questions.
 
+cn_proc is a provisional live source, not a checkpointed historical log. The
+initial native adapter reports errors and interruption diagnostics without
+promising replay, exact loss counts or service recovery. Kernel cleanup concerns
+require serialized controls, explicit unsubscribe and no automatic reconnect or
+privilege retry. A missing ACK and observed delivery are separate status facts.
+A failed process source must not terminate other functioning source adapters;
+whole-application isolation and availability are not verified by this component.
+
 [Capability and field discovery](research/field-discovery.md) must distinguish
 source availability/access from fields actually observed and from rule readiness.
 Reassess at startup, periodically, and after source changes; identify gaps and
@@ -286,6 +349,18 @@ collector. Check actual service identities without automatically granting access
 Protect capability inventories and coverage reports as security data.
 
 An attacker who can impair collection or alter local records may undermine the HIDS even without obtaining access to the dashboard.
+
+### Resource exhaustion and lightweight acceptance
+
+v0.1 must use bounded queues/work/memory, incremental/event-driven collection,
+efficient bounded SQLite writes and controlled disk retention, with visible
+backpressure and source/receiver/database health. Source selection is not permission
+to consume unbounded resources; disabled/unconfirmed sources must not perform
+background event reads. Benchmark idle/typical CPU, memory, disk growth, event
+bursts and slow database/receiver behavior under recorded conditions. Establish
+actual acceptance thresholds after prototype measurement; no CPU/memory budgets
+are asserted here. Benchmarks are not confidence/safety scores and do not authorize
+live connector stress tests or changes to Ubuntu settings.
 
 ## 11. Privacy Requirements
 
@@ -319,17 +394,24 @@ are not proof that activity did not occur.
 
 ## 12. Initial Detection Scope
 
-The following are proposed initial scenarios and severity defaults, not implemented rules or guaranteed initial-release coverage. Each requires source feasibility research under the existing-logging constraint:
+[Release scope](release-scope.md) requires only simple deterministic individual-
+event rules in v0.1. One failed authentication event can be recognized/categorized;
+repeated failures and failure-to-success sequences require multi-event analysis
+and are v0.2 plans. The historical scenarios/severities below are retained as
+proposals, not finalized rules, security guarantees or mandatory v0.1 coverage.
 
-| Rule ID | Detection | Initial severity |
-|---|---|---|
-| AUTH-001 | Repeated authentication failures | Medium |
-| AUTH-002 | Successful login following repeated failures | High |
-| PROC-001 | Execution from suspicious temporary locations | Medium |
-| PRIV-001 | Unexpected privilege-related activity | Medium |
-| FILE-001 | Modification of selected sensitive system files | High |
+| Rule ID | Historical candidate | Release boundary | Proposed severity |
+|---|---|---|---|
+| AUTH-001 | Repeated authentication failures | v0.2 correlation planning | Medium |
+| AUTH-002 | Successful login following repeated failures | v0.2 correlation planning | High |
+| PROC-001 | Execution from suspicious temporary locations | v0.1 candidate only if one execution event's supported context satisfies a simple condition | Medium |
+| PRIV-001 | Unexpected privilege-related activity | Single-event conditions may be considered; behavioral sequences are v0.2; no committed rule definition | Medium |
+| FILE-001 | Modification of selected sensitive system files | Source-dependent future candidate, not a new mandatory v0.1 collector or finalized rule | High |
 
-These are initial classifications, not universal judgments. The scenarios are not proof that an attack occurred. Rules should be configurable, and false positives should be treated as an important engineering concern.
+No candidate proves malicious intent. A v0.1 alert links its one triggering event
+and rule identity/condition; evidence aggregation, multi-event relationships and
+behavioral timelines remain deferred. Existing privilege/privacy and local kernel
+observation limitations are unchanged by the smaller release scope.
 
 Preserve detection indicators, matched conditions, and supporting evidence. Do not assign numerical confidence scores or automatic qualitative confidence labels; severity is separate from confidence. Users interpret findings, potentially with optional AI assistance. See [confidence.md](confidence.md).
 
