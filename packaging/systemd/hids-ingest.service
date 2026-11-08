@@ -1,0 +1,31 @@
+# SOURCE ARTIFACT ONLY: not deployed or authorized for live execution.
+[Unit]
+Description=HIDS M2 isolated event ingestion
+Requires=hids-ingest.socket
+After=hids-ingest.socket
+
+[Service]
+Type=simple
+User=hids-ingest
+Group=hids-ingest
+DynamicUser=no
+SupplementaryGroups=hids-ipc
+WorkingDirectory=/usr/lib/hids
+ExecStart=/usr/bin/python3 -B -m engine.ingestion.m2_service --config /etc/hids/m2.json
+Sockets=hids-ingest.socket
+Restart=no
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX
+ReadWritePaths=/run/hids/ingest /var/lib/hids/m2
+StandardOutput=null
+# No journal read grants; protected resources require separate setup approval.

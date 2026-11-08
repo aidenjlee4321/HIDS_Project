@@ -1,0 +1,14 @@
+# Source artifact only; setup/deployment/live use require separate authorization.
+[Unit]
+Description=HIDS root-only M2 activation control socket
+
+[Socket]
+ListenStream=/run/hids/control.sock
+SocketUser=root
+SocketGroup=root
+SocketMode=0600
+DirectoryMode=0755
+Accept=no
+Service=hids-ingest.service
+RemoveOnStop=yes
+# No Install section: do not enable implicitly.

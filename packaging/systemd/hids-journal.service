@@ -1,0 +1,28 @@
+# SOURCE ARTIFACT ONLY: root must activate source before starting this unit.
+[Unit]
+Description=HIDS M2 authorized journal reader
+After=hids-ingest.service
+Requires=hids-ingest.service
+
+[Service]
+Type=simple
+User=hids-journal
+Group=hids-journal
+DynamicUser=no
+SupplementaryGroups=systemd-journal hids-ipc
+ExecStart=/usr/lib/hids/m2-reader --config /etc/hids/m2.json
+Restart=no
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX
+StandardOutput=null
+# No Install section: deployment/activation is separately authorized.

@@ -1,11 +1,11 @@
-# Host-Based Intrusion Detection System (HIDS)
+# HIDS — Linux Endpoint Security Platform
 ## Architecture
 
 **Document version:** 0.4.0
 **Status:** Initial design baseline  
 **Last updated:** November 7, 2026  
 **Target platform:** Ubuntu 26.04 LTS  
-**Project name:** TBD
+**Project name:** HIDS (working name; permanent name undecided)
 
 ## Status and interpretation
 
@@ -16,11 +16,14 @@ offline tests now exist. Owner-reported Ubuntu ARM64/GCC 15.2.0 strict compilati
 unit suites and production linking passed; [validation record](validation/collector-ubuntu-validation.md).
 Live production operation, service-account access and runtime reliability remain
 unvalidated.
-Normalization/IPC integration, Python receipt, storage, detection, API and
-dashboard are not implemented. Accepted technology choices are
+The synthetic M1 normalization/Unix socket/JSON Lines/Python validation/SQLite
+persistence and retrieval pilot is complete, with Ubuntu acceptance passed as
+reported by the owner. This does not establish live-source readiness. Historical
+M1 validation evidence is preserved unchanged; detection, API and dashboard remain
+unimplemented. Accepted technology choices are
 an architecture baseline, not working functionality. Detailed fields, endpoints,
 tables, rules, and layouts below are proposals unless explicitly identified as
-requirements. Roadmap phases are planned work, not completed milestones.
+requirements. Milestones after M1 remain planned work, not implementation authority.
 
 Initial-release requirements: consume existing Ubuntu logging and auditing without
 modifying journald configuration, PAM configuration, auditd configuration, or Linux
@@ -41,7 +44,11 @@ or a commitment to deliver v0.2 as specified.
 
 ### 1.1 Purpose
 
-The project aims to develop a local-first Host-Based Intrusion Detection System (HIDS) for individual Linux systems.
+HIDS is the working name for a lightweight, local-first Linux Endpoint Security
+Platform, initially targeting Ubuntu 26.04 LTS. Its intended capabilities span
+host-based intrusion detection and monitoring, security configuration assessment,
+detection engineering and event correlation, understandable security findings and
+investigation guidance, and eventually controlled hardening and remediation.
 
 The application will monitor operating system activity, identify potentially suspicious behavior, and present security information in an understandable dashboard.
 
@@ -75,6 +82,14 @@ The project prioritizes:
 5. **Efficiency:** The application should have a small resource footprint suitable for ordinary personal computers.
 6. **Transparency:** Alerts should explain why they were generated and provide supporting evidence.
 
+Use native Linux interfaces where practical and SQLite rather than heavyweight
+database infrastructure. Keep idle resource use minimal through event-driven,
+modular monitoring, bounded memory/queues/storage and few justified dependencies.
+Expensive assessments run periodically or on demand; disabled optional features
+must consume no ongoing execution resources. Local operation requires no cloud
+dependency. Measure actual workloads before setting final resource budgets or
+claiming performance guarantees.
+
 ### 1.3 Scope
 
 The initial product is strictly a monitoring and detection application.
@@ -86,6 +101,41 @@ It will not automatically remediate threats or provide prescriptive
 instructions for stopping or removing them.
 
 Remediation functionality and threat remediation recommendations are outside the initial scope. Monitoring coverage recommendations are within scope: explain missing fields, unavailable sources and limitations, and identify information that would improve monitoring. Recommendations do not authorize automatic configuration changes or remediation.
+
+This initial boundary does not exclude long-term hardening. Future work proceeds
+in three separately designed and authorized stages:
+
+1. **Security assessment:** assess selected CIS recommendations, identify
+   misconfigurations and explain security implications; make no system changes.
+2. **Guided remediation:** preview changes and consequences, obtain explicit
+   authorization, back up original configuration, verify application and support
+   rollback.
+3. **Controlled automatic hardening:** user-enabled predefined profiles with
+   narrowly scoped privileged operations, prerequisite/compatibility checks,
+   an audit trail, verification and rollback; require explicit authorization for
+   high-impact operations.
+
+None of these future stages authorizes implementation or OS changes now. The
+initial-release existing-logging constraint and privilege separation remain intact.
+
+### 1.4 Framework alignment
+
+The project is **framework-aligned**, not certified or fully compliant:
+
+- **CIS Benchmarks:** primary configuration-assessment reference; initially
+  selected recommendations from the Ubuntu Linux 26.04 LTS Benchmark. Record the
+  benchmark version, recommendation identifiers, verification methods, evidence
+  and limitations for each implemented check. The
+  [official Ubuntu benchmark catalog](https://www.cisecurity.org/benchmark/ubuntu_linux)
+  lists version 1.0.0; this is not a claim that any check is implemented.
+- **MITRE ATT&CK:** map implemented rules to relevant
+  [Linux techniques](https://attack.mitre.org/matrices/enterprise/linux/), recording
+  required sources, detection logic, evidence and limitations. A mapping alone is
+  not coverage; claim only behavior actually implemented and tested.
+- **NIST SSDF (SP 800-218):** use the
+  [secure development guidance](https://csrc.nist.gov/pubs/sp/800/218/final) for
+  dependency verification, threat modeling, security testing, vulnerability
+  handling and secure release practices. Alignment does not assert full adoption.
 
 ## 2. Target environment
 
@@ -549,102 +599,32 @@ The repository should contain documentation for architectural decisions and shar
 
 ## 6. Development roadmap
 
-Development should proceed incrementally, with every milestone producing a functional and testable result.
-The numbered phases are engineering work, not product version numbers. Phases
-0–5 and operational packaging/hardening from Phase 7 support v0.1; correlation
-in Phase 6 is v0.2 planned work and cannot block a minimal v0.1 release. See the
-[release acceptance criteria](release-scope.md#v01-completion-criteria).
+The owner-approved sequence below replaces the earlier phase numbering. Each
+milestone must deliver an independently testable increment; detailed gates remain
+in the [implementation plan](implementation/v0.1-implementation-plan.md#l-implementation-milestones).
+Only M1 is complete. This roadmap authorizes no implementation beyond existing
+explicit approvals and does not amend the M1 contract or interfaces.
 
-### Phase 0: Architecture and specifications
+| Milestone | Increment / exit evidence |
+|---|---|
+| M1 — Synthetic pipeline | Complete; owner reports Ubuntu acceptance passed for fixture → C++ → Unix socket/JSON Lines → Python validation → SQLite → retrieval. No live-source claim |
+| M2 — Journald integration | Supported real journal records traverse the existing pipeline; test access, cursors, rotation, duplicates and unavailable-source health |
+| M3 — Audit, process and authentication | Existing Audit integration plus provisional cn_proc and best-effort `/proc`; verify source permissions, overlapping records, missing context and gaps |
+| M4 — Initial detection / ATT&CK | Deterministic individual-event rules, triggering-event/rule traceability and tested Linux technique mappings; no correlation |
+| M5 — CIS assessment | Selected Ubuntu 26.04 LTS recommendations with documented read-only verification and limitations; no remediation |
+| M6 — Dashboard / investigation | Protected FastAPI/React interface, source discovery/confirmation, event history, alerts and actual collection health; root-only human access |
+| M7 — Correlation / explanations | v0.2 planning: time windows, sequences, cross-source relationships, supporting evidence and richer explanations |
+| M8 — Remediation / hardening | Future guided remediation, then controlled automatic hardening under the staged safeguards in section 1.3; separate approval required |
+| Later — Packaging / deployment | Debian/systemd distribution, approved service identities, production hardening and operational acceptance |
 
-- Refine the accepted architecture for supported v0.1 behavior.
-- Document the threat model.
-- Design/validate supported event mappings and IPC incrementally; do not finalize a speculative comprehensive schema.
-- Establish repository structure.
-- Document component responsibilities.
-- Establish the candidate catalog and rule-specific field requirements; define separate discovery, assessment, confirmed source configuration, initialization and runtime-health boundaries without pre-confirmation event sampling.
-
-**Acceptance criteria:** The architecture and interfaces are documented sufficiently to begin implementation.
-
-### Phase 1: Initial event collection
-
-- Previously authorized native milestone: the narrow C++ cn_proc adapter,
-  source-local status/error handling and offline tests (present; Ubuntu offline
-  compilation/unit/link checks passed, live/account/reliability validation pending).
-- Next integration: define/validate justified normalization and shared contracts,
-  then basic event transmission; these are not implemented by the native adapter.
-- Integrate complementary journald collection; the earlier journal-first order is
-  superseded by the owner's process-adapter priority in ADR-006.
-
-**Acceptance criteria:** First, native behavior is verified without overstating
-source coverage. The later integrated milestone requires real system events to
-reach a validated normalized representation and documented transport. That
-end-to-end acceptance criterion is not yet met.
-
-### Phase 2: Ingestion and storage
-
-- Implement Python receiver.
-- Validate incoming events.
-- Implement SQLite database.
-- Store and retrieve events.
-- Implement collector checkpointing and basic reliability mechanisms.
-
-**Acceptance criteria:** Events collected from Ubuntu reliably arrive in SQLite. Source unavailability must not stop functioning sources or authorized dashboard/stored-data access; source status, affected rule limitations, and detectable recovery must be demonstrated.
-
-### Phase 3: Process and authentication monitoring
-
-- Consume existing Linux Audit records where available, without logging configuration changes.
-- Use provisional cn_proc lifecycle notifications with best-effort `/proc` context;
-  observe only supported activity and report gaps, with Audit/journal complementary.
-- Collect authentication activity.
-- Enrich events with process and user metadata.
-
-**Acceptance criteria:** Supported process and authentication visibility is demonstrated against actual existing Ubuntu records, with unavailable activity and fields explicitly reported.
-
-### Phase 4: Detection engine
-
-v0.1: deterministic individual-event rules only.
-
-- Implement rule evaluation.
-- Finalize rule format; YAML remains proposed.
-- Implement severity, indicators from one event, triggering-event/rule traceability and matched-condition explanations; no confidence scores or automatic labels. Multi-event evidence is v0.2.
-- Generate alerts.
-- Build automated detection tests.
-
-**Acceptance criteria:** Controlled positive, negative and incomplete individual-event cases produce the expected rule findings/limitations. No test requires event counts, windows or behavioral sequences.
-
-### Phase 5: Dashboard and API
-
-- Implement FastAPI endpoints.
-- Build React dashboard.
-- Add Overview landing, severity/recency alert feed and Activity search/filter/detail.
-- Add root-authorized first-run recommendations and individual source selection/confirmation; no collection before backend-enforced confirmation.
-- Add one-event alert investigation and progressive disclosure of technical diagnostics.
-- Display system health, source/access changes, descriptive field coverage, and detection limitations.
-
-**Acceptance criteria:** Authorized users can confirm selected source subsets, see actual failures/health, and investigate individual events/alerts through an approachable Overview/Activity interface. No collector starts before confirmation; no v0.2 relationship view is needed.
-
-### Phase 6: Correlation and advanced monitoring
-
-v0.2 planned direction; separate future design/approval, not a v0.1 release gate.
-
-- Implement time-window correlation.
-- Associate related events; design multiple supporting events, evidence aggregation and relationship management.
-- Improve process relationship tracking.
-- Separately deferred, not a v0.2 commitment: evaluate additional filesystem monitoring outside the existing-log scope.
-- Add richer investigation timelines and explanations of behavioral patterns.
-
-**Candidate future acceptance criteria:** Approved multi-event patterns can be recognized and explained with inspectable event relationships. The specification and delivery commitment remain open.
-
-### Phase 7: Packaging and deployment
-
-- Build Debian package.
-- Configure systemd services.
-- Implement service permissions and hardening.
-- Configure automatic startup.
-- Implement installation, upgrade, and removal procedures.
-
-**Acceptance criteria:** A clean Ubuntu installation can install and operate the application without the development environment or changes to journald configuration, PAM configuration, auditd configuration, or Linux Audit rules at installation, startup, discovery, or runtime. Limited source availability is reported explicitly.
+These numbers sequence engineering work, not release versions. ADR-007 remains:
+v0.1 completes the minimal protected collection-to-dashboard pipeline with
+individual-event detection; correlation/multi-event evidence stay v0.2. M5 is
+approved roadmap direction, not an added v0.1 release gate. Packaging/deployment
+still require release acceptance under approved identities before production use;
+their later scheduling is not permission to ship insecurely. Bounded resources,
+source-local degradation, retention/migrations and measured performance remain
+cross-cutting gates rather than being deferred to one final milestone.
 
 ## 7. Testing and quality requirements
 
@@ -711,7 +691,7 @@ The following features are intentionally outside the initial implementation scop
 | Additional filesystem monitoring | Evaluate after existing-log pipeline; source/interface choice remains proposed |
 | eBPF monitoring | Establish basic collection first |
 | Machine-learning detection | Begin with explainable rule-based detection |
-| Automatic remediation | Initial product is monitoring-only |
+| Guided remediation and controlled automatic hardening | Long-term M8 objective with staged authorization, backups, verification and rollback; initial product remains monitoring-only |
 | YARA integration | Consider after the detection pipeline works |
 | Remote monitoring | Initial target is one host |
 | Multiple Linux distributions | Stabilize Ubuntu support first |
@@ -786,7 +766,7 @@ The following decisions constitute the initial agreed design baseline:
 - ECS 9.5.0 is the initial reference: prefer Core and relevant Extended fields; `hids.*` is provisional.
 - Root-only human access, least privilege, and evidence-first detection without confidence scores or automatic labels are initial requirements.
 - v0.1 detection uses simple deterministic individual-event rules; event correlation and multi-event supporting evidence are deferred to v0.2 by ADR-007.
-- The application will not automatically remediate threats.
+- The initial product will not automatically remediate threats; future M8 hardening requires separate design and authorization with the safeguards in section 1.3.
 - The application will eventually ship as a Debian package with systemd integration.
 - Components will communicate through documented and versioned interfaces, with appropriate validation on both sides of IPC.
 - Activity time, collection time and processing/storage time remain distinct. Missing/unreliable activity timestamps are an unresolved schema decision; never invent them or silently substitute collection time.

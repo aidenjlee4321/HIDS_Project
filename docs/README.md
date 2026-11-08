@@ -1,16 +1,29 @@
 # HIDS Documentation
 
-This directory contains the design and technical documentation for the HIDS project.
+HIDS is the working name for a lightweight, local-first Linux Endpoint Security
+Platform, initially targeting Ubuntu 26.04 LTS. The
+[architecture](architecture.md#1-project-overview) records its intended monitoring,
+assessment, detection engineering, investigation and eventual controlled-hardening
+capabilities, CIS/ATT&CK/SSDF alignment and lightweight design principles.
+
+The owner reports M1 synthetic-pipeline Ubuntu acceptance passed. The
+[roadmap](implementation/v0.1-implementation-plan.md#l-implementation-milestones)
+now prioritizes real journald integration as M2; later work requires separate
+implementation authorization. Historical validation records are unchanged.
 
 ## Documents
 
 | File | Purpose |
 |---|---|
+| [development-workflow.md](development-workflow.md) | Standard-library local tests, immutable source snapshots, verified UTM transfer and offline Ubuntu reports; no deployment/live collection |
 | [product-experience.md](product-experience.md) | Accepted v0.1 product/first-run confirmation and measured lightweight operation; navigation/severity labels proposed |
 | [validation/collector-ubuntu-validation.md](validation/collector-ubuntu-validation.md) | Owner-reported Ubuntu ARM64/GCC 15.2.0 strict compilation, offline suites and production link success; live/account/reliability unvalidated |
 | [implementation/v0.1-implementation-plan.md](implementation/v0.1-implementation-plan.md) | Readiness inventory, proposed end-to-end design, permission matrix, decision register and gated milestones |
 | [implementation/m1-pilot-contract.md](implementation/m1-pilot-contract.md) | Owner-approved P-01–08 for synthetic M1 only; authoritative envelope/IPC/storage/security contract |
-| [validation/m1-pilot-validation.md](validation/m1-pilot-validation.md) | M1 implementation/local test evidence; actual Ubuntu acceptance pending |
+| [implementation/m2-journald-spec.md](implementation/m2-journald-spec.md) | Owner-approved fixture implementation scope: prerequisites, service/IPC policy, separate SSH-journal contract and atomic progress/recovery; deployment/live testing not authorized |
+| [validation/m2-lifecycle-validation.md](validation/m2-lifecycle-validation.md) | Wired M2 reader/ingestion/root-control lifecycle, offline tests and outstanding Ubuntu/deployment gates |
+| [validation/m2-component-validation.md](validation/m2-component-validation.md) | Historical M2 component checkpoint; subsequent lifecycle wiring and remaining Ubuntu gates are in the lifecycle validation record |
+| [validation/m1-pilot-validation.md](validation/m1-pilot-validation.md) | Historical M1 implementation/local test evidence; predates owner-reported Ubuntu acceptance and remains unchanged |
 | [../tests/integration/README.md](../tests/integration/README.md) | Exact M1 build/regression/integration commands and private harness boundaries |
 | [release-scope.md](release-scope.md) | Accepted minimal v0.1 requirements and completion criteria; correlation/multi-event evidence deferred to planned v0.2 |
 | [architecture.md](architecture.md) | Overall system architecture, components, technology stack, roadmap, and implementation objective |
@@ -57,8 +70,10 @@ now exist. The owner reports successful Ubuntu 26.04.1 ARM64/GCC 15.2.0 strict
 compilation, both offline suites and complete production linking; see the
 [validation record](validation/collector-ubuntu-validation.md). Live production
 connector operation, intended service-account access and runtime reliability
-remain unvalidated. No normalized pipeline, Python backend, database, dashboard or shared
-machine-readable contract is implemented. Sudo, SSH and cn_proc observations are documented; complete raw
+remain unvalidated. The synthetic M1 pipeline now implements normalization,
+transport, independent Python validation and SQLite persistence/retrieval; the
+owner reports Ubuntu acceptance passed. This is not live-source integration or a
+production backend/dashboard. Sudo, SSH and cn_proc observations are documented; complete raw
 fixtures, validated mappings, and comprehensive event-family research remain pending.
 
 - **Accepted release boundary:** [v0.1](release-scope.md#v01--minimal-functional-hids)

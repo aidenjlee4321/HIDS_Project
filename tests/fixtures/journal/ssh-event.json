@@ -1,0 +1,33 @@
+{
+  "protocol_version": 2,
+  "message_type": "journal_event",
+  "contract_version": "m2.journal-ssh/0.1.0",
+  "source_id": "10000000-0000-4000-8000-000000000001",
+  "activation_id": "20000000-0000-4000-8000-000000000002",
+  "cursor": "fixture-opaque-cursor-1",
+  "expected_revision": 0,
+  "observation": {
+    "producer_instance_id": "30000000-0000-4000-8000-000000000003",
+    "observed_at": "2026-11-07T00:00:00.000000Z"
+  },
+  "journal": {
+    "boot_id": "00000000000000000000000000000000",
+    "realtime_us": "1794009600000000",
+    "monotonic_us": "123456"
+  },
+  "fields": {
+    "_COMM": "sshd-session",
+    "_EXE": "/usr/lib/openssh/sshd-session",
+    "MESSAGE": "Sanitized SSH fixture \u2713\nsecond line",
+    "_PID": "1234",
+    "_UID": "0",
+    "_GID": "0",
+    "_SYSTEMD_UNIT": null,
+    "PRIORITY": null,
+    "_TRANSPORT": null,
+    "MESSAGE_ID": null
+  },
+  "activity_wall_time": null,
+  "activity_wall_time_reason": "not_established",
+  "event_id": "j1.10000000-0000-4000-8000-000000000001.666978747572652d6f70617175652d637572736f722d31"
+}
