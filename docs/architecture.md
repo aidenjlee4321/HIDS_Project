@@ -3,7 +3,7 @@
 
 **Document version:** 0.4.0
 **Status:** Initial design baseline  
-**Last updated:** November 7, 2026  
+**Last updated:** November 9, 2026 (M3 decision reconciliation)\
 **Target platform:** Ubuntu 26.04 LTS  
 **Project name:** HIDS (working name; permanent name undecided)
 
@@ -315,6 +315,31 @@ Candidate activities, subject to existing records and source validation:
 The existing audit daemon (`auditd`) should manage the kernel audit interface.
 
 The collector must not attempt to compete with `auditd` for ownership of the audit event stream. Initial integration must use an already available read path, such as an existing audit log, without changing auditd or Audit rules. A dispatcher requiring configuration changes is a future option, not an initial installation step.
+
+The [canonical M3 specification](implementation/m3-linux-audit-spec.md) records the
+accepted semantic profile separately from the proposed file-source/pipeline design:
+mandatory uid/euid/suid/fsuid/auid/session context, explicit unset handling, no GID
+output, complete EXECVE information, optional validated-and-discarded PATH/CWD/
+PROCTITLE, and unknown-field and duplicate-singleton rejection. Missing
+EXECVE on a failed SYSCALL remains an unresolved case, not an incomplete sequence
+with an automatically assigned outcome. Preserve useful exe/comm identity separately
+from excluded arguments and environment. Exact M3 envelope/encoding remains open.
+
+Structural reconstruction owns native identity, record order and byte progress.
+Semantic parsing uses fresh libauparse BUFFER state, excludes EOE and truncates
+only temporary timestamps to three digits. Parsing is non-root with no capabilities
+merely for the library; verify configuration/log accesses under the actual identity.
+No separate parsing daemon or elaborate filesystem isolation is required unless
+testing demonstrates a need and the design is separately approved. Source access,
+production bounds, isolation, rotation and durable recovery remain unresolved.
+These decisions do not authorize implementation or change M1/M2 or ADR-006.
+
+Future independently configurable retention may cover executable path, process
+name, arguments, working directory, filesystem paths and process title. This is
+not an M3 requirement or permission to retain excluded values. Field selection,
+defaults, scope, interface/access controls, disabled behavior and whether transient
+validation continues are deferred; see the canonical M3 specification rather than
+assuming toggles or a finalized retention policy.
 
 #### Filesystem adapter
 

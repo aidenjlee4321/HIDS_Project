@@ -68,6 +68,17 @@ current documentation-only task.
 - [ ] Investigate console/other login paths, SSH methods/invalid users/disconnects, cached sudo credentials, cancellation, alternate accounts and cross-source duplicates.
 - [ ] Research metadata/non-collecting startup probes and periodic access freshness; actual field samples/subscriptions only after confirmed selection or separately authorized research. Keep gap/recovery evidence distinct without logging changes.
 
+## M3 decision reconciliation — documentation only
+
+- [x] Reconcile the [canonical M3 specification/register](docs/implementation/m3-linux-audit-spec.md#11-owner-decision-register) with accepted identity fields/GID omission, complete EXECVE, optional validate-and-discard records, unknown-field rejection, temporary truncation and fresh BUFFER/non-root behavior.
+- [x] Preserve executable identity as an accepted direction while keeping arguments/environment/CWD/PATH/PROCTITLE and raw records excluded from persistence; record future category-retention controls without implementing them.
+- [ ] Verify strict record/EXECVE fragment grammar and structural eligibility metadata; resolve failed SYSCALL with absent EXECVE separately from incomplete sequences.
+- [ ] Approve exact M3 identity/unset and exe/comm encoding, internal failures and finite production bounds; no implementation is authorized by this checklist.
+- [ ] Establish actual non-root Audit-log access, filesystem behavior, execution coverage and production dependency policy; additional isolation only if demonstrated necessary and approved.
+- [ ] Resolve rotation, durable finalization/checkpoints, M3 IPC/SQLite routing and retention/storage budgets before separately authorized integration.
+- [ ] Future stretch goals only: incomplete EXECVE support and validated-discard unknown fields.
+- [ ] Future design only: independently configurable information-category retention; defer exact fields/defaults, scope/interface/access controls, disabled behavior and transient processing policy.
+
 ## Open design decisions — require explicit resolution
 
 - [ ] Select root-only authentication; decide whether sudo-authorized administrators qualify.
