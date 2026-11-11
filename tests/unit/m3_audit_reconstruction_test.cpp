@@ -46,6 +46,29 @@ std::string line(std::string_view type, unsigned serial, std::string_view payloa
 void append(Reconstructor& r, const std::string& value, std::uint64_t now = 0) {
     assert(r.feed(r.next_offset(), value, now) == FeedResult::accepted);
 }
+void observation_clocks() {
+    std::ifstream stream("tests/fixtures/audit/structural-exec.log"); assert(stream);
+    std::string fixture_bytes;
+    for (std::string raw; std::getline(stream,raw);) {
+        if (raw.starts_with("type=EOE ")) raw += ' ';
+        fixture_bytes += raw+'\n';
+    }
+    unsigned seen=0,finalized=0,admissions=0;
+    PluginSession session([&](const Record&) { ++admissions;return PluginSession::Admission::admitted; },
+        [&](const Event& event,const ExecutionResult& result) {
+            ++finalized;
+            assert(event.first_observed_unix_ns && *event.first_observed_unix_ns==100);
+            assert(event.key.seconds=="1794096000" && event.key.fraction=="123");
+            assert(result.execution && result.execution->arch==0xc00000b7u);
+            return true;
+        },validate_execution,{}, {}, {}, {}, [&]() -> std::optional<std::uint64_t> {return 100-seen++;});
+    assert(session.consume(fixture_bytes,0) && finalized==1 && admissions==6 && seen==6);
+    PluginSession unavailable([&](const Record&) { ++admissions;return PluginSession::Admission::admitted; },
+        [&](const Event&,const ExecutionResult&) { ++finalized;return true; },validate_execution,
+        {}, {}, {}, {}, []() -> std::optional<std::uint64_t> {return {};});
+    assert(!unavailable.consume(fixture_bytes,0));
+    assert(unavailable.error()=="observation_clock_unavailable" && admissions==6 && finalized==1);
+}
 void fixture() {
     std::ifstream stream("tests/fixtures/audit/structural-exec.log"); assert(stream);
     Reconstructor r;
@@ -637,7 +660,7 @@ void determinism() {
 }
 int main() {
     resource_discard_and_live_retirement(); resource_aggregate_gate_and_metadata_exhaustion(); resource_record_limit_and_timeout();
-    current_tail(); fixture(); execve_validation(); plugin_input(); plugin_session(); plugin_backpressure(); individual_timeout_and_late_suppression(); retired_payloads_and_suppressed_positions(); parsing(); eoe_payload_validation(); frontier(); partial_frontier(); duplicates_and_late();
+    observation_clocks(); current_tail(); fixture(); execve_validation(); plugin_input(); plugin_session(); plugin_backpressure(); individual_timeout_and_late_suppression(); retired_payloads_and_suppressed_positions(); parsing(); eoe_payload_validation(); frontier(); partial_frontier(); duplicates_and_late();
     ordering_and_missing(); timeout(); independent_paused_deadlines(); proctitle(); capacities(); recovery(); crossing_frontier_and_fail_closed(); determinism();
-    std::cout << "PASS: 24 offline Audit reconstruction, per-event timeouts, paused deadlines, current-tail, plugin framing, and validation test groups\n";
+    std::cout << "PASS: 25 offline Audit reconstruction, per-event timeouts, paused deadlines, current-tail, plugin framing, and validation test groups\n";
 }

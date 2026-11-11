@@ -88,7 +88,7 @@ class RuntimeTests(unittest.TestCase):
         self.runtime.close()
         self.runtime = self.open_runtime()
         status = self.runtime.status()
-        self.assertEqual(status['event_health'], {'timeouts': 1, 'late_records': 0, 'resource_incidents': 0, 'discarding': 0})
+        self.assertEqual(status['event_health'], {'timeouts': 1, 'late_records': 0, 'resource_incidents': 0, 'discarding': 0, 'rejected_groups': 1, 'rejection_details': 1, 'observed_executions': 0})
         self.assertTrue(status['possible_gap'])
         self.assertFalse(status['source_ready'])
         self.assertEqual(status['interval']['state'], 'revoked')
@@ -337,6 +337,21 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(json.loads(output.getvalue()), status)
         self.assertEqual(status['upstream_loss'], {'kernel': 'unknown', 'dispatcher': 'unknown'})
 
+    def test_control_cli_preserves_unknown_historical_event_metadata(self):
+        self.activate()
+        status = self.command('status')
+        status['event_health']['rejection_details'] = None
+        status['event_health']['observed_executions'] = None
+        output = io.StringIO()
+        with mock.patch.object(sys, 'argv', ['m3_control', 'status']), \
+             mock.patch.object(m3_control.os, 'getuid', return_value=0), \
+             mock.patch.object(m3_control.os, 'geteuid', return_value=0), \
+             mock.patch.object(m3_control, 'load_config', return_value={'source_id': SOURCE}), \
+             mock.patch.object(m3_control, 'request', return_value=status), \
+             contextlib.redirect_stdout(output):
+            self.assertEqual(m3_control.main(), 0)
+        self.assertEqual(json.loads(output.getvalue()), status)
+
     def test_admission_requires_current_tail_boundary(self):
         scope = self.activate()
         reader = self.connect(self.data)
@@ -409,6 +424,51 @@ class ServiceTests(unittest.TestCase):
             self.assertEqual(ledger.db.execute('SELECT COUNT(*) FROM m3_execution').fetchone(), (1,))
         finally:
             ledger.close()
+
+    def test_storage_pressure_stops_reader_and_preserves_independent_event(self):
+        import test_m3_progress as fixtures
+        from engine.ingestion import m3_storage
+        scope = self.activate()
+        reader = self.connect(self.data)
+        self.send_record(reader, scope)
+        self.assertEqual(self.receive(reader)['status'], 'admit')
+        self.runtime.progress.register('1.001:2', 10, 20)
+        self.runtime.progress.register('1.001:2', 20, 30, eoe=True)
+        self.runtime.progress.accept('1.001:2', fixtures.ProgressTests.execution(self))
+        self.runtime.storage.space = lambda: 512*m3_storage.MIB
+        self.service.run_once()
+        status = self.command('status')
+        self.assertEqual(status['failure'], 'storage_pressure')
+        self.assertEqual(status['storage']['state'], 'critical')
+        self.assertFalse(status['reader_connected'])
+        self.assertFalse(status['source_ready'])
+        self.assertTrue(status['possible_gap'])
+        self.assertEqual(status['interval']['code'], 'storage_pressure')
+        self.runtime.storage.space = lambda: 2*1024*m3_storage.MIB
+        self.assertEqual(self.command('lease')['result'], 'rejected')
+        self.assertEqual(self.command('activate', source=SOURCE, activation=str(uuid.uuid4()))['result'], 'rejected')
+        old = Progress(self.runtime.directory / f'{self.activation}.sqlite', self.activation, scope['generation'], 0)
+        try:
+            self.assertEqual(old._state('1.001:1'), 'interrupted')
+            self.assertEqual(old._state('1.001:2'), 'accepted')
+            self.assertEqual(old.positions(), (30, 30))
+        finally:
+            old.close()
+
+    def test_root_diagnostics_preserve_bounded_rejection_causes(self):
+        scope=self.activate();reader=self.connect(self.data)
+        self.send_record(reader,scope,eoe=True)
+        self.assertEqual(self.receive(reader)['status'],'admit')
+        reader.sendall(json.dumps(dict(version=3,op='reject',identity='1.001:1',reason='execve_missing_argc',**scope)).encode()+b'\n')
+        self.assertEqual(self.receive(reader)['status'],'rejected')
+        result=self.command('diagnostics')
+        self.assertEqual(result['activation'],self.activation)
+        self.assertTrue(result['available'])
+        self.assertEqual(result['items'][0]['reason'],'execve_missing_argc')
+        self.assertEqual(result['items'][0]['identity'],'1.001:1')
+        self.assertEqual(self.health_command('diagnostics')['result'],'rejected')
+        self.command('deactivate',source=SOURCE,activation=self.activation)
+        self.assertEqual(self.command('diagnostics')['items'],result['items'])
 
     def test_event_storage_failure_is_reported_by_control(self):
         scope = self.activate()

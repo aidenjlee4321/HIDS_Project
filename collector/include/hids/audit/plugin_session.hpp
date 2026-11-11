@@ -20,9 +20,10 @@ public:
     using Clock = std::function<std::uint64_t()>;
     using Timeout = std::function<bool(const Event&)>;
     using Resource = Reconstructor::Resource;
+    using WallClock = std::function<std::optional<std::uint64_t>()>;
 
     PluginSession(Register admit, Finalize finalize, Validate validate, Clock clock = {}, Timeout timeout = {},
-                  Resource resource = {}, std::optional<Limits> limits = {});
+                  Resource resource = {}, std::optional<Limits> limits = {}, WallClock wall_clock = {});
     PluginSession(const PluginSession&) = delete;
     PluginSession(PluginSession&&) = delete;
     bool consume(std::string_view chunk, std::uint64_t monotonic_ms);
@@ -37,6 +38,7 @@ private:
     Finalize finalize_;
     Validate validate_;
     Clock clock_;
+    WallClock wall_clock_;
     Timeout timeout_;
     Resource resource_;
     std::string_view error_;

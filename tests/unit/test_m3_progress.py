@@ -61,7 +61,7 @@ class ProgressTests(unittest.TestCase):
         self.ledger.close()
         self.ledger = self.open_ledger()
         self.ledger.recover()
-        self.assertEqual(self.ledger.event_health(), {'timeouts': 1, 'late_records': 1, 'resource_incidents': 0, 'discarding': 0})
+        self.assertEqual(self.ledger.event_health(), {'timeouts': 1, 'late_records': 1, 'resource_incidents': 0, 'discarding': 0, 'rejected_groups': 1, 'rejection_details': 1, 'observed_executions': 0})
         self.assertEqual(self.ledger.positions(), (140, 140))
         self.assertEqual(self.ledger.db.execute('SELECT identity FROM m3_execution').fetchall(), [(self.B,)])
         with self.assertRaises(ProgressError):
@@ -95,6 +95,22 @@ class ProgressTests(unittest.TestCase):
         self.assertEqual(self.ledger.register(self.A, 110, 120), "suppressed")
         self.assertEqual(self.ledger.register(self.B, 120, 130), "admit")
         self.assertEqual(self.ledger.positions(), (130, 120))
+
+    def test_interrupted_replay_preserves_exact_eoe_classification(self):
+        self.ledger.register(self.A, 100, 110)
+        self.ledger.register(self.B, 110, 120)
+        self.ledger.register(self.B, 120, 130, eoe=True)
+        self.ledger.accept(self.B, self.execution())
+        self.ledger.register(self.A, 130, 140, eoe=True)
+        self.ledger.recover()
+        for begin, end, eoe in ((100, 110, False), (130, 140, True)):
+            self.assertEqual(self.ledger.register(self.A, begin, end, eoe=eoe), 'replay')
+            with self.subTest(begin=begin), self.assertRaisesRegex(ProgressError, 'conflicting position replay'):
+                self.ledger.register(self.A, begin, end, eoe=not eoe)
+        self.assertEqual(self.ledger.positions(), (140, 140))
+        self.assertEqual(self.ledger._state(self.A), 'interrupted')
+        self.assertEqual(self.ledger.db.execute('SELECT identity FROM m3_execution').fetchall(), [(self.B,)])
+        self.assertEqual(self.ledger.event_health()['late_records'], 0)
 
     def test_finalization_rolls_back_if_frontier_write_fails(self):
         self.ledger.register(self.A, 100, 110)

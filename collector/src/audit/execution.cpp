@@ -118,6 +118,7 @@ bool syscall_fields(const Fields& input, Execution& event, std::size_t& items, b
     const auto exe = audit_bytes(get("exe"), 4096);
     const auto comm = audit_bytes(get("comm"), 256);
     if (!exe || exe->empty() || !comm || comm->empty()) return false;
+    event.arch = architecture;
     event.exe_base64 = base64(*exe);
     event.comm_base64 = base64(*comm);
     if (auid != std::numeric_limits<std::uint32_t>::max()) event.auid = auid;

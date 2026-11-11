@@ -36,7 +36,7 @@ def parse_request(raw, scope):
     return request
 
 
-def dispatch_request(request, ledger, *, require_boundary=False):
+def dispatch_request(request, ledger, *, require_boundary=False, received_at=None):
     op = request.get("op")
     if op == 'boundary' and request.keys() == SCOPE_FIELDS | {'version', 'op'}:
         return ledger.start_stream()
@@ -50,15 +50,15 @@ def dispatch_request(request, ledger, *, require_boundary=False):
         return ledger.register(identity, request["begin"], request["end"], eoe=request["eoe"])
     if op == 'resource' and request.keys() == common | {'evidence'}:
         return ledger.resource(identity, request['evidence'])
-    if op == "accept" and request.keys() == common | {"execution"}:
-        return ledger.accept(identity, request["execution"])
-    if op == "reject" and request.keys() == common:
-        ledger.reject(identity)
+    if op == "accept" and request.keys() in (common | {"execution"}, common | {"execution","observation"}):
+        return ledger.accept(identity, request["execution"],observation=request.get('observation'),received_at=received_at)
+    if op == "reject" and request.keys() in (common,common | {'reason'}):
+        ledger.reject(identity,reason=request.get('reason'))
         return "rejected"
     if op == 'timeout' and request.keys() == common | {'evidence'}:
         return ledger.timeout(identity, request['evidence'])
     raise ProgressError("unknown request")
 
 
-def dispatch(raw, ledger, scope, *, require_boundary=False):
-    return dispatch_request(parse_request(raw, scope), ledger, require_boundary=require_boundary)
+def dispatch(raw, ledger, scope, *, require_boundary=False, received_at=None):
+    return dispatch_request(parse_request(raw, scope), ledger, require_boundary=require_boundary,received_at=received_at)

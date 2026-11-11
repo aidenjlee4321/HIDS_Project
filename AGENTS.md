@@ -6,20 +6,24 @@ Build a functional, local-first Host-Based Intrusion Detection System for an
 individual's computer, initially supporting **Ubuntu 26.04 LTS only**, with a local
 web dashboard. The product name is undecided.
 
-The repository contains design documentation, empty `.gitkeep` application
-scaffolding and temporary utilities under `scripts/research/`, not an implemented
-HIDS pipeline. A narrow production C++ process adapter and offline tests now exist;
-the owner reports successful Ubuntu offline compilation/unit/link checks. Live
-production operation, intended service-account access, runtime reliability and
-normalized integration remain unvalidated. See
-[Ubuntu validation](docs/validation/collector-ubuntu-validation.md),
-[research tooling](scripts/research/README.md) and [adapter scope](collector/README.md).
-The approved synthetic M1 pilot now has separate C++ normalization/transport,
-Python validation/storage and test harnesses; Ubuntu acceptance is pending. See
-[M1 validation](docs/validation/m1-pilot-validation.md) and
-[test commands](tests/integration/README.md). There are no production service entry
-points, dependency manifests/build framework or real-source integrated pipeline.
-Do not describe planned functionality or skipped tests as working coverage.
+The repository now contains M1/M2 components and an implemented M3 Audit
+execution pipeline. M3 has been built and exercised on Ubuntu 26.04 AArch64 with
+root-controlled activation, separate reader/backend identities, current-tail
+framing, independent validation, SQLite persistence, recovery/suppression, resource
+limits and a separate metadata health checker. See the chronological evidence and
+current limits in [M3 verification](tests/integration/M3-README.md). Tests of selected
+paths do not establish complete native coverage, continuous monitoring or release
+readiness. Proactive storage admission, distinct event metadata and bounded root rejection
+diagnostics are implemented; broader workloads, hard filesystem quotas, release
+thresholds, reproducible distribution and other acceptance gates remain open.
+
+M1/M2 validation remains separate: consult [M1 validation](docs/validation/m1-pilot-validation.md),
+[M2 lifecycle validation](docs/validation/m2-lifecycle-validation.md) and their test
+readmes before claiming those milestones complete. The process adapter's own
+[Ubuntu validation](docs/validation/collector-ubuntu-validation.md) is distinct from
+M3 Audit execution. A usable dashboard, detection rules and completed product
+packaging are still later work. Do not describe planned behavior as implemented
+or treat a passing test count as proof of all milestone requirements.
 
 ## Decision authority and reading order
 
@@ -55,8 +59,8 @@ FastAPI → local dashboard.
 | `api/` | FastAPI routes and API schemas; initially modules within the Python service |
 | `frontend/` | React + TypeScript dashboard, Vite tooling, SSE for initial live updates |
 | `shared/schemas/` | Planned shared, versioned event contracts and schema fixtures |
-| `packaging/` | Planned Debian package, systemd units, and application configuration |
-| `tests/` | Native process adapter offline unit tests; integration, detection and sanitized source fixture scaffolding remain planned |
+| `packaging/` | M2/M3 systemd/configuration artifacts; complete Debian packaging remains planned |
+| `tests/` | Native/Python unit and integration suites, sanitized fixtures and explicit Ubuntu acceptance harnesses; detection coverage remains planned |
 | `docs/` | Architecture, security requirements, schema work, evidence policy, and ADRs |
 
 - Collector and backend are separate processes, communicating through Unix domain
@@ -172,7 +176,8 @@ actual acceptance thresholds established after measurement, not invented budgets
   duplicate, and failure cases. Test reliability, bounded resource use, and access
   controls as those features are implemented. Native adapter compilation, offline
   unit-test commands and the complete production link smoke test are documented
-  in [collector/README.md](collector/README.md); integrated pipeline tests remain pending.
+  in [collector/README.md](collector/README.md); M3 integration evidence is tracked
+  separately in [M3 verification](tests/integration/M3-README.md).
 
 ## Field and capability discovery
 
@@ -212,11 +217,13 @@ custom namespace, database tables/indexes, API endpoints, dashboard layout, rule
 format (YAML is proposed), example rules/severities, filesystem interfaces,
 and network coverage require further design or source validation.
 
-Also unresolved: Audit integration, per-adapter permissions, service identities
-and hardening, socket ownership, acknowledgments/retries/backpressure/spooling,
-gap recovery guarantees, source-isolation/concurrency/supervision mechanisms,
-missing/unreliable activity-time handling, retention/disk limits, schema compatibility details,
-dependency/build tooling, production asset serving, and encryption/key management.
+M3 now has tested choices for Audit plugin integration, reader/backend identities,
+scoped IPC, current-tail authorization, bounded assembly and interruption recovery.
+Consult the M3 specification and executed evidence before reopening those decisions.
+Broader source coverage, system-wide isolation/availability guarantees, hard filesystem quotas and broader disk safeguards, release thresholds, general schema compatibility, reproducible
+packaging, production asset serving, missing/unreliable activity times for other
+sources, and encryption/key management remain open. A tested M3 component does not
+settle these questions for every source or for the whole application.
 Root-only authentication must be designed before dashboard implementation;
 whether sudo-authorized administrators qualify alongside UID 0 is explicitly open.
 Do not broaden access by assumption. AI assistance, remote monitoring/evidence,
@@ -224,35 +231,41 @@ additional distributions, eBPF, ML, and YARA are future possibilities.
 
 ## Documentation status
 
-Documentation was reconciled on November 5, 2026. ADR-004 preserves its original
-installation-time audit-rule permission as explicitly superseded history.
-`docs/event-schema.md` holds the schema draft; the old misleading path is a pointer.
-The architecture tree is explicitly a proposed target layout containing absent
-planned files. The index and lowercase `todo.md` distinguish documentation progress, initial
-owner-reported authentication/process research, and the narrow native adapter
-implementation (no integrated HIDS pipeline). Complete raw fixtures and
-validated source mappings remain pending. Field discovery formalizes broad research
-without treating candidate concepts as tested source fields.
+The original November 5 design reconciliation and later implementation evidence
+are retained chronologically. ADR-004's installation-time Audit-rule permission is
+superseded history. `docs/event-schema.md` remains a schema draft, and architectural
+layout examples still include planned files. `todo.md` contains overlapping and
+historical gates; an unchecked broad item does not invalidate a later scoped test,
+and a checked scoped item does not close all broader acceptance requirements.
+
+Current M3 execution/health/recovery evidence belongs in
+[the M3 verification record](tests/integration/M3-README.md). Preserve its explicit
+unsupported cases and remaining gates. When documentation conflicts with observed
+repository state or newer owner approvals, reconcile the specific stale statement
+without weakening accepted architecture, privacy or evidence requirements.
 
 ## Working constraints
 
 Prefer understandable, maintainable implementations and small, justified changes.
-Research instead of guessing; document decisions and limits without overengineering.
-Preserve useful historical reasoning and user work. The November 6 research-tooling
-task supersedes the earlier documentation-only task scope only for temporary
-observational research scripts, private local reports and harmless owned test
-processes. A prior owner task authorized the narrow production C++ process adapter described
-in [ADR-006](docs/decisions/006-provisional-process-collection.md). The current task
-is the owner-authorized November 7 synthetic M1 implementation under accepted
-[P-01–08](docs/implementation/m1-pilot-contract.md): fixture/parser/normalization,
-Unix stream JSON Lines, independent Python validation, Python-owned SQLite and
-retrieval with private non-root tests only. No live collection, privileges/accounts,
-HTTP/dashboard, rules/alerts, v0.2 work or configuration changes are authorized.
-The vendored dependency is already verified; install no additional dependencies.
-The plan and decision register are recommendations and approval gates, not new
-authorizations or finalized production contracts beyond the approved M1 scope.
-Planning a future v0.1 backend/dashboard
-is not implementation authorization; do not add correlation, remediation or finalized ECS/IPC contracts.
-Install no dependencies, change no host configuration, execute no destructive
-commands, and perform no Git operations. Further production scope requires a new user task; this file does not authorize
-installation or deployment actions.
+Research instead of guessing; preserve historical reasoning and user work. The
+owner's later M3 implementation/testing approvals supersede the old November 7
+M1-only task restriction; do not repeatedly stop at that stale restriction.
+
+The owner's standing HIDS workflow is: prioritize host safety, project progress,
+then avoiding unnecessary interruptions. Make reversible decisions within the
+approved design, build missing testable pieces, fix failures, and continue through
+routine tool/access problems using safe alternatives. The owner has authorized
+reversible work on the Linux 2 test VM, including needed implementation, tests,
+application setup and documentation. Preserve VM access secrets outside the repo.
+This does not relax the product's prohibition on automatic Audit/journal/PAM
+configuration changes. Explicitly authorized lab source tests must preserve and
+restore host policy and retain protected evidence.
+
+Ask the owner for specific commits/pushes, fundamental architecture or product/value
+decisions (including reversing an approval), breakage needing their attention, or
+blockers that cannot be resolved with existing access and authorization. Read-only
+Git inspection and routine reversible implementation do not require repeated
+permission. Batch routine results into the final report. Existing approvals apply;
+this file records them rather than granting unlimited new scope or overriding tool
+approval requirements. Do not add correlation, remediation, wider human access or
+finalized global ECS mappings under an M3 implementation task.

@@ -14,24 +14,26 @@ import stat
 import sys
 import time
 
-from engine.ingestion.m1_contract import Invalid, integer, keys, uuid_valid
+from engine.ingestion.m1_contract import Invalid, integer, keys, uuid_valid, utc_now
 from engine.ingestion.m2_contract import decode, frame
 from engine.ingestion.m2_receiver import Listener, PeerPolicy, _directory
 from engine.ingestion.m2_service import Client, RootPolicy, load_root_json, systemd_control_listener
 from engine.ingestion.m3_progress import CapacityError, ProgressError
 from engine.ingestion.m3_protocol import SCOPE_FIELDS, VERSION, dispatch_request, parse_request
 from engine.ingestion.m3_runtime import SOURCE_GAPS, Runtime
-from engine.ingestion import m3_health
+from engine.ingestion import m3_health, m3_storage
 
 
 def load_config(path):
     config = load_root_json(path)
-    keys(config, 'source_id max_activations max_pages position_limit')
+    keys(config, 'source_id max_activations max_pages position_limit'+(' storage' if 'storage' in config else ''))
     if not uuid_valid(config['source_id']):
         raise ValueError('invalid_source')
     integer(config['max_activations'], 1, 65536)
     integer(config['max_pages'], 32, 2147483646)
     integer(config['position_limit'], 1, 65536)
+    if 'storage' in config:
+        m3_storage.validate(config['storage'],config['max_pages'],config['max_activations'])
     return config
 
 
@@ -95,7 +97,7 @@ class Service:
         self.clients = {}
         self.reader = None
         self.scope = None
-        self.failure = None
+        self.failure = 'storage_pressure' if runtime.read_only else None
         self.closed = False
 
     def drop(self, client, code='stream_disconnected'):
@@ -112,6 +114,8 @@ class Service:
             self.scope = None
             try:
                 self.runtime.interrupt(code)
+            except m3_storage.StoragePressure:
+                self.failure = 'storage_pressure'
             except Exception:
                 self.failure = 'storage_failure'
 
@@ -119,8 +123,10 @@ class Service:
         if type(request.get('version')) is not int or request['version'] != VERSION:
             raise ProgressError('unsupported control version')
         command = request.get('command')
-        if command in ('status', 'lease'):
+        if command in ('status', 'lease', 'diagnostics'):
             keys(request, 'version command')
+            if command == 'diagnostics':
+                return dict(version=VERSION,result='diagnostics',source=self.runtime.source,**self.runtime.diagnostics())
             if command == 'status':
                 status = self.runtime.status()
                 if self.health_failure:
@@ -129,6 +135,7 @@ class Service:
                         status['upstream_health']['freshness'] = 'unavailable'
                         status['upstream_health']['kernel'] = status['upstream_health']['dispatcher'] = 'unknown'
                 status['possible_gap'] |= self.failure is not None
+                status['source_ready'] &= self.failure is None
                 return dict(version=VERSION, result='status', failure=self.failure,
                             health_reporting_error=self.health_failure,
                             reader_connected=self.reader is not None, **status)
@@ -158,13 +165,14 @@ class Service:
         current = self.runtime.current()
         if request.get('command') == 'scope':
             keys(request, 'version command')
-            if not current or current['state'] not in ('ready', 'streaming'):
+            if self.runtime.read_only or self.failure or not current or current['state'] not in ('ready', 'streaming'):
                 return {'version': VERSION, 'result': 'inactive'}
             return {'version': VERSION, 'result': 'scope', 'activation': current['activation'], 'generation': current['generation']}
         keys(request, 'version command activation generation observation')
         if request['command'] != 'sample' or not current or current['state'] not in ('ready', 'streaming') or any(
                 request[key] != current[key] for key in ('activation', 'generation')):
             raise ProgressError('inactive health scope')
+        self.runtime.require_writes()
         result = m3_health.record(self.runtime.db, current['activation'], current['generation'], request['observation'])
         self.health_failure = None
         return {'version': VERSION, 'result': result}
@@ -191,7 +199,9 @@ class Service:
             self.clients[connection] = client
             self.selector.register(connection, selectors.EVENT_READ, client)
         except Exception as error:
-            if isinstance(error, sqlite3.Error):
+            if isinstance(error, m3_storage.StoragePressure):
+                self.failure = 'storage_pressure'
+            elif isinstance(error, sqlite3.Error):
                 self.failure = 'storage_failure'
             if connection in self.clients:
                 self.drop(self.clients[connection])
@@ -205,7 +215,7 @@ class Service:
             connection.close()
 
     def queue(self, client, response):
-        client.output = frame(response, 2048)
+        client.output = frame(response, 4096 if client.control and not client.health else 2048)
         client.deadline = self.clock() + 2
         self.selector.modify(client.sock, selectors.EVENT_WRITE, client)
 
@@ -230,7 +240,7 @@ class Service:
                     client.close_after = True
                     status = 'interrupted'
                 else:
-                    status = dispatch_request(request, self.runtime.progress, require_boundary=True)
+                    status = dispatch_request(request, self.runtime.progress, require_boundary=True, received_at=client.received_at)
                 response = {'version': VERSION, 'status': status}
             self.queue(client, response)
         except StopIteration:
@@ -240,6 +250,14 @@ class Service:
                     client.deadline = None
                 elif client.deadline is None:
                     client.deadline = self.clock() + 2
+        except m3_storage.StoragePressure:
+            self.stop_for_storage()
+            if client.sock in self.clients:
+                if client.control:
+                    client.close_after = True
+                    self.queue(client, {'version': VERSION, 'result': 'rejected', 'code': 'storage_pressure'})
+                else:
+                    self.drop(client, 'storage_pressure')
         except CapacityError:
             if client.control:
                 client.close_after = True
@@ -264,7 +282,26 @@ class Service:
             if client.sock in self.clients:
                 self.drop(client, 'storage_failure')
 
+    def stop_for_storage(self):
+        self.failure = 'storage_pressure'
+        if self.reader is not None:
+            self.drop(self.reader, 'storage_pressure')
+        else:
+            try:
+                self.runtime.interrupt('storage_pressure')
+            except m3_storage.StoragePressure:
+                pass  # Root status remains honest when even recovery cannot write.
+            except sqlite3.Error:
+                self.failure = 'storage_failure'
+
     def run_once(self):
+        # Checkpointing can release redundant journal space after a reader lets
+        # go; it never reauthorizes collection or deletes committed event rows.
+        self.runtime.storage.checkpoint(self.runtime.db,self.runtime.path)
+        if self.runtime.progress is not None:
+            self.runtime.storage.checkpoint(self.runtime.progress.db,self.runtime.progress.db.storage_path)
+        if self.failure is None and self.runtime.storage.observe()['state'] not in ('normal','warning'):
+            self.stop_for_storage()
         events = self.selector.select(.1)
         events.sort(key=lambda item: 0 if item[0].data == 'control' or
                     (isinstance(item[0].data, Client) and item[0].data.control and not item[0].data.health)
@@ -298,6 +335,7 @@ class Service:
                     if not chunk:
                         self.drop(client, 'partial_frame' if client.framer.buffer else 'stream_disconnected')
                         continue
+                    client.received_at = utc_now()
                     client.frames = client.framer.feed(chunk)
                     self.advance(client)
             except (BlockingIOError, InterruptedError):
@@ -357,7 +395,7 @@ def main():
             signal.signal(sig, stop)
         runtime = Runtime('/var/lib/hids/m3', config['source_id'],
                           max_activations=config['max_activations'], max_pages=config['max_pages'],
-                          position_limit=config['position_limit'])
+                          position_limit=config['position_limit'], storage=config.get('storage'))
         endpoint = open_data_listener('/run/hids/m3/ingest/audit.sock', ingest.pw_uid, ipc)
         try:
             health_endpoint = open_data_listener('/run/hids/m3/health/metrics.sock', ingest.pw_uid, ipc)

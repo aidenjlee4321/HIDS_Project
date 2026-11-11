@@ -1,5 +1,6 @@
 #include "hids/audit/plugin_transport.hpp"
 #include "hids/journal/transport.hpp"
+#include <chrono>
 
 namespace hids::audit {
 namespace {
@@ -56,7 +57,13 @@ bool report_plugin_gap(pilot::Channel& channel, const PluginScope& scope, std::s
 }
 
 PluginSession make_plugin_session(pilot::Channel& channel, PluginScope scope,
-                                  PluginSession::Validate validate, PluginSession::Clock clock) {
+                                  PluginSession::Validate validate, PluginSession::Clock clock, PluginSession::WallClock wall_clock) {
+    if (!wall_clock) wall_clock = []() -> std::optional<std::uint64_t> {
+        const auto count = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        if (count < 0) return {};
+        return static_cast<std::uint64_t>(count);
+    };
     return PluginSession(
         [&channel, scope](const Record& record) {
             bool suppressed = false;
@@ -70,11 +77,16 @@ PluginSession make_plugin_session(pilot::Channel& channel, PluginScope scope,
         [&channel, scope](const Event& event, const ExecutionResult& result) {
             if (!result.execution) {
                 return exchange(channel, scope,
-                    {{"op", "reject"}, {"identity", identity(event.key)}}, "rejected");
+                    {{"op", "reject"}, {"identity", identity(event.key)},
+                     {"reason", event.resource ? "resource_limit" : result.error.empty() ? "unspecified" : std::string(result.error)}}, "rejected");
             }
-            return exchange(channel, scope,
-                {{"op", "accept"}, {"identity", identity(event.key)},
-                 {"execution", execution_payload(*result.execution)}}, "accepted");
+            Json request{{"op", "accept"}, {"identity", identity(event.key)},
+                         {"execution", execution_payload(*result.execution)}};
+            if (event.first_observed_unix_ns) request["observation"] = {
+                {"version", 1}, {"arch", result.execution->arch},
+                {"profile", "linux.audit.aarch64.string/1"},
+                {"first_observed_unix_ns", *event.first_observed_unix_ns}};
+            return exchange(channel, scope, std::move(request), "accepted");
         },
         std::move(validate), std::move(clock),
         [&channel, scope](const Event& event) {
@@ -101,6 +113,6 @@ PluginSession make_plugin_session(pilot::Channel& channel, PluginScope scope,
                     {"observed_active_ms", e.observed_active_ms}, {"observed_monotonic_ms", e.observed_monotonic_ms},
                     {"paused_ms", e.paused_ms}
                 }}}, "resource_recorded");
-        });
+        }, {}, std::move(wall_clock));
 }
 }

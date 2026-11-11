@@ -96,6 +96,7 @@ current documentation-only task.
 - [x] Add and run 55 deterministic actual SIGKILL cases locally and on Ubuntu across registration/EOE, execution/rejection, timeout/resource causes, late suppression, activation orphan files and control/event reconciliation. Verify exact rollback/committed state, independent B preservation, no resurrection, lost-ACK deduplication and fresh authorization after restart. See [crash acceptance](tests/integration/M3-README.md#deterministic-process-crash-acceptance). Power-loss/device faults and broader native/source injection remain separate.
 - [x] Exercise actual Linux 2 reboots with committed B/unresolved A and kernel-health history; preserve evidence, interrupt A, require fresh generation/lease, and commit C after explicit authorization. Fix persistent tmpfiles provisioning, prove automatic directory creation on a second reboot, and fix unknown historical health age for overlapping boot uptimes. Verify 53 Python tests and installed checker failure/lifecycle isolation. See [reboot acceptance](tests/integration/M3-README.md#reboot-provisioning-and-recovery).
 - [x] Add 124 native-profile boundary cases and actual AArch64 UAPI assertions; run them linked to Ubuntu libauparse with sanitizers. Fix typed allocation failure handling and parser-unavailability interruption; verify 124 allocation cuts, 11 API faults, both installed native gap paths, 54 Python tests, 24 linked native groups and full live/capacity regression. Record target library/header provenance and remaining narrow-grammar/distribution limits. See [parser acceptance](tests/integration/M3-README.md#native-contract-boundaries-and-parser-failure-acceptance).
+- [x] Review current M3 authorization, privilege boundaries, durability/replay and test/documentation claims. Fix interrupted replay EOE integrity; pass 55 M3 tests and the 55-case Ubuntu crash matrix. Verify a pinned-reader WAL growth gap and record missing per-event observation/receipt/persistence timestamps, explicit architecture provenance and ordinary rejection causes. Reconcile stale M1-only guidance without weakening existing approvals. See [focused review](tests/integration/M3-README.md#focused-m3-build-review).
 - [ ] Verify native RAW field coverage, sentinels, encodings, and libauparse behavior before emitting normalized M3 events.
 - [x] Consolidate the [canonical M3 specification/register](docs/implementation/m3-linux-audit-spec.md#11-owner-decision-register) using **Owner-approved**, **Provisional**, **Evidence-dependent** and **Future goal**, without implementation authorization.
 - [x] Record **Owner-approved** RAW local files/native AArch64 execution, root activation/current-tail/no-backfill intervals, EOE-only completion, absent/incomplete EXECVE rejection, required identities/GID omission, strict fields and fresh BUFFER/temporary truncation.
@@ -176,7 +177,24 @@ current documentation-only task.
 Monitoring coverage recommendations are within initial scope; threat remediation
 recommendations and automatic remediation are outside initial scope. Accepted
 technology choices remain unchanged and require explicit approval for reconsideration.
-No automatic remediation. This backlog does not itself authorize dependency installation, host changes or
-implementation outside the expressly approved synthetic M1 task or new benchmarking.
-M1 authorization covers its fixture pipeline and private tests; live-source integration,
-later v0.1 milestones and v0.2 require separate authorization.
+No automatic remediation. This backlog is not execution authorization. The owner's
+later M3 implementation, testing and Linux 2 VM approvals supersede the historical
+M1-only task restriction; consult [current repository guidance](AGENTS.md#working-constraints)
+and the active user instructions. Preserve existing approvals and limits. New
+fundamental architecture/product decisions and specific commits/pushes still need
+owner approval; future milestone entries do not grant additional scope by themselves.
+
+
+### M3 review continuation (November 11)
+
+- [x] Enforce EOE classification during interrupted-position replay.
+- [x] Add proactive state/WAL/free-space admission, non-deleting checkpoints,
+  recovery reserves and readable status-only degraded startup.
+- [x] Persist separate collector observation/backend receipt/persistence-start
+  clocks and native architecture/profile without guessing historical values.
+- [x] Atomically retain closed sanitized rejection reasons and bounded root diagnostics.
+- [ ] Approve broader release workloads/thresholds, distribution and remaining
+  milestone gates; the scoped checks above do not close these requirements.
+
+Executed evidence and compatibility details are in the
+[M3 continuation record](tests/integration/M3-README.md#storage-admission-and-event-metadata-continuation).

@@ -7,6 +7,7 @@ import re
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
+from engine.ingestion.m1_contract import utc_now
 
 
 class ProgressError(ValueError):
@@ -84,7 +85,7 @@ class Progress:
     """
 
     def __init__(self, path, activation, generation, boundary, *, position_limit=65536,
-                 max_pages=None):
+                 max_pages=None, storage_guard=None):
         if type(position_limit) is not int or position_limit < 1:
             raise ProgressError("invalid position limit")
         self.position_limit = position_limit
@@ -94,7 +95,12 @@ class Progress:
             raise ProgressError("durable database path required")
         if max_pages is not None and (type(max_pages) is not int or max_pages < 32):
             raise ProgressError("invalid page budget")
-        self.db = sqlite3.connect(path, isolation_level=None, timeout=1)
+        if storage_guard is None:
+            self.db = sqlite3.connect(path, isolation_level=None, timeout=1)
+        else:
+            from engine.ingestion.m3_storage import connect
+            storage_guard.before(path)
+            self.db = connect(path, storage_guard)
         try:
             if self.db.execute("PRAGMA journal_mode=WAL").fetchone() != ("wal",):
                 raise ProgressError("WAL unavailable")
@@ -130,6 +136,8 @@ class Progress:
                     identity TEXT PRIMARY KEY, first_offset INTEGER NOT NULL UNIQUE,
                     payload TEXT NOT NULL
                 )""")
+                self.db.execute('CREATE TABLE IF NOT EXISTS m3_event_metadata (identity TEXT PRIMARY KEY, format INTEGER NOT NULL CHECK(format=1), arch INTEGER, collector_profile TEXT, first_observed_unix_ns INTEGER, received_at TEXT NOT NULL, persistence_started_at TEXT NOT NULL)')
+                self.db.execute('CREATE TABLE IF NOT EXISTS m3_rejections (identity TEXT PRIMARY KEY, reason TEXT NOT NULL, recorded_at TEXT NOT NULL)')
                 self.db.execute('CREATE TABLE IF NOT EXISTS m3_resources (identity TEXT PRIMARY KEY, evidence TEXT NOT NULL)')
                 self.db.execute('CREATE TABLE IF NOT EXISTS m3_timeouts (identity TEXT PRIMARY KEY, evidence TEXT NOT NULL)')
                 self.db.execute('CREATE TABLE IF NOT EXISTS m3_late_positions (begin INTEGER PRIMARY KEY, eoe INTEGER NOT NULL CHECK(eoe IN (0,1)), final_state TEXT NOT NULL)')
@@ -187,8 +195,9 @@ class Progress:
                 late = self.db.execute('SELECT eoe FROM m3_late_positions WHERE begin=?', (begin,)).fetchone()
                 if late is not None:
                     stored_eoe = bool(late[0])
-                if existing != (end, identity) or (eoe != bool(stored_eoe) and
-                                                   (late is not None or self._state(identity) != "interrupted")):
+                # Interruption changes disposition, never the recorded delimiter.
+                # A replay must match the same admitted position and EOE marker.
+                if existing != (end, identity) or eoe != bool(stored_eoe):
                     raise ProgressError("conflicting position replay")
                 return "replay"
             if begin != scanned:
@@ -224,6 +233,7 @@ class Progress:
                     'SELECT 1 FROM m3_eoe WHERE identity=?', (identity,)).fetchone():
                 raise ProgressError('identity is not eligible for timeout')
             self.db.execute('INSERT INTO m3_timeouts VALUES (?,?)', (identity, payload))
+            self.db.execute('INSERT INTO m3_rejections VALUES (?,?,?)', (identity, 'timeout_'+evidence['reason'], utc_now()))
             self.db.execute("UPDATE m3_disposition SET state='rejected' WHERE identity=?", (identity,))
             self._advance()
             return 'timed_out'
@@ -266,8 +276,11 @@ class Progress:
         ).fetchone()
         return row[0] if row else None
 
-    def accept(self, identity, execution):
+    def accept(self, identity, execution, *, observation=None, received_at=None):
         """Commit the validated fixture event and its checkpoint together."""
+        from engine.ingestion import m3_event
+        received = m3_event.stamp(utc_now() if received_at is None else received_at)
+        observed = m3_event.observation(observation)
         payload = _canonical_execution(execution)
         with self._transaction():
             existing = self.db.execute(
@@ -276,6 +289,9 @@ class Progress:
             if existing is not None:
                 if existing != (payload,):
                     raise ProgressError("conflicting execution retry")
+                if observation is not None and self.db.execute(
+                    'SELECT arch,collector_profile,first_observed_unix_ns FROM m3_event_metadata WHERE identity=?', (identity,)).fetchone()!=observed:
+                    raise ProgressError('conflicting observation retry')
                 return "duplicate"
             if self.db.execute("SELECT 1 FROM m3_resources WHERE identity=?", (identity,)).fetchone():
                 raise ProgressError("discarded identity cannot be accepted")
@@ -286,15 +302,25 @@ class Progress:
             first_offset, = self.db.execute(
                 "SELECT MIN(begin) FROM m3_positions WHERE identity=?", (identity,)
             ).fetchone()
+            persistence_started = utc_now()
             self.db.execute("INSERT INTO m3_execution VALUES (?,?,?)",
                             (identity, first_offset, payload))
+            self.db.execute('INSERT INTO m3_event_metadata VALUES (?,1,?,?,?,?,?)',
+                (identity,*observed,received,persistence_started))
             self._advance()
             return "accepted"
 
-    def reject(self, identity):
+    def reject(self, identity, reason=None):
         """Atomically reject a known identity and resolve its owned positions."""
+        from engine.ingestion import m3_event
+        specified = reason is not None
+        cause = m3_event.reason(reason)
         with self._transaction():
             state = self._state(identity)
+            resource = self.db.execute('SELECT 1 FROM m3_resources WHERE identity=?',(identity,)).fetchone()
+            if resource:
+                if specified and cause!='resource_limit':raise ProgressError('resource rejection cause mismatch')
+                cause='resource_limit'
             if state == "open":
                 if self.db.execute('SELECT 1 FROM m3_resources WHERE identity=?', (identity,)).fetchone() and not self.db.execute(
                         'SELECT 1 FROM m3_eoe WHERE identity=?', (identity,)).fetchone():
@@ -302,8 +328,12 @@ class Progress:
                 self.db.execute(
                     "UPDATE m3_disposition SET state='rejected' WHERE identity=?", (identity,)
                 )
+                self.db.execute('INSERT INTO m3_rejections VALUES (?,?,?)',(identity,cause,utc_now()))
             elif state != "rejected":
                 raise ProgressError("identity cannot be rejected")
+            elif specified:
+                previous=self.db.execute('SELECT reason FROM m3_rejections WHERE identity=?',(identity,)).fetchone()
+                if previous!=(cause,):raise ProgressError('conflicting rejection retry')
             self._advance()
 
     def recover(self):
@@ -329,7 +359,11 @@ class Progress:
 
 def event_health(db):
     resources = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='m3_resources'").fetchone()
+    tables={row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    extra=dict(rejected_groups=db.execute("SELECT COUNT(*) FROM m3_disposition WHERE state='rejected'").fetchone()[0],
+        rejection_details=db.execute('SELECT COUNT(*) FROM m3_rejections').fetchone()[0] if 'm3_rejections' in tables else None,
+        observed_executions=db.execute('SELECT COUNT(*) FROM m3_event_metadata WHERE first_observed_unix_ns IS NOT NULL').fetchone()[0] if 'm3_event_metadata' in tables else None)
     return {'timeouts': db.execute('SELECT COUNT(*) FROM m3_timeouts').fetchone()[0],
             'late_records': db.execute('SELECT COUNT(*) FROM m3_late_positions').fetchone()[0],
             'resource_incidents': db.execute('SELECT COUNT(*) FROM m3_resources').fetchone()[0] if resources else None,
-            'discarding': db.execute("SELECT COUNT(*) FROM m3_resources r JOIN m3_disposition d USING(identity) WHERE d.state='open'").fetchone()[0] if resources else None}
+            'discarding': db.execute("SELECT COUNT(*) FROM m3_resources r JOIN m3_disposition d USING(identity) WHERE d.state='open'").fetchone()[0] if resources else None, **extra}

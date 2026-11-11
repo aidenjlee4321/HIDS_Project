@@ -1333,3 +1333,20 @@ questions above; relocation does not weaken any prerequisite.
 No source change, raw partial-event persistence, permissions grant, deployment or
 Git publication is authorized by this addendum. Future goals from section 9.3 and
 A-15/A-20/A-26/A-27/A-30/A-31/A-32 remain separate and unchanged.
+
+
+### Implemented follow-up: storage admission and metadata
+
+The November 11 continuation implements proactive private-state/WAL/free-space
+admission with safe SQLite checkpoints, reserved interruption bookkeeping and
+status-only degraded startup. It does not delete evidence, change host source
+policy, create a hard filesystem quota or approve release performance thresholds.
+An additive version-1 observation envelope and metadata tables preserve validated
+native architecture/profile, first collector observation, backend receipt and
+persistence-start clocks separately from native activity identity. Legacy unknowns
+are not backfilled. Sanitized rejection reasons commit with disposition/frontier;
+root diagnostics are bounded to the latest 20 groups. See the current
+[implementation and executed evidence](../../tests/integration/M3-README.md#storage-admission-and-event-metadata-continuation)
+for exact compatibility, limits and tests. This records implementation under the
+owner's later approvals; the original addendum's lack of execution authorization
+above is historical and does not revoke those approvals or authorize future scope.

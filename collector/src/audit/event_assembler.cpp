@@ -118,7 +118,7 @@ bool Reconstructor::pressure(const Record& record) {
     }
     return true;
 }
-FeedResult Reconstructor::feed(std::uint64_t offset, std::string_view line, std::uint64_t now) {
+FeedResult Reconstructor::feed(std::uint64_t offset, std::string_view line, std::uint64_t now, std::optional<std::uint64_t> observed_unix_ns) {
     if (failed()) return FeedResult::failed;
     if (stopped_) { fail("input_after_shutdown"); return FeedResult::failed; }
     if (!tick(now)) return FeedResult::failed;
@@ -149,6 +149,7 @@ FeedResult Reconstructor::feed(std::uint64_t offset, std::string_view line, std:
             auto group = std::make_shared<Group>();
             group->event.token = ++token_;
             group->event.key = record.key;
+            group->event.first_observed_unix_ns = observed_unix_ns;
             group->first_seen = active_clock_;
             group->first_offset = record.begin;
             found = groups_.emplace(record.key,group).first;

@@ -12,7 +12,7 @@ import uuid
 from engine.ingestion.m1_contract import keys, uuid_valid
 from engine.ingestion.m2_contract import decode, frame
 from engine.ingestion.m3_service import load_config
-from engine.ingestion import m3_health
+from engine.ingestion import m3_health, m3_storage, m3_event
 
 ENDPOINT = Path('/run/hids/m3/control.sock')
 
@@ -37,12 +37,12 @@ def request(command):
             raise PermissionError('root_listener_required')
         connection.sendall(frame(command, 2048))
         raw = bytearray()
-        while len(raw) <= 2048:
+        while len(raw) <= 4096:
             byte = connection.recv(1)
             if not byte:
                 raise EOFError('control_outcome_unconfirmed')
             if byte == b'\n':
-                result = decode(bytes(raw), 2048)
+                result = decode(bytes(raw), 4096)
                 if type(result.get('version')) is not int or result['version'] != 3:
                     raise ValueError('control_version')
                 return result
@@ -64,16 +64,18 @@ def read_lease(source):
 
 def main():
     parser = argparse.ArgumentParser(description='HIDS root-only M3 activation control')
-    parser.add_argument('command', choices=('status', 'activate', 'deactivate'))
+    parser.add_argument('command', choices=('status', 'activate', 'deactivate', 'diagnostics'))
     parser.add_argument('--config', default='/etc/hids/m3.json')
-    parser.add_argument('--activation-id')
+    parser.add_argument('--activation-id',help='For activate/deactivate only')
     args = parser.parse_args()
     try:
         if os.getuid() != 0 or os.geteuid() != 0:
             raise PermissionError('root_control_required')
+        if args.command in ('status','diagnostics') and args.activation_id is not None:
+            raise ValueError('activation filter not supported for this command')
         config = load_config(args.config)
         command = {'version': 3, 'command': args.command}
-        if args.command != 'status':
+        if args.command not in ('status','diagnostics'):
             activation = args.activation_id
             if activation is None and args.command == 'activate':
                 activation = str(uuid.uuid4())
@@ -85,10 +87,16 @@ def main():
             keys(result, 'version result activation')
             if result['result'] != args.command + 'd' or result['activation'] != command['activation']:
                 raise ValueError('control_activation_mismatch')
+        elif result.get('result') == 'diagnostics':
+            keys(result, 'version result source activation available items truncated')
+            if result['source']!=config['source_id'] or result['activation'] is not None and not uuid_valid(result['activation']):
+                raise ValueError('diagnostic scope')
+            m3_event.validate_diagnostics({key:result[key] for key in ('available','items','truncated')})
         elif result.get('result') == 'status':
-            keys(result, 'version result source interval source_ready possible_gap failure reader_connected upstream_loss upstream_health event_health health_reporting_error')
+            keys(result, 'version result source interval source_ready possible_gap failure reader_connected upstream_loss upstream_health event_health health_reporting_error storage')
             if result['health_reporting_error'] not in (None, 'health_storage_failure', 'health_endpoint_unavailable'):
                 raise ValueError('control_health_error')
+            m3_storage.validate_status(result['storage'])
             keys(result['upstream_loss'], 'kernel dispatcher')
             if (result['upstream_loss']['kernel'] not in ('unknown', 'sampled') or
                     result['upstream_loss']['dispatcher'] not in ('unknown', 'sampled', 'inactive')):
@@ -98,8 +106,8 @@ def main():
                                                            for key in ('kernel', 'dispatcher')):
                 raise ValueError('control_health_availability_mismatch')
             if result['event_health'] is not None:
-                keys(result['event_health'], 'timeouts late_records resource_incidents discarding')
-                if any((value is None and key not in ('resource_incidents', 'discarding')) or
+                keys(result['event_health'], 'timeouts late_records resource_incidents discarding rejected_groups rejection_details observed_executions')
+                if any((value is None and key not in ('resource_incidents', 'discarding', 'rejection_details', 'observed_executions')) or
                        (value is not None and (type(value) is not int or value < 0))
                        for key, value in result['event_health'].items()):
                     raise ValueError('control_event_evidence')
@@ -109,7 +117,7 @@ def main():
             keys(result, 'version result code')
         else:
             raise ValueError('control_response')
-        print(frame(result, 2048).decode('ascii'), end='')
+        print(frame(result, 4096).decode('ascii'), end='')
         return 1 if result['result'] == 'rejected' else 0
     except Exception:
         print('m3_control_failure_or_unconfirmed_outcome', file=sys.stderr)

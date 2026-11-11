@@ -7,6 +7,7 @@ import time
 
 from engine.ingestion.m2_receiver import Listener
 from engine.ingestion.m3_progress import ProgressError
+from engine.ingestion.m1_contract import utc_now
 from engine.ingestion.m3_protocol import REQUEST_LIMIT, VERSION, dispatch
 
 
@@ -54,12 +55,13 @@ class Receiver:
                     if not chunk:
                         break
                     received = time.monotonic()
+                    received_at = utc_now()
                     buffer.extend(chunk)
                     while (delimiter := buffer.find(b"\n")) >= 0:
                         with self._lock:
                             if not self._active:
                                 raise ProgressError("reader lease revoked")
-                            response = dispatch(bytes(buffer[:delimiter + 1]), self.ledger, self.scope)
+                            response = dispatch(bytes(buffer[:delimiter + 1]), self.ledger, self.scope, received_at=received_at)
                         del buffer[:delimiter + 1]
                         reply = json.dumps({"version": VERSION, "status": response})
                         connection.settimeout(self.timeout)

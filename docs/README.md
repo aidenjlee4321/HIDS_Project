@@ -6,10 +6,13 @@ Platform, initially targeting Ubuntu 26.04 LTS. The
 assessment, detection engineering, investigation and eventual controlled-hardening
 capabilities, CIS/ATT&CK/SSDF alignment and lightweight design principles.
 
-The owner reports M1 synthetic-pipeline Ubuntu acceptance passed. The
+The owner reports M1 synthetic-pipeline Ubuntu acceptance passed; M2 has separate
+component/lifecycle/runtime validation records. Current approved work is M3 Audit
+execution. Its [verification record](../tests/integration/M3-README.md) documents
+implemented behavior, installed Ubuntu tests, and open acceptance gates. The
 [roadmap](implementation/v0.1-implementation-plan.md#l-implementation-milestones)
-now prioritizes real journald integration as M2; later work requires separate
-implementation authorization. Historical validation records are unchanged.
+remains the milestone plan; a working M3 component is not a completed release.
+Historical validation records are retained.
 
 ## Documents
 
@@ -20,7 +23,7 @@ implementation authorization. Historical validation records are unchanged.
 | [validation/collector-ubuntu-validation.md](validation/collector-ubuntu-validation.md) | Owner-reported Ubuntu ARM64/GCC 15.2.0 strict compilation, offline suites and production link success; live/account/reliability unvalidated |
 | [implementation/v0.1-implementation-plan.md](implementation/v0.1-implementation-plan.md) | Readiness inventory, proposed end-to-end design, permission matrix, decision register and gated milestones |
 | [implementation/m1-pilot-contract.md](implementation/m1-pilot-contract.md) | Owner-approved P-01–08 for synthetic M1 only; authoritative envelope/IPC/storage/security contract |
-| [implementation/m2-journald-spec.md](implementation/m2-journald-spec.md) | Owner-approved fixture implementation scope: prerequisites, service/IPC policy, separate SSH-journal contract and atomic progress/recovery; deployment/live testing not authorized |
+| [implementation/m2-journald-spec.md](implementation/m2-journald-spec.md) | Original M2 fixture contract and source policy; later authorized lifecycle/live evidence is recorded separately in the M2 validation documents |
 | [implementation/m3-linux-audit-spec.md](implementation/m3-linux-audit-spec.md) | Canonical M3 decisions, state-machine requirements and current source/health implementation boundaries; links to controlled Ubuntu acceptance and remaining evidence gates |
 | [validation/m2-runtime-acceptance/ubuntu-runtime-acceptance.md](validation/m2-runtime-acceptance/ubuntu-runtime-acceptance.md) | Owner-reported November 8 Ubuntu M2 runtime exercise, native archival gate and verified cleanup; backend-level negative control authorization remains unverified |
 | [validation/m2-lifecycle-validation.md](validation/m2-lifecycle-validation.md) | Wired M2 reader/ingestion/root-control lifecycle, offline tests and outstanding Ubuntu/deployment gates |
@@ -63,6 +66,17 @@ implementation authorization. Historical validation records are unchanged.
 - ADRs record why significant decisions were made and what remains unresolved.
 
 ## Current status and decision boundaries
+
+As of November 11, 2026, the M3 pipeline has actual Ubuntu evidence for root-only
+activation, separate identities, native execution parsing/transport/storage,
+interruption/suppression, resource limits, parser faults and isolated health
+metadata. See the [focused review](../tests/integration/M3-README.md#focused-m3-build-review)
+for remaining storage, event-provenance and rejection-diagnostic gaps. These scoped
+results do not establish complete native coverage or release readiness. Existing
+owner approvals supersede older task-only restrictions, as recorded in
+[repository guidance](../AGENTS.md#working-constraints).
+
+### Historical November 6 baseline
 
 As of November 6, 2026, documentation, directory scaffolding and temporary
 [research utilities](../scripts/research/README.md) exist. The utilities are not

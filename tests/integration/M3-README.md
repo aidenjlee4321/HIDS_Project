@@ -1255,3 +1255,226 @@ metadata has a general GPL-2 stanza and an LGPL-2.1 exception for `lib/*`; this 
 recorded provenance, not a determination that redistribution requirements are
 settled. Packaging/header provenance and distribution approval remain an open gate.
 No temporary third-party headers were copied into this repository.
+
+
+## Focused M3 build review
+
+The findings below describe checkpoint `cde78d9`. The subsequent storage and event
+metadata continuation below records implemented protections and their tested scope;
+the original findings are retained as the reason for that work.
+
+A bounded review of checkpoint `cde78d9` covered root activation/lease handling,
+peer credentials and private files, capability separation and helper isolation,
+EOE/semantic acceptance, durable interruption/replay, transaction boundaries,
+resource/health status, test claims and repository guidance. This is not an
+exhaustive security audit, power-loss proof or milestone sign-off.
+
+| Finding | Outcome / remaining work |
+|---|---|
+| Conflicting EOE classification accepted on an interrupted position replay | Fixed. Interruption no longer exempts replayed positions from exact EOE matching. Both changes (non-EOE to EOE and EOE to non-EOE) reproduced before the fix and now fail without changing positions, late diagnostics or the independent accepted B event. The existing interrupted-state acceptance guard already prevented resurrection; this closes the replay-integrity discrepancy. |
+| Logical SQLite/page limits do not provide a physical WAL/disk cap | Confirmed as an open storage gate with a bounded synthetic probe. A long read transaction can pin checkpoints while writes continue. Add measured disk/WAL warning/critical/exhausted handling and safe collection stop before claiming bounded disk operation. Do not delete evidence or treat journal_size_limit as a hard active-WAL limit. |
+| Per-event timing/provenance requirements are incomplete | The stored execution has native time/serial in its identity and scoped activation/generation, but no separately persisted collector observation, backend receipt or persistence timestamps. Architecture is validated by the fixed AArch64 collector profile but is not an explicit event payload field. These approved information requirements still need contract/storage implementation and compatibility handling; do not invent missing historical values. |
+| Ordinary rejection explanations are discarded | Native semantic validators produce sanitized error codes, but ordinary reject IPC carries only identity and SQLite stores only rejected state. Timeout/resource causes are retained separately. Persist bounded sanitized ordinary rejection causes and expose appropriate diagnostics before claiming explainable coverage. A generic rejection count cannot establish an exact lost-execution count. |
+| Repository guidance still described an M1-only scaffold | Updated AGENTS.md and the documentation index to distinguish actual M3 implementation from unfinished product features and preserve the owner's later workflow/VM approvals. Commits/pushes still require specific owner approval. Accepted architecture/privacy/logging constraints remain unchanged. |
+
+No root authorization bypass, unprivileged evidence exposure or partial execution
+acceptance was identified in the paths examined. This is a scoped review result,
+not proof that none exists. Current source readiness and sampled host counters do
+not promise complete execution coverage; unsupported native forms and the known
+Audit reload/EOE delivery limitation remain explicit.
+
+`m3_storage_review_probe.py` opens only a new private synthetic model, not installed
+HIDS databases. It commits 513 generated health samples while one read snapshot is
+held. Locally and on Ubuntu the control database stayed at nine 4-KiB pages, within
+its 64-page budget; only one health projection row existed. The WAL reached
+4,284,832 bytes despite journal_size_limit=1,048,576 and a nominal 262,144-byte logical
+page budget. A passive checkpoint reported 1,040 WAL frames, only 16 checkpointed
+while the reader was held; after release all 1,040 frames checkpointed. SQLite
+integrity stayed `ok`. No filesystem was filled and no actual device failure or
+host source loss was induced. Ubuntu model/report evidence was retained at
+`/tmp/hids-m3-storage-review.5li384v9`.
+
+```sh
+python3 -B tests/integration/m3_storage_review_probe.py
+```
+
+After the replay fix, all 55 M3 Python tests passed locally and on Ubuntu. The
+55-case actual SIGKILL matrix passed again on Ubuntu, with evidence under
+`/tmp/hids-m3-crash-matrix.2dxxaev7`. Installed runtime acceptance passed authorization,
+peer/privilege checks, current-tail exclusion, revocation, backend kill/recovery,
+storage contention, input failures, timeouts and late suppression. Its 64-fixture
+burst took 0.968 seconds in this run; this is a controlled regression result, not
+a newly approved performance threshold. The local M1 suite passed 17 tests; the
+M2 suite ran 56 tests with three explicit skips (53 passed). Neither suite is
+whole-product acceptance.
+
+The replay fix was installed on the authorized test VM after validation. Review
+follow-up priority is physical storage protection, then explicit event provenance/
+timing and ordinary rejection diagnostics, followed by broader workload/coverage
+acceptance. No architecture redesign or new native data collection was performed.
+
+
+## Storage admission and event metadata continuation
+
+The follow-up implements proactive admission safeguards, additive event metadata
+and bounded root diagnostics. These are scoped M3 mechanisms, not milestone or
+release sign-off. Existing architecture, source configuration restrictions and
+commit/push approval requirements remain unchanged.
+
+### Disk and WAL admission
+
+`m3_storage.py` inspects only private state-file metadata and filesystem available
+space. It accounts for retained activation databases and sidecars; the active
+connection's files are refreshed before writes, with a full directory scan at
+most once per second. Unknown inspection results block new writes rather than
+reporting zero usage. Ordinary writes stop at critical pressure, leaving a
+conservative transaction reserve for interruption bookkeeping where possible.
+Root status remains available for existing readable state, including startup
+above quota. Failure is sticky: reclaimed space does not reauthorize a reader.
+Repair and explicit service restart reconcile state; new collection still needs
+root activation. If even recovery cannot be written, status reports the failure
+without claiming durable interruption.
+
+Optional `/etc/hids/m3.json` `storage` is a closed object containing all five
+positive integer byte settings: `max_wal_bytes`, `max_state_bytes`,
+`warning_free_bytes`, `critical_free_bytes`, `minimum_free_bytes`. Omission derives
+provisional operational defaults. With 4096-byte SQLite pages, transaction reserve
+R is `(max_pages+2)*(4096+24)+32`; default WAL budget is max(8 MiB, 8R), state budget
+max(256 MiB, (max_activations+1)*(max_pages*4096+WAL_budget+65536)). Free-space
+warning/critical/minimum defaults are 1 GiB/512 MiB/256 MiB. Configuration validation
+requires ordered free-space settings, WAL at least 8R and state at least 16R.
+These are conservative reversible defaults, not approved release workload limits.
+
+Warning starts at half a WAL/state budget or the free warning threshold. Critical
+starts when WAL+R reaches 75% of its budget, state+2R reaches 75%, or free-2R reaches
+the critical threshold. Exhaustion means crossing the configured budget/minimum.
+Reserved recovery writes require free-2R above minimum, state+2R below budget and
+WAL+R below budget. Configuration/metadata errors do not authorize collection.
+
+SQLite TRUNCATE checkpoints run without waiting on pinned readers and preserve
+committed rows; normal polling is throttled, with urgent WAL checks before writes.
+Readers are never killed and files are never manually unlinked. This is an
+application admission policy, **not a hard filesystem quota** against root,
+external writers, concurrent disk consumption or device failure. Per-database page
+limits and existing no-deletion rules still apply. Automatic retention/eviction is
+not introduced.
+
+### Distinct event clocks and provenance
+
+The production C++ reader captures Unix nanoseconds when the first framed record
+for a group is observed, before waiting for durable admission. That value remains
+unchanged when later records arrive. New accept requests carry optional closed
+observation format 1: validated AArch64 architecture `0xc00000b7`, collector profile
+`linux.audit.aarch64.string/1`, and `first_observed_unix_ns`. An unavailable production
+observation clock stops collection with `collector_clock_failure`; it does not
+substitute activity time. Native activity time/serial remain in the original
+identity. Clock reversals are preserved without ordering assumptions.
+
+Python independently validates this metadata. `m3_event_metadata` stores it beside
+`received_at` (UTC timestamp immediately after receiving the socket bytes) and
+`persistence_started_at` (UTC after obtaining the transaction lock, immediately
+before the execution INSERT). The latter is **not the physical commit time**.
+Execution, metadata and frontier advance commit in one transaction. Identical
+retries retain the original clocks; supplied conflicting observations fail.
+Legacy protocol-3 requests remain valid with unknown collector/architecture fields;
+old accepted records are never backfilled with guessed timestamps. The normalized
+execution payload and protocol version remain unchanged. Deploy the matched
+collector/backend/control files; additive response fields are independently checked.
+
+### Bounded rejection diagnostics
+
+`m3_rejections` commits a closed sanitized reason and recorded UTC timestamp with
+the rejected disposition/frontier. Ordinary native semantic rejection, timeout and
+resource-limit codes are retained; raw native field values are not. A reason-insert
+failure rolls back the disposition. Reasons cannot be changed by a conflicting
+retry. Old rejected rows can remain unknown.
+
+Root-only `python3 -B -m engine.ingestion.m3_control diagnostics` reports the current
+activation's latest 20 rejected groups, with truncation/availability stated. The
+health IPC cannot request this command. Status adds `rejected_groups`,
+`rejection_details` and `observed_executions` to existing event-health counters;
+new historical fields are unknown when their tables do not exist. Counts of
+rejected groups do not establish an exact lost-execution count. Root responses
+are bounded to 4096 bytes; admin requests and health responses remain 2048 bytes,
+and native acknowledgements retain their smaller bound.
+
+### Executed checks
+
+All 70 M3 Python tests passed on macOS and Ubuntu, including preservation of
+unknown new counters in historical root CLI status. Ubuntu ASan/UBSan passed 25
+reconstruction groups, 124 linked native-profile cases, 124 allocation cuts and 11
+libauparse API faults. The expanded actual-SIGKILL matrix passed 58 cases, including
+metadata/reason INSERT boundaries (`/tmp/hids-m3-crash-matrix.o5dg1tlf`). Installed
+`m3_event_ubuntu.py` passed actual C++ observation/profile persistence, retained root
+rejection diagnostics after revocation, and atomic metadata/rejection insert faults
+with independent committed-event preservation. No Audit policy changes are made by
+that harness. Storage/load/runtime final regression results follow separately.
+
+```sh
+python3 -B -m unittest discover -s tests/unit -p 'test_m3*.py'
+python3 -B tests/integration/m3_crash_matrix.py
+sudo python3 -B tests/integration/m3_event_ubuntu.py
+sudo python3 -B tests/integration/m3_storage_ubuntu.py
+```
+
+Broader native/source workloads, release CPU/memory/disk thresholds, power-loss and
+physical device-failure behavior, distribution/license approval, reproducible
+packaging and later dashboard/detection requirements remain open. These tests do
+not establish continuous monitoring or complete execution coverage.
+
+
+Final installed storage acceptance with the matched metadata build passed again
+(`/run/hids-m3-storage.0iq5jffz/report.json`). A held SQLite snapshot produced 321
+acknowledged/generated health samples in 3.411 seconds, reaching warning then
+critical WAL pressure at 2,686,976 bytes, below the configured 4,285,056-byte budget.
+Committed B survived, A was interrupted, root status remained readable, and reader
+release allowed SQLite to reclaim redundant WAL. The sticky failure prevented
+implicit collection. A configured state quota below already-retained data produced
+status-only exhausted startup without deleting evidence. Restoring configuration,
+restarting and explicitly authorizing a new interval collected C. Original HIDS
+configuration was restored and every generated database retained.
+
+Full installed runtime/live-Audit/capacity acceptance passed with the matched
+build: unauthorized input remained unread, ordinary peers were denied, reader
+privileges were dropped, current-tail exclusion/revocation and backend-kill recovery
+held, contention/input failures were honest, and timeouts/late suppression preserved
+independent events. The 64-event burst took 1.292 seconds; idle CPU over the sampled
+second was 0.0 seconds for both processes. Test host policy was restored.
+
+The final 4096-event run committed all exact identities and observation rows with
+resolved frontier and zero timeout/late incidents in 29.457 seconds (139.05 events/s).
+The 32 writer-lock intervals took 17.942 seconds without timing out the open event.
+The event database occupied 1053 4096-byte pages; collector RSS stayed 4816 KiB,
+backend sampled RSS 21392–23484 KiB. Private configuration backup/history:
+`/run/hids-m3-load.0nfaljnx`. These results include metadata and admission overhead;
+the earlier checkpoint's approximately 200 events/s run is not a controlled paired
+comparison. Neither number is an approved release threshold or typical workload
+benchmark. Additional disk safety is not evidence of acceptable release overhead.
+
+Actual resource acceptance passed again: 16 MiB event discard retained independent
+B and waited for A's EOE; aggregate accounting stayed below 32 MiB with durable
+oldest-blocker fallback; failed resource persistence stopped safely without a false
+rejection. The measured oversized/aggregate phases took 2.569/4.596 seconds;
+collector high-water RSS was 22716/34740 KiB respectively. Retained private evidence:
+`/run/hids-m3-resource.h02731w5`. Accounting ceilings are not total RSS guarantees.
+The rebuilt C++ producer/Python fixture suite also passed Unix-socket delivery,
+producer/backend kills before/after commit, recovery and deduplication.
+
+
+The final health regressions passed automatic real kernel sampling, honest missing
+and stale dispatcher evidence, malformed/symlink rejection, sampling-gap recovery,
+endpoint peer restrictions, isolation under the actual systemd sandbox/capability
+set, health-storage failure isolation, durable historical incidents, timer shutdown
+and backend-kill/repaired-endpoint lifecycle. Three consecutive periodic dispatcher
+samples passed with independent event ingestion; that explicitly authorized lab
+test restored the original `report_interval=0` setting and derived report. Evidence
+is retained under `/run/hids-m3-health._9gjxkgu` and
+`/run/hids-health-periodic.qup4zcm8`; the temporary isolation probe was removed.
+
+Final verification matched host policy to the protected pre-test manifest, confirmed
+Audit active, original HIDS configuration restored (128 activation budget, 512 pages,
+1024 positions), state directory 0700 and ingest-owned files 0600, and all M3/checker
+units inactive. Installed collector and eight changed backend/control modules match
+the tested staging files. There are 127 retained SQLite files including control;
+future long acceptance runs must account for remaining activation capacity without
+deleting history. No commit or push was made for this continuation.

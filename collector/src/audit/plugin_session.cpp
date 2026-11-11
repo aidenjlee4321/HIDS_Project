@@ -22,13 +22,13 @@ Limits plugin_limits() {
 }
 
 PluginSession::PluginSession(Register admit, Finalize finalize, Validate validate, Clock clock, Timeout timeout,
-                             Resource resource, std::optional<Limits> limits)
+                             Resource resource, std::optional<Limits> limits, WallClock wall_clock)
     : reader_(0, limits ? *limits : plugin_limits(), [this](const Key& key, const ResourceEvidence& evidence) {
           if (!resource_ || !pause()) return false;
           const bool confirmed = resource_(key, evidence);
           return resume() && confirmed;
       }), admit_(std::move(admit)),
-      finalize_(std::move(finalize)), validate_(std::move(validate)), clock_(std::move(clock)),
+      finalize_(std::move(finalize)), validate_(std::move(validate)), clock_(std::move(clock)), wall_clock_(std::move(wall_clock)),
       timeout_(std::move(timeout)), resource_(std::move(resource)) {}
 
 bool PluginSession::pause() { return !clock_ || reader_.pause(clock_()); }
@@ -49,6 +49,8 @@ bool PluginSession::consume(std::string_view chunk, std::uint64_t monotonic_ms) 
         const auto parsed = parse_record(raw, offset, 65536, RecordProfile::auditd_string);
         if (!parsed.record) error_ = parsed.error;
         else {
+            const auto observed = wall_clock_ ? wall_clock_() : std::optional<std::uint64_t>{};
+            if (wall_clock_ && !observed) { error_ = "observation_clock_unavailable"; stopped_ = true; return false; }
             // Both monotonic deadlines freeze while admission deliberately stops
             // source reads. Use a fresh clock after the bounded storage wait.
             if (!pause()) error_ = reader_.error();
@@ -58,7 +60,7 @@ bool PluginSession::consume(std::string_view chunk, std::uint64_t monotonic_ms) 
                 else if (admission.state == Admission::failed) error_ = "admission_unconfirmed";
                 else if (admission.state == Admission::suppressed) {
                     if (!reader_.skip(*parsed.record, clock_ ? clock_() : monotonic_ms)) error_ = reader_.error();
-                } else if (reader_.feed(offset, raw, clock_ ? clock_() : monotonic_ms) != FeedResult::accepted)
+                } else if (reader_.feed(offset, raw, clock_ ? clock_() : monotonic_ms, observed) != FeedResult::accepted)
                     error_ = reader_.error();
             }
         }

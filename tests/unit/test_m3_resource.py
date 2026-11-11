@@ -41,7 +41,7 @@ class ResourceTests(unittest.TestCase):
         self.ledger.reject(self.A)
         self.assertEqual(self.ledger.positions(),(150,150))
         self.assertEqual(self.ledger.register(self.A,150,160,eoe=True),'suppressed')
-        self.assertEqual(self.ledger.event_health(),dict(timeouts=0,late_records=1,resource_incidents=1,discarding=0))
+        self.assertEqual(self.ledger.event_health(),dict(timeouts=0,late_records=1,resource_incidents=1,discarding=0,rejected_groups=1,rejection_details=1,observed_executions=0))
         self.ledger.close();self.ledger=self.open_ledger()
         self.assertEqual(self.ledger.db.execute('SELECT evidence FROM m3_resources').fetchone(),(json.dumps(evidence,sort_keys=True,separators=(',',':')),))
 
@@ -75,11 +75,13 @@ class ResourceTests(unittest.TestCase):
     def test_resource_cause_is_preserved_when_discard_expires(self):
         self.admitted();self.ledger.resource(self.A,self.evidence())
         self.ledger.timeout(self.A,self.timeout_evidence())
-        self.assertEqual(self.ledger.event_health(),dict(timeouts=1,late_records=0,resource_incidents=1,discarding=0))
+        self.assertEqual(self.ledger.event_health(),dict(timeouts=1,late_records=0,resource_incidents=1,discarding=0,rejected_groups=1,rejection_details=1,observed_executions=0))
         self.assertEqual(self.ledger._state(self.A),'rejected')
 
     def test_historical_ledger_does_not_invent_resource_counters(self):
         from engine.ingestion.m3_progress import event_health
         self.ledger.db.execute('DROP TABLE m3_resources')
+        self.ledger.db.execute('DROP TABLE m3_event_metadata')
+        self.ledger.db.execute('DROP TABLE m3_rejections')
         self.assertEqual(event_health(self.ledger.db), dict(
-            timeouts=0, late_records=0, resource_incidents=None, discarding=None))
+            timeouts=0, late_records=0, resource_incidents=None, discarding=None, rejected_groups=0, rejection_details=None, observed_executions=None))

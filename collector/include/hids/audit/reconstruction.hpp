@@ -63,6 +63,7 @@ struct Event {
     std::size_t path_records = 0, duplicate_content_records = 0;
     std::optional<TimeoutEvidence> timeout;
     std::optional<ResourceEvidence> resource;
+    std::optional<std::uint64_t> first_observed_unix_ns;
     // SYSCALL classification, field validation and normalized output are deferred
     // to an approved native payload parser. Never infer successful exec here.
 };
@@ -91,7 +92,7 @@ public:
     using Resource = std::function<bool(const Key&, const ResourceEvidence&)>;
     explicit Reconstructor(std::uint64_t boundary = 0, Limits limits = {}, Resource resource = {});
     FeedResult feed(std::uint64_t offset, std::string_view complete_line,
-                    std::uint64_t monotonic_ms);
+                    std::uint64_t monotonic_ms, std::optional<std::uint64_t> observed_unix_ns = {});
     bool expire(std::uint64_t monotonic_ms);
     bool pause(std::uint64_t monotonic_ms);
     bool resume(std::uint64_t monotonic_ms);

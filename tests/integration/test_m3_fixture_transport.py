@@ -88,9 +88,9 @@ def run_socket(producer, path):
 
 def crash_backend(connection, path, cutoff):
     class CrashProgress(Progress):
-        def accept(self, identity, execution):
+        def accept(self, identity, execution, **metadata):
             if cutoff == "after-commit":
-                super().accept(identity, execution)
+                super().accept(identity, execution, **metadata)
             os.kill(os.getpid(), signal.SIGKILL)
 
     ledger = CrashProgress(path, SCOPE["activation"], SCOPE["generation"], 0)

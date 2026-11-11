@@ -10,7 +10,8 @@ struct PluginScope {
 
 // The channel must already be connected to a verified ingestion peer.
 PluginSession make_plugin_session(pilot::Channel& channel, PluginScope scope,
-                                  PluginSession::Validate validate, PluginSession::Clock clock = {});
+                                  PluginSession::Validate validate, PluginSession::Clock clock = {},
+                                  PluginSession::WallClock wall_clock = {});
 // A best-effort final report. The stream closes even if its ACK is unconfirmed.
 bool report_plugin_gap(pilot::Channel&, const PluginScope&, std::string_view code);
 }

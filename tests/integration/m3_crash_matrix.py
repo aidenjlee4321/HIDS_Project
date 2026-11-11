@@ -37,11 +37,11 @@ CUTS = {
     'register': ['BEGIN IMMEDIATE', 'INSERT OR IGNORE INTO m3_disposition',
                  'INSERT INTO m3_eoe', 'INSERT INTO m3_positions',
                  'UPDATE m3_cursor SET scanned=', 'COMMIT', 'returned'],
-    'accept': ['BEGIN IMMEDIATE', 'INSERT INTO m3_execution',
+    'accept': ['BEGIN IMMEDIATE', 'INSERT INTO m3_execution', 'INSERT INTO m3_event_metadata',
                'UPDATE m3_cursor SET frontier=', 'COMMIT', 'returned'],
-    'reject': ['BEGIN IMMEDIATE', 'UPDATE m3_disposition SET state=',
+    'reject': ['BEGIN IMMEDIATE', 'UPDATE m3_disposition SET state=', 'INSERT INTO m3_rejections',
                'UPDATE m3_cursor SET frontier=', 'COMMIT', 'returned'],
-    'timeout': ['BEGIN IMMEDIATE', 'INSERT INTO m3_timeouts',
+    'timeout': ['BEGIN IMMEDIATE', 'INSERT INTO m3_timeouts', 'INSERT INTO m3_rejections',
                 'UPDATE m3_disposition SET state=', 'UPDATE m3_cursor SET frontier=',
                 'COMMIT', 'returned'],
     'resource': ['BEGIN IMMEDIATE', 'INSERT INTO m3_resources', 'COMMIT', 'returned'],
@@ -78,7 +78,7 @@ def seed(path, operation):
 
 def operation_call(ledger, operation):
     if operation == 'register': return ledger.register(C, 130, 140, eoe=True)
-    if operation == 'accept': return ledger.accept(A, EXECUTION)
+    if operation == 'accept': return ledger.accept(A, EXECUTION,observation=dict(version=1,arch=0xc00000b7,profile='linux.audit.aarch64.string/1',first_observed_unix_ns=123456789))
     if operation == 'reject': return ledger.reject(A)
     if operation == 'timeout': return ledger.timeout(A, TIMEOUT)
     if operation == 'resource': return ledger.resource(A, RESOURCE)
@@ -127,6 +127,11 @@ def verify(path, operation, committed):
             assert ledger.positions()[1] == (140 if committed else 100)
         if operation == 'resource':
             assert ledger._state(A) == 'open' and ledger.positions()[1] == 100
+        metadata_ids=ledger.db.execute('SELECT identity FROM m3_event_metadata ORDER BY identity').fetchall()
+        assert metadata_ids==([(A,),(B,)] if operation=='accept' and committed else [(B,)])
+        assert ledger.db.execute('SELECT COUNT(*) FROM m3_rejections').fetchone()==(int(operation=='late' or committed and operation in ('reject','timeout')),)
+        if operation=='accept' and committed:
+            assert ledger.db.execute('SELECT arch,first_observed_unix_ns FROM m3_event_metadata WHERE identity=?',(A,)).fetchone()==(0xc00000b7,123456789)
         ledger.recover()
         assert ledger.positions() == (target_scanned, target_scanned)
         if operation == 'accept' and committed:

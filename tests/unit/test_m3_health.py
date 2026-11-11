@@ -190,4 +190,4 @@ class HealthTests(unittest.TestCase):
         m3_health.record(self.runtime.db, self.activation, self.generation,
                          self.observation(kernel={'lost': 2**32-1, 'backlog': 2**32-1}), now_ns=self.now)
         response = dict(version=3, result='status', failure=None, reader_connected=True, **self.runtime.status())
-        self.assertLessEqual(len(frame(response, 2048)), 2048)
+        self.assertLessEqual(len(frame(response, 4096)), 4096)

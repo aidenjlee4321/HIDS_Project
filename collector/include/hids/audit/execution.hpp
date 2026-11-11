@@ -3,9 +3,10 @@
 #include "hids/audit/reconstruction.hpp"
 
 namespace hids::audit {
-// Internal fixture contract. Native time is copied verbatim from reconstruction.
+// Internal M3 execution contract. Native time is copied verbatim from reconstruction.
 struct Execution {
     Key key;
+    std::uint32_t arch = 0;
     std::uint32_t syscall, pid, ppid, uid, euid, suid, fsuid;
     std::optional<std::uint32_t> auid, session;
     std::int64_t result;
