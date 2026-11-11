@@ -13,7 +13,7 @@ from engine.ingestion import m3_health
 
 ACTIVE = ('ready', 'streaming')
 SOURCE_GAPS = frozenset(('collector_input_failure', 'assembly_timeout', 'collector_capacity',
-                         'incomplete_shutdown', 'current_tail_unavailable', 'collector_delivery_failure'))
+                         'incomplete_shutdown', 'current_tail_unavailable', 'collector_delivery_failure', 'collector_parser_failure'))
 CODES = frozenset(('backend_restart', 'stream_disconnected', 'partial_frame',
                    'protocol_failure', 'deadline', 'storage_failure', 'revoked',
                    'service_shutdown', 'progress_capacity')) | SOURCE_GAPS

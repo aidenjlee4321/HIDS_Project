@@ -93,6 +93,29 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(status['source_ready'])
         self.assertEqual(status['interval']['state'], 'revoked')
 
+    def test_parser_failure_interrupts_admission_and_retains_independent_execution(self):
+        import test_m3_progress as fixtures
+        activation = str(uuid.uuid4())
+        interval = self.runtime.activate(activation)
+        self.runtime.claim()
+        self.runtime.progress.register('1.001:1', 0, 10)
+        self.runtime.progress.register('1.001:2', 10, 20)
+        self.runtime.progress.register('1.001:2', 20, 30, eoe=True)
+        self.runtime.progress.accept('1.001:2', fixtures.ProgressTests.execution(self))
+        self.runtime.interrupt('collector_parser_failure')
+        status = self.runtime.status()
+        self.assertEqual(status['interval']['code'], 'collector_parser_failure')
+        self.assertTrue(status['possible_gap'])
+        self.assertFalse(status['source_ready'])
+        old = Progress(self.directory / f'{activation}.sqlite', activation, interval['generation'], 0)
+        try:
+            self.assertEqual(old.positions(), (30, 30))
+            self.assertEqual(old._state('1.001:1'), 'interrupted')
+            self.assertEqual(old._state('1.001:2'), 'accepted')
+            self.assertEqual(old.register('1.001:1', 30, 40, eoe=True), 'suppressed')
+        finally:
+            old.close()
+
     def test_concurrent_writer_and_missing_ledger_fail_closed(self):
         with self.assertRaises(BlockingIOError):
             self.open_runtime()

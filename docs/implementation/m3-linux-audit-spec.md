@@ -379,6 +379,13 @@ or EXECVE presence. Native AArch64 is the **Owner-approved** initial scope; cand
 UAPI values `0xC00000B7`, execve 221 and execveat 281 require target-header/fixture
 verification before support is claimed. Unsupported/compat architectures fail closed.
 
+Executed target evidence (November 11, 2026): the Ubuntu AArch64 contract build
+asserts those architecture/syscall constants against its installed UAPI headers.
+The linked corpus now covers 124 current-profile boundary cases, and controlled
+allocation/API faults verify empty typed output and safe source interruption.
+See [native/parser acceptance](../../tests/integration/M3-README.md#native-contract-boundaries-and-parser-failure-acceptance).
+This does not close broader native field/marker/range or redistribution gates.
+
 Preserve original time precision, clock reversals and serial resets. No float
 conversion, invented boot or monotonic identity, local-time substitution, synthetic
 activity timestamp or silent precision change. Keep observation, receipt and

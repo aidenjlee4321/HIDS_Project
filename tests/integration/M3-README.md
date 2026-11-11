@@ -1136,3 +1136,122 @@ M3 tests passed locally and on Ubuntu. The installed health failure/lifecycle te
 also passed again: an unavailable checker endpoint did not stop event collection
 or root control, backend SIGKILL stopped its timer/helper, and recovery retained
 committed evidence without automatic collection authorization.
+
+
+## Native contract boundaries and parser-failure acceptance
+
+The generated native-profile corpus now exercises 124 sanitized cases. It passed
+locally with ASan/UBSan and on Ubuntu against the installed libauparse, both normally
+and with ASan/UBSan. The Ubuntu build also asserts the actual target UAPI constants:
+`AUDIT_ARCH_AARCH64=0xc00000b7`, `__NR_execve=221`, `__NR_execveat=281`. This is
+verification of the supported AArch64 profile, not support for compat/x86 sources.
+
+Cases cover the current uint32 wire limits and missing/negative/overflow identities,
+explicit unset AUID/session versus known zero, both execution syscall numbers,
+unsupported architecture/syscall and contradictory outcomes, signed result limits,
+4,096/256 decoded exe/comm bytes, quoted/uppercase-hex representations, non-UTF-8
+bytes preserved as Base64, NUL rejection for exe/comm/CWD/PATH, permitted PROCTITLE
+NUL bytes, required EXECVE/EOE, PATH index/count consistency, duplicate/unknown
+fields, and fractions of one through nine digits preserved verbatim despite the
+adapter's temporary millisecond projection for libauparse BUFFER input.
+
+These are tests of the current closed contract and narrow grammar, not proof that
+every accepted boundary value is emitted by the kernel or that every native
+execution is supported. For example, PARENT PATH records, quoted strings containing
+spaces, lowercase hexadecimal and unknown fields remain deliberately rejected by
+this profile. Broader RAW field/marker/grammar coverage and field-specific native
+range provenance remain open; UINT32_MAX is not universally interpreted as unset.
+Only the currently recognized AUID/session sentinel maps to explicit null.
+
+```sh
+bash tests/integration/validate_m3_native_contract.sh --sanitize
+HIDS_M3_AUPARSE=1 HIDS_AUDIT_INCLUDE_DIR=headers HIDS_AUPARSE_LIBRARY=-l:libauparse.so.0 bash tests/integration/validate_m3_native_contract.sh --sanitize
+```
+
+The first command omits libauparse unless explicitly enabled; its output says so.
+The second is the tested Ubuntu command using the already preserved header directory.
+On a normal build host with matching development headers/linker files, omit the two
+path/library overrides. Neither runner downloads or installs dependencies. Each
+run prints a private retained build directory containing its binary; the native
+contract runner also writes a per-case `results.tsv`. Final Ubuntu sanitizer
+boundary evidence was `/tmp/hids-m3-native-contract.Nwqhvw7x`.
+
+Allocation injection reproduced an exception escaping the original typed parser
+result at its first allocation. Framing, semantic validation and the libauparse
+adapter now catch `std::bad_alloc` and return empty output with a stable literal
+error. The session also handles allocation failures in framing/admission/finalization,
+stops before finalizing the affected event, and reports existing `collector_capacity`
+when that report can be delivered. Persistent total heap exhaustion may prevent
+IPC reporting; disconnect/recovery still must preserve authoritative committed state.
+No partially built execution is accepted or mislabeled as an ordinary invalid event.
+
+A null libauparse initialization or negative traversal result is separately treated
+as parser unavailability, stops the source and reports the allowlisted
+`collector_parser_failure` gap. A semantic/structural mismatch still rejects the
+known event normally. The backend records interruption, reconciles admitted positions,
+preserves independent committed executions and requires a new explicit activation.
+The collector/backend must be deployed together for the added scoped gap code.
+No new privileges, collection fields, native source settings or storage schema were
+introduced.
+
+`m3_parser_failure_test.cpp` overrides allocation only in its own executable. It
+sweeps reachable C++ allocation points until success, verifies empty typed failures,
+and tests whole-session stop-before-finalization. Linux test-only link wrappers
+also inject null initialization, negative traversal, null field/text/type access,
+and unexpected extra-event outcomes; every case produces no execution, then a fresh
+valid state succeeds. Ubuntu passed 124 C++ allocation cuts plus 11 API faults under
+ASan/UBSan; the unlinked Mac build passed 77 C++ cuts. Counts depend on the compiler/
+library path and are not production limits. C-library internal malloc sites,
+persistent OOM and device/power faults are not exhaustively simulated.
+
+```sh
+bash tests/integration/validate_m3_parser_failures.sh --sanitize
+HIDS_M3_AUPARSE=1 HIDS_AUDIT_INCLUDE_DIR=headers HIDS_AUPARSE_LIBRARY=-l:libauparse.so.0 bash tests/integration/validate_m3_parser_failures.sh --sanitize
+```
+
+Ubuntu failure evidence was retained at `/tmp/hids-m3-parser-failures.tjN7An12`.
+The test-only GNU link wrappers are enabled only for the linked Linux build and
+are never part of the production binary.
+
+Installed end-to-end acceptance also passed for both null initialization and an
+injected allocation exception at the second validation. The real trusted launcher,
+capability-free reader, authenticated socket and service were used. Independent B
+committed before A's injected failure; A became interrupted rather than rejected,
+B remained unchanged, the frontier resolved, root status showed the appropriate
+parser/capacity gap, and a newly authorized normal reader committed C. No host OOM
+was induced. Build the special collector from the same production sources plus
+`tests/unit/m3_auparse_init_fault.cpp` and `-Wl,--wrap=auparse_init`; add
+`-DHIDS_M3_FAULT_ALLOCATE` for the allocation variant. Install only a separate,
+root-owned test binary in the trusted application directory, then run:
+
+```sh
+sudo python3 -B tests/integration/m3_parser_failure_ubuntu.py /usr/lib/hids/hids-audit-plugin-init-fault
+sudo python3 -B tests/integration/m3_parser_failure_ubuntu.py /usr/lib/hids/hids-audit-plugin-allocate-fault --expected-code collector_capacity
+```
+
+The installed test-only binary copies were removed afterward; their reproducible
+staging binaries and all event history remain. The normal collector is installed.
+All 54 Python M3 tests passed locally and on Ubuntu, including durable parser-gap
+reconciliation and independent-event preservation. The linked native sanitizer
+regression passed its existing 24 groups. Complete installed runtime acceptance,
+including actual live Audit delivery and configured capacity exhaustion, passed
+again; the 64-fixture burst took 0.606 seconds. Final checks verified unchanged Audit
+configuration/plugin hashes and rules, active auditd, private hids-ingest-owned
+0600 files under the 0700 state directory, and all HIDS/checker units stopped.
+
+Target provenance recorded from the VM: auditd/libaudit1/libauparse0t64
+`1:4.1.2-1ubuntu0.1` arm64, GCC `15.2.0-16ubuntu1`, Python-linked SQLite `3.46.1`.
+Development packages remain uninstalled; the preserved upstream 4.1.2 headers were
+already used by earlier linked acceptance. Observed SHA-256 values:
+
+| Artifact | SHA-256 |
+|---|---|
+| `headers/auparse.h` | `cbc61a1b2bc7d83794d61272aa053134a307060ca2b3e052e5be3f1e5791dc25` |
+| `headers/auparse-defs.h` | `b6226917575df7d662b90d8c958ed8223640572a7ed3d27a3a4c36b3a518f56b` |
+| Installed `libauparse.so.0` target | `af21bdc1dec3c7971a66cd8d7f1b6d966f79548f49f131fd93463d7d22f40fd8` |
+
+The header carries an LGPL-2.1-or-later notice. The installed package copyright
+metadata has a general GPL-2 stanza and an LGPL-2.1 exception for `lib/*`; this is
+recorded provenance, not a determination that redistribution requirements are
+settled. Packaging/header provenance and distribution approval remain an open gate.
+No temporary third-party headers were copied into this repository.

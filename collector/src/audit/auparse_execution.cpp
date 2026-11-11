@@ -3,6 +3,7 @@
 #include <auparse.h>
 
 #include <algorithm>
+#include <new>
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,7 +19,7 @@ struct InputRecord {
 };
 }
 
-ExecutionResult validate_auparse_execution(const Event& event) {
+ExecutionResult validate_auparse_execution(const Event& event) try {
     std::size_t source_bytes = 0;
     std::size_t input_bytes = 0;
     std::vector<InputRecord> inputs;
@@ -78,9 +79,12 @@ ExecutionResult validate_auparse_execution(const Event& event) {
     std::unique_ptr<auparse_state_t, decltype(&auparse_destroy)> state(
         auparse_init(AUSOURCE_BUFFER, buffer.c_str()), auparse_destroy);
     if (!state) return {{}, "auparse_init"};
-    if (auparse_next_event(state.get()) != 1 || auparse_first_record(state.get()) != 1) {
-        return {{}, "auparse_missing_event"};
-    }
+    const int first_event = auparse_next_event(state.get());
+    if (first_event < 0) return {{}, "auparse_unavailable"};
+    if (first_event != 1) return {{}, "auparse_missing_event"};
+    const int first_record = auparse_first_record(state.get());
+    if (first_record < 0) return {{}, "auparse_unavailable"};
+    if (first_record != 1) return {{}, "auparse_missing_event"};
 
     std::string_view remaining(buffer);
     for (const auto& input : inputs) {
@@ -91,7 +95,9 @@ ExecutionResult validate_auparse_execution(const Event& event) {
         if (!actual || !type || expected != actual || input.record->type != type) {
             return {{}, "auparse_record_mismatch"};
         }
-        if (auparse_first_field(state.get()) != 1) return {{}, "auparse_missing_field"};
+        const int first_field = auparse_first_field(state.get());
+        if (first_field < 0) return {{}, "auparse_unavailable"};
+        if (first_field != 1) return {{}, "auparse_missing_field"};
         int next;
         do {
             if (!auparse_get_field_name(state.get()) || !auparse_get_field_str(state.get())) {
@@ -99,13 +105,20 @@ ExecutionResult validate_auparse_execution(const Event& event) {
             }
             next = auparse_next_field(state.get());
         } while (next > 0);
+        if (next < 0) return {{}, "auparse_unavailable"};
         if (next != 0) return {{}, "auparse_field"};
         remaining.remove_prefix(length + 1);
-        if (auparse_next_record(state.get()) != (remaining.empty() ? 0 : 1)) {
+        const int next_record = auparse_next_record(state.get());
+        if (next_record < 0) return {{}, "auparse_unavailable"};
+        if (next_record != (remaining.empty() ? 0 : 1)) {
             return {{}, "auparse_record_count"};
         }
     }
-    if (auparse_next_event(state.get()) != 0) return {{}, "auparse_event_count"};
+    const int next_event = auparse_next_event(state.get());
+    if (next_event < 0) return {{}, "auparse_unavailable"};
+    if (next_event != 0) return {{}, "auparse_event_count"};
     return validate_execution(event);
+} catch (const std::bad_alloc&) {
+    return {{}, "auparse_allocation"};
 }
 }

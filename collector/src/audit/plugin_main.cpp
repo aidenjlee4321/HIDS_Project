@@ -26,6 +26,8 @@ bool number(std::string_view input, unsigned& value) {
 std::string_view failure_code(std::string_view error) {
     if (error == "resource_report_unconfirmed" || error == "admission_unconfirmed" || error == "finalization_unconfirmed")
         return "collector_delivery_failure";
+    if (error == "parser_failure") return "collector_parser_failure";
+    if (error == "allocation_failure") return "collector_capacity";
     if (error == "assembly_timeout") return "assembly_timeout";
     if (error.ends_with("capacity")) return "collector_capacity";
     return "collector_input_failure";

@@ -1,6 +1,7 @@
 #include "hids/audit/execution.hpp"
 
 #include <algorithm>
+#include <new>
 #include <array>
 #include <charconv>
 #include <limits>
@@ -126,7 +127,7 @@ bool syscall_fields(const Fields& input, Execution& event, std::size_t& items, b
 }
 }
 
-ExecutionResult validate_execution(const Event& event) {
+ExecutionResult validate_execution(const Event& event) try {
     if (const auto error = validate_execve(event); !error.empty()) return {{}, error};
     Execution execution{};
     execution.key = event.key;
@@ -175,5 +176,7 @@ ExecutionResult validate_execution(const Event& event) {
     }
     if (!syscall || execution.path_count != items) return {{}, "incomplete_execution"};
     return {std::move(execution), {}};
+} catch (const std::bad_alloc&) {
+    return {{}, "execution_allocation"};
 }
 }

@@ -1,6 +1,7 @@
 #include "hids/audit/plugin_session.hpp"
 
 #include <utility>
+#include <new>
 
 namespace hids::audit {
 namespace {
@@ -33,7 +34,7 @@ PluginSession::PluginSession(Register admit, Finalize finalize, Validate validat
 bool PluginSession::pause() { return !clock_ || reader_.pause(clock_()); }
 bool PluginSession::resume() { return !clock_ || reader_.resume(clock_()); }
 
-bool PluginSession::consume(std::string_view chunk, std::uint64_t monotonic_ms) {
+bool PluginSession::consume(std::string_view chunk, std::uint64_t monotonic_ms) try {
     if (!tick(monotonic_ms)) return false;
     while (!chunk.empty()) {
         const auto status = input_.consume(chunk);
@@ -68,12 +69,23 @@ bool PluginSession::consume(std::string_view chunk, std::uint64_t monotonic_ms) 
         if (!drain_ready()) return false;
     }
     return true;
+} catch (const std::bad_alloc&) {
+    error_ = "allocation_failure"; stopped_ = true; return false;
 }
-bool PluginSession::drain_ready() {
+bool PluginSession::drain_ready() try {
     while (const auto event = reader_.take_ready()) {
         const bool timed = event->basis == Basis::timeout;
         if (timed && !timeout_) { error_ = "assembly_timeout"; stopped_ = true; return false; }
         const auto result = timed || event->resource ? ExecutionResult{} : validate_(*event);
+        // Heap exhaustion is a component failure, not evidence that this closed
+        // event is semantically invalid. Leave its durable admission unresolved;
+        // the stream interruption reconciles it without accepting partial output.
+        if (result.error == "execution_allocation" || result.error == "auparse_allocation") {
+            error_ = "allocation_failure"; stopped_ = true; return false;
+        }
+        if (result.error == "auparse_init" || result.error == "auparse_unavailable") {
+            error_ = "parser_failure"; stopped_ = true; return false;
+        }
         if ((!timed && event->basis != Basis::eoe) || !pause()) {
             error_ = "finalization_unconfirmed"; stopped_ = true; return false;
         }
@@ -83,6 +95,8 @@ bool PluginSession::drain_ready() {
         }
     }
     return true;
+} catch (const std::bad_alloc&) {
+    error_ = "allocation_failure"; stopped_ = true; return false;
 }
 
 bool PluginSession::tick(std::uint64_t monotonic_ms) {

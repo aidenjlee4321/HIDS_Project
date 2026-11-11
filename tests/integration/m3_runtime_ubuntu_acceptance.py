@@ -66,12 +66,15 @@ def query(activation, sql):
 
 
 class Reader:
-    def __init__(self, queued=b''):
+    def __init__(self, queued=b'', *, plugin=None):
         self.input, self.output = os.pipe()
         if queued:
             os.write(self.output, queued)
+        arguments = ['/usr/bin/python3', '-B', '-m', 'engine.ingestion.m3_launch']
+        if plugin is not None:
+            arguments += ['--plugin', str(plugin)]
         self.process = subprocess.Popen(
-            ['/usr/bin/python3', '-B', '-m', 'engine.ingestion.m3_launch'],
+            arguments,
             cwd=APP, env=ENV, stdin=self.input, stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE)
 

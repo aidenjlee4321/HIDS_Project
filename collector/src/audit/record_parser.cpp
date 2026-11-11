@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <charconv>
 #include <limits>
+#include <new>
 
 namespace hids::audit {
 namespace {
@@ -50,7 +51,7 @@ bool valid_payload(std::string_view payload) {
 
 }
 ParseResult parse_record(std::string_view line, std::uint64_t offset, std::size_t maximum,
-                         RecordProfile profile) {
+                         RecordProfile profile) try {
     if (line.empty() || line.back() != '\n') return {{}, "unterminated_record"};
     const auto size = line.size();
     line.remove_suffix(1);
@@ -99,5 +100,7 @@ ParseResult parse_record(std::string_view line, std::uint64_t offset, std::size_
     Record record{{std::string(seconds), std::string(fraction), std::string(serial)},
                   std::string(type), std::string(line), offset, offset+size, profile};
     return {std::move(record), {}};
+} catch (const std::bad_alloc&) {
+    return {{}, "allocation_failure"};
 }
 } // namespace hids::audit
