@@ -1,0 +1,13 @@
+# Tested on Ubuntu 26.04.1 AArch64. Source activation is explicit.
+[Unit]
+Description=HIDS root-only M3 activation control socket
+
+[Socket]
+ListenStream=/run/hids/m3/control.sock
+SocketUser=root
+SocketGroup=root
+SocketMode=0600
+DirectoryMode=0755
+Accept=no
+Service=hids-m3.service
+RemoveOnStop=yes

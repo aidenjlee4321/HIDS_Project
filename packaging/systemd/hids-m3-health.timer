@@ -1,0 +1,11 @@
+[Unit]
+Description=Sample authorized M3 Audit metadata
+PartOf=hids-m3.service
+BindsTo=hids-m3.service
+After=hids-m3.service
+
+[Timer]
+OnActiveSec=1
+OnUnitInactiveSec=5
+AccuracySec=1
+Unit=hids-m3-health.service

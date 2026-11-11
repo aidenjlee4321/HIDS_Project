@@ -21,7 +21,7 @@ implementation authorization. Historical validation records are unchanged.
 | [implementation/v0.1-implementation-plan.md](implementation/v0.1-implementation-plan.md) | Readiness inventory, proposed end-to-end design, permission matrix, decision register and gated milestones |
 | [implementation/m1-pilot-contract.md](implementation/m1-pilot-contract.md) | Owner-approved P-01–08 for synthetic M1 only; authoritative envelope/IPC/storage/security contract |
 | [implementation/m2-journald-spec.md](implementation/m2-journald-spec.md) | Owner-approved fixture implementation scope: prerequisites, service/IPC policy, separate SSH-journal contract and atomic progress/recovery; deployment/live testing not authorized |
-| [implementation/m3-linux-audit-spec.md](implementation/m3-linux-audit-spec.md) | Canonical M3 accepted semantic/privacy/BUFFER decisions and owner register; file source, grammar, permissions, resources, durable recovery and pipeline contract remain provisional/unresolved; no new implementation authorization |
+| [implementation/m3-linux-audit-spec.md](implementation/m3-linux-audit-spec.md) | Canonical M3 decisions, state-machine requirements and current source/health implementation boundaries; links to controlled Ubuntu acceptance and remaining evidence gates |
 | [validation/m2-runtime-acceptance/ubuntu-runtime-acceptance.md](validation/m2-runtime-acceptance/ubuntu-runtime-acceptance.md) | Owner-reported November 8 Ubuntu M2 runtime exercise, native archival gate and verified cleanup; backend-level negative control authorization remains unverified |
 | [validation/m2-lifecycle-validation.md](validation/m2-lifecycle-validation.md) | Wired M2 reader/ingestion/root-control lifecycle, offline tests and outstanding Ubuntu/deployment gates |
 | [validation/m2-component-validation.md](validation/m2-component-validation.md) | Historical M2 component checkpoint; subsequent lifecycle wiring and remaining Ubuntu gates are in the lifecycle validation record |
@@ -110,6 +110,19 @@ or roadmap item. Graceful degradation is established even though its mechanisms
 are undecided: functioning sources and authorized dashboard/stored-data access
 continue, affected source status and rule limitations are reported, and recovery
 is detectable.
+
+For M3, the [master decision register](implementation/m3-linux-audit-spec.md#11-owner-decision-register)
+now separates **Owner-approved**, **Provisional**, **Evidence-dependent** and
+**Future goal**. The broad open questions above do not reopen the approved plugin source,
+protocol-3/separate-database, conservative-recovery direction, Base64
+executable-identity encoding, or no-deletion policies.
+The [state-machine addendum](implementation/m3-linux-audit-spec.md#12-owner-approved-evidence-and-state-machine-addendum)
+now distinguishes source-position re-reading from prohibited interrupted-event
+reconstruction; exact grammar, permissions, tuning and schema/protocol mechanics
+still require evidence. Later explicit owner tasks authorized implementation and VM testing.
+The [current acceptance record](../tests/integration/M3-README.md#installed-health-checker-acceptance)
+describes the installed source pipeline and isolated health checker without claiming
+that every M3 or release gate is complete.
 
 C++ owns native collection, ingestion, parsing, normalization and collection-side
 processing. Python receives/validates normalized events and owns detection,

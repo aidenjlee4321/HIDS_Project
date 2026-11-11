@@ -1,0 +1,46 @@
+[Unit]
+Description=HIDS bounded Audit metadata checker
+After=hids-m3.service
+PartOf=hids-m3.service
+BindsTo=hids-m3.service
+ConditionPathExists=/run/hids/m3/health/metrics.sock
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+SupplementaryGroups=hids-ipc
+ExecStart=/usr/lib/hids/hids-m3-health
+TimeoutStartSec=3
+TimeoutStopSec=1
+UMask=0077
+LimitCORE=0
+LimitNOFILE=32
+MemoryMax=32M
+TasksMax=1
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_AUDIT_CONTROL
+AmbientCapabilities=CAP_AUDIT_CONTROL
+ProtectSystem=strict
+ProtectHome=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+TemporaryFileSystem=/run:ro /tmp:ro /var/tmp:ro
+BindReadOnlyPaths=/run/hids/m3/health -/run/audit
+InaccessiblePaths=/var/lib/hids /etc/hids /var/log /etc/shadow /etc/gshadow /etc/ssh
+SystemCallFilter=~@mount @reboot @swap @module @raw-io @clock @debug
+SystemCallErrorNumber=EPERM
+StandardInput=null
+StandardOutput=null
+StandardError=journal

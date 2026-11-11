@@ -1,0 +1,6 @@
+type=SYSCALL msg=audit(1794096000.123:100): arch=c00000b7 syscall=221 success=yes exit=0 pid=4200 ppid=4100 items=1 uid=1000 euid=1000 suid=1000 fsuid=1000 auid=4294967295 ses=7 comm="sleep" exe="/usr/bin/sleep"
+type=EXECVE msg=audit(1794096000.123:100): argc=2 a0="sleep" a1="2"
+type=CWD msg=audit(1794096000.123:100): cwd="/fixture"
+type=PATH msg=audit(1794096000.123:100): item=0 name="/usr/bin/sleep" nametype=NORMAL
+type=PROCTITLE msg=audit(1794096000.123:100): proctitle=736C6565700032
+type=EOE msg=audit(1794096000.123:100):

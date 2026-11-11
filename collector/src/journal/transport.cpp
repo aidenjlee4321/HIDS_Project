@@ -80,7 +80,9 @@ Delivery transmit(Channel& io,const std::string& frozen,bool prior){
 int UnixChannel::connect(Deadline deadline){
     close();
 #ifdef __linux__
-    if(getuid()!=997||geteuid()!=997||getgid()!=getegid()||peer_.uid==0||peer_.uid==997)return EPERM;
+    if (reader_uid_ == 0 || getuid() != reader_uid_ || geteuid() != reader_uid_ ||
+        getgid() != getegid() || (reader_gid_ && getgid() != *reader_gid_) ||
+        peer_.uid == 0 || peer_.uid == reader_uid_) return EPERM;
     auto slash=path_.find_last_of('/');if(path_.empty()||path_[0]!='/'||slash==path_.npos||path_.size()>=sizeof(sockaddr_un::sun_path))return EINVAL;
     std::string parent=path_.substr(0,slash);char resolved[4096]{};struct stat d{},s{};
     if(!realpath(parent.c_str(),resolved)||parent!=resolved)return EACCES;
@@ -97,7 +99,7 @@ int UnixChannel::connect(Deadline deadline){
     if(size!=sizeof(peer)||peer.pid<=0||peer.uid!=peer_.uid||peer.gid!=peer_.gid)return EPERM;
     return 0;
 #else
-    (void)deadline;(void)peer_;return ENOTSUP;
+    (void)deadline;(void)peer_;(void)reader_uid_;(void)reader_gid_;return ENOTSUP;
 #endif
 }
 ssize_t UnixChannel::write(const void* p,std::size_t n){

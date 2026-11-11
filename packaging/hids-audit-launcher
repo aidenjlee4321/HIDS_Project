@@ -1,0 +1,4 @@
+#!/bin/sh
+# Install root-owned under /usr/lib/hids before configuring auditd explicitly.
+exec /usr/bin/env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin PYTHONPATH=/usr/lib/hids \
+    /usr/bin/python3 -B -m engine.ingestion.m3_launch

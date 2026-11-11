@@ -1,6 +1,7 @@
 #pragma once
 #include "hids/journal/contract.hpp"
 #include "hids/pilot/transport.hpp"
+#include <optional>
 namespace hids::journal {
 using Channel=pilot::Channel;
 using Delivery=pilot::Delivery;
@@ -13,6 +14,10 @@ struct Peer {unsigned uid,gid,ipc_gid;};
 class UnixChannel final:public Channel {
 public:
     UnixChannel(std::string path,Peer peer,std::function<bool()> cancel):path_(std::move(path)),peer_(peer),cancel_(std::move(cancel)){}
+    UnixChannel(std::string path, Peer peer, std::function<bool()> cancel,
+                unsigned reader_uid, unsigned reader_gid)
+        : path_(std::move(path)), peer_(peer), cancel_(std::move(cancel)),
+          reader_uid_(reader_uid), reader_gid_(reader_gid) {}
     UnixChannel(const UnixChannel&)=delete;
     UnixChannel& operator=(const UnixChannel&)=delete;
     ~UnixChannel() override{close();}
@@ -22,7 +27,10 @@ public:
     bool wait(bool,Deadline) override;
     void close() noexcept override;
     bool cancelled() const override{return cancel_();}
+    int descriptor() const noexcept { return fd_; }
 private:
     std::string path_;Peer peer_;std::function<bool()> cancel_;int fd_=-1;
+    unsigned reader_uid_=997;
+    std::optional<unsigned> reader_gid_;
 };
 }

@@ -28,7 +28,7 @@ class RootPolicy:
         return pid
 
 
-def load_config(path):
+def load_root_json(path):
     path = Path(path)
     if not path.is_absolute() or path.resolve() != path:
         raise PermissionError('config_path')
@@ -54,7 +54,11 @@ def load_config(path):
                 raise ValueError('config_duplicate')
             result[key] = value
         return result
-    config = json.loads(raw.decode('utf-8'), object_pairs_hook=pairs)
+    return json.loads(raw.decode('utf-8'), object_pairs_hook=pairs)
+
+
+def load_config(path):
+    config = load_root_json(path)
     keys(config, 'source_id max_records max_pages')
     if not uuid_valid(config['source_id']):
         raise ValueError('config_source')
@@ -63,16 +67,17 @@ def load_config(path):
     return config
 
 
-def systemd_control_listener():
+def systemd_control_listener(endpoint_path='/run/hids/control.sock'):
     if sys.platform != 'linux' or os.environ.get('LISTEN_PID') != str(os.getpid()) or os.environ.get('LISTEN_FDS') != '1':
         raise PermissionError('systemd_control_fd_required')
-    _directory(Path('/run/hids'), 0, 0, 0o755)
-    endpoint = Path('/run/hids/control.sock').lstat()
+    path = Path(endpoint_path)
+    _directory(path.parent, 0, 0, 0o755)
+    endpoint = path.lstat()
     if not stat.S_ISSOCK(endpoint.st_mode) or endpoint.st_uid != 0 or endpoint.st_gid != 0 or stat.S_IMODE(endpoint.st_mode) != 0o600:
         raise PermissionError('root_control_endpoint')
     listener = socket.socket(fileno=3)
     listener.set_inheritable(False)
-    if listener.family != socket.AF_UNIX or listener.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE) != socket.SOCK_STREAM or not listener.getsockopt(socket.SOL_SOCKET, socket.SO_ACCEPTCONN) or listener.getsockname() != '/run/hids/control.sock':
+    if listener.family != socket.AF_UNIX or listener.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE) != socket.SOCK_STREAM or not listener.getsockopt(socket.SOL_SOCKET, socket.SO_ACCEPTCONN) or listener.getsockname() != str(path):
         listener.close()
         raise PermissionError('control_listener_policy')
     listener.setblocking(False)

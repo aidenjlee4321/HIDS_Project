@@ -1,0 +1,33 @@
+# Tested on Ubuntu 26.04.1 AArch64. Source activation is explicit.
+[Unit]
+Description=HIDS isolated M3 Audit ingestion
+Requires=hids-m3.socket
+Wants=hids-m3-health.timer
+After=hids-m3.socket
+
+[Service]
+Type=simple
+User=hids-ingest
+Group=hids-ingest
+DynamicUser=no
+SupplementaryGroups=hids-ipc
+WorkingDirectory=/usr/lib/hids
+ExecStart=/usr/bin/python3 -B -m engine.ingestion.m3_service --config /etc/hids/m3.json
+Sockets=hids-m3.socket
+Restart=no
+UMask=0077
+LimitCORE=0
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX
+ReadWritePaths=/run/hids/m3/ingest /run/hids/m3/health /var/lib/hids/m3
+StandardOutput=null
+StandardError=journal

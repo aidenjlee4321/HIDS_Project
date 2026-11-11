@@ -1,48 +1,159 @@
-# M3 — Linux Audit execution monitoring proposal
+# M3 — Linux Audit execution monitoring decisions
 
-**Status:** Accepted decisions and unresolved proposals; not an implementation authorization
+**Status:** Owner-approved plugin source and EOE-only completion. Implementation and acceptance are in progress.
 
 **Prepared:** November 8, 2026\
-**Decision reconciliation:** November 9, 2026 (owner-directed documentation only)
+**Consolidated:** November 9, 2026 (master decisions and evidence/state-machine addendum; documentation only)
 
-**Target:** One Ubuntu 26.04 LTS host; initially native AArch64 execution records
+**Target:** One Ubuntu 26.04 LTS host with native AArch64 Audit execution records.
 
-## 1. Goals, non-goals and decision boundaries
+## Current source decision
 
-Collect already-existing Linux Audit execution records, reconstruct each native
-Audit event, normalize a privacy-minimized representation in C++20, independently
-validate it in Python, and persist it with replay/checkpoint and source-health
-information through protected local IPC. Deliver a testable vertical slice before
-extending monitoring coverage.
+The owner approved an outbound auditd plugin as the M3 input, retaining EOE as
+the sole completion marker. The [native Ubuntu probe](../../tests/integration/M3-README.md#native-ubuntu-source-finding)
+and [auditd 4.1.2 source](https://raw.githubusercontent.com/linux-audit/audit-userspace/v4.1.2/src/auditd.c#L331)
+established that the local file does not carry EOE.
 
-Native reconstruction of records from **one Audit event** is parsing, not v0.2
-security-event correlation. No detection rules, alerts, behavioral sequences,
-cross-source deduplication, dashboard, HTTP, remediation, automatic hardening,
-Audit rule changes, auditd/plugin configuration changes, package installation or
-service deployment belong to this proposal's implementation authorization.
-This task authorizes documentation only. Accepted design decisions below do not
-authorize semantic-parser implementation, pipeline integration or deployment.
-Historical experiments and validation reports retain their original results.
+This decision supersedes RAW-file ingestion and its file-specific mechanics below,
+including byte cursors, rename rotation, and replay from file checkpoints. Those
+sections describe the previous design. Preserve explicit activation, bounded
+volatile payloads, non-root processing, independent Python validation and writes,
+interruption suppression, and no fabricated completion. Plugin transport framing,
+privilege separation before input reads, loss reporting and durable event identity
+need target evidence before live deployment. Auditd configuration and original logs
+remain under host administration.
 
-Preserve C++20 native processing, Python-only SQLite writes, Unix stream sockets
-and JSON Lines, independent validation, root-only human security-data access,
-least privilege and local storage. M1/M2 contracts, source filters, databases and
-runtime behavior remain compatibility boundaries. Do not turn an Audit event into
-an M2 SSH event or replace the existing cn_proc adapter.
+The current implementation adds explicit activation and interrupted-stream restart
+handling, with separate root control and reader data endpoints. The installed
+service, launcher, current-tail gate, revocation, restart, storage-failure and
+native-source path have passed a controlled Ubuntu acceptance round. Upstream
+health sampling now has a separate owner-approved privileged checker. Resource and sustained-load hardening remain open. Controlled quiet
+probes found prompt EOE after clean auditd startup and a repeatable one-record
+delay after plugins were removed/re-added through reload on Ubuntu's Audit
+4.1.2 package. The latter is durably rejected per event, never accepted
+without EOE. Root status distinguishes sampled counters from unavailable evidence; the
+source-ready flag alone does not prove continuity. See the
+[implementation and validation record](../../tests/integration/M3-README.md#activation-and-restart-integration).
+The generation identifiers in that runtime identify plugin streams. They do not
+assert continuity with the superseded file-generation design below.
 
-[ADR-006](../decisions/006-provisional-process-collection.md) remains the provisional
-cn_proc lifecycle decision. This milestone adds Audit execution context where
-existing auditing supplies it; Audit does not thereby become an approved replacement
-for all FORK/EXEC/EXIT collection. The narrower M3 request takes precedence over
-older roadmap references to simultaneous authentication and /proc implementation.
-CIS assessment, ATT&CK rule mapping, SSDF release practices and future hardening
-remain roadmap context, not new M3 features or claims of coverage/compliance.
+The latest implementation durably rejects an individual expired assembly while
+continuing independent events. Sanitized timeout policy/timing and subsequent
+late positions survive restart; a late EOE cannot resurrect the event. Completed
+native payload/history can retire from memory only after durable acknowledgment
+and the safe volatile frontier; Python retains the authoritative disposition.
+The 35 Python tests, 21 native sanitizer groups, installed runtime acceptance and
+4,096-event load/controlled storage-pressure tests passed. See the
+[latest evidence](../../tests/integration/M3-README.md#per-event-timeouts-and-sustained-workloads).
 
-## 2. Confirmed repository facts and reusable components
+### Owner-approved health checker and source-health evidence
+
+The owner explicitly approved the separate privileged health checker in this
+conversation. Implementation and Ubuntu acceptance were updated November 11, 2026.
+This approval preserves the capability-free event reader and Python backend, the
+existing logging-policy constraint, EOE-only completion and root-only human access.
+It does not authorize Git commits or publication.
+
+The initial read-only probe returned `EPERM` for `AUDIT_GET` under `hids-audit`;
+root could read host-wide kernel status. The
+[Linux permission check](https://kernel.googlesource.com/pub/scm/linux/kernel/git/stable/linux-stable/+/refs/heads/linux-rolling-lts/kernel/audit.c)
+uses `CAP_AUDIT_CONTROL` for this query, a permission that also allows Audit
+configuration changes. The new short-lived C++ checker alone receives that
+capability under systemd. Its code issues only fixed, unicast `AUDIT_GET`, binds no
+multicast event groups, reads only derived dispatcher metadata and never changes
+Audit configuration/rules or signals the daemon. It receives no security-event
+payloads. Python independently validates reports and remains the only SQLite writer.
+
+The checker uses a dedicated root-authenticated **health-only** endpoint,
+`/run/hids/m3/health/metrics.sock`. The only operations are obtaining the current
+authorized activation/generation and submitting a scoped observation. The endpoint
+cannot activate/deactivate collection or issue a reader lease. The checker's mount
+namespace hides the administrative socket, data socket, stored event data and other
+`/run` services. It has an isolated network namespace, read-only host filesystem,
+restricted address families, `NoNewPrivileges`, the Audit-only capability bounding
+set, and a post-start syscall filter denying execution, signals and cross-process
+memory/debug operations. Actual unit probes verified these restrictions. These
+protections do **not** turn `CAP_AUDIT_CONTROL` into a kernel-enforced read-only
+permission; exploitation of the remaining Audit access is a residual risk.
+
+The timer is wanted by the M3 backend and both checker units are bound to its
+lifetime. Explicit shutdown and backend SIGKILL stop the checker/timer. A missing
+or untrusted health endpoint and health-table write failures remain visible without
+stopping working event ingestion. The helper obtains authorized scope before
+reading host counters; inactive intervals cause an exit without sampling.
+
+One bounded row per activation retains the latest normalized observation, the first
+readable kernel baseline, the preceding readable kernel observation for comparisons,
+and sticky incident/availability flags. Control schema 3 migrates transactionally
+to schema 4 by adding `m3_health`; existing intervals and event files are preserved.
+The IPC family remains the internal version 3. Reports cannot cross activation or
+generation boundaries, renew freshness by replay, or introduce unknown payload fields.
+The current implementation uses a five-second reschedule, two-second helper deadline,
+three-second service timeout and fifteen-second freshness window as provisional
+operational settings, not release performance guarantees.
+
+Kernel loss increments, counter decreases/resets, boot/PID changes, disabled Audit,
+active-dispatcher overflow/suspension and monitor sampling gaps are separately labeled.
+A loss count already present in the first sample is not attributed to HIDS or to
+activity before/after activation. Latest receipt times do not date older sticky
+incidents. These are host-wide observations, not exact per-HIDS lost-execution
+counts, and sampled zero values never prove uninterrupted coverage.
+
+On this VM `/run/audit/auditd.state` is root:adm mode 0640 and normally has no periodic
+producer because `report_interval=0`. Missing, inaccessible, malformed, symlinked,
+future-dated or stale metadata remains explicitly unavailable. With zero active
+plugins, queueing suspension describes an inactive dispatcher rather than loss.
+A lab-only operator test temporarily enabled one-second state reports and observed
+three successive passive timer samples, then restored the original configuration.
+The product never changes that setting or generates periodic signals to flush EOE.
+Continuous dispatcher freshness therefore depends on independently administered
+host reports. Kernel sampling works without that host setting.
+
+The 46 Python tests, native metadata sanitizer suite, installed health acceptance,
+actual isolation probe, periodic-report test and endpoint/crash lifecycle test passed.
+The complete installed M3 suite also passed with the checker integrated. See
+[health checker acceptance](../../tests/integration/M3-README.md#installed-health-checker-acceptance).
+
+## 1. Scope, classifications and authority
+
+M3 is intended to reconstruct existing Linux Audit execution events in C++20,
+validate semantic contents, deliver a separate normalized M3 contract through
+protected local IPC, and independently validate/persist it in Python. This is
+single-native-event reconstruction, not v0.2 detection correlation. No detection
+rules, user-facing security alerts, dashboard, remediation or hardening are added
+by this milestone. Operational health, rejection and resource-exhaustion reporting
+remain part of M3.
+
+Use these four classifications throughout this specification and its register:
+
+| Classification | Meaning |
+|---|---|
+| **Owner-approved** | The owner accepted the policy or architectural direction. |
+| **Provisional** | The owner approved an initial policy/ceiling; numerical tuning or technical details still require validation. It is not merely an unapproved recommendation. |
+| **Evidence-dependent** | Finalization requires actual Ubuntu inspection, representative controlled fixtures or measurements; do not guess. |
+| **Future goal** | Deliberately excluded from initial M3 implementation. |
+
+Policy approval is separate from permission to implement, create accounts, change
+permissions/configuration, install packages, deploy, collect live data or test on
+Ubuntu. Prior documentation-only entries describe their original scope. Preserve
+historical research and M1/M2 validation evidence with their original limitations.
+
+Keep C++ native collection/processing, Python independent normalized validation
+and sole SQLite writes, Unix stream sockets/JSON Lines, least-privilege service
+separation, local-first storage and root-only human security-data access. M1/M2
+contracts, databases, source filters and behavior remain unchanged. Preserve
+[ADR-006](../decisions/006-provisional-process-collection.md): Audit adds execution
+context where existing policy supplies it, not a replacement for all cn_proc
+FORK/EXEC/EXIT monitoring. Existing [ADRs](../decisions/) remain in force; this
+source-specific design does not finalize ECS globally or change roadmap priorities.
+The interruption policy in section 12 supersedes unfinished-event reconstruction
+after restart; no known interrupted event may be restored into acceptance.
+
+## 2. Recorded repository context and reusable components
 
 The following inventory records the November 8 source inspection, distinct from
 recommendations below; this documentation reconciliation does not revalidate source
-behavior or rerun tests. The subsequent structural increment is scoped in section 4.1:
+behavior or rerun tests. The separate local structural increment is scoped in section 4.1:
 
 | Existing component | Exact integration boundary |
 |---|---|
@@ -67,120 +178,136 @@ live backend negative peer-credential test. The historical
 [lifecycle record](../validation/m2-lifecycle-validation.md) remain unchanged.
 
 Older architecture/AGENTS/status passages still predate implemented M2. They are
-not evidence that its source code is absent. The November 9 reconciliation updates current decision documentation only; it
-does not rewrite historical experiments or validation evidence. Existing [Audit authentication research](../research/authentication.md)
-establishes some authentication records, not EXECVE coverage on the present VM.
+not evidence that its source code is absent. This consolidation updates current
+decisions only; it does not rewrite historical experiments or validation evidence.
+Existing [Audit authentication research](../research/authentication.md) establishes
+some authentication records, not EXECVE coverage on the present VM.
 
-## 3. Integration alternatives and recommendation
+## 3. Collection policy, activation and source coverage
 
-### Confirmed upstream properties
+**Owner-approved:** use existing local Linux Audit log files, RAW format only,
+initially for native AArch64 `execve` and `execveat`. Include successful and failed
+attempts only when the complete supported record requirements are satisfied.
+Enriched, remote/mixed-node and compressed streams are not initial supported inputs.
+Actual format, configuration and execution coverage are **Evidence-dependent**.
+A running auditd, authentication records or a readable empty log do not establish
+execution coverage. Report absence/unobserved coverage and distinguish not-configured
+only where proven. Never install rules to make coverage or acceptance pass.
 
-Auditd can dispatch records to configured plugins; its configuration directory,
-plugin lifecycle, inherited root environment and queues require care. A blocked
-plugin can contribute backpressure to auditd and the kernel. Configuring a new
-plugin is a change to the Audit logging infrastructure, even if rules are unchanged.
-See [upstream plugin documentation](https://raw.githubusercontent.com/linux-audit/audit-userspace/master/docs/auditd-plugins.5).
+The earlier integration alternatives are retained as rationale: an Audit plugin
+requires logging-infrastructure configuration and can introduce dispatcher
+backpressure; direct daemon registration conflicts with auditd ownership; read-only
+netlink multicast is a different live/capability-bearing source without log replay.
+None is the initial source. Never add plugins, register as the Audit daemon, change
+Audit/auditd configuration or rules, grant Audit/DAC-bypass capabilities, modify
+source permissions, or elevate automatically. Existing log access avoids reader
+backpressure on auditd, but does not guarantee lossless upstream logging or retention.
+See [auditd configuration](https://raw.githubusercontent.com/linux-audit/audit-userspace/v4.1.2/docs/auditd.conf.5)
+and [Audit plugin documentation](https://raw.githubusercontent.com/linux-audit/audit-userspace/v4.1.2/docs/auditd-plugins.5).
 
-Auditd's configured log path, raw/enriched format, write enablement, permissions,
-rotation and flushing affect what a file reader sees. Do not assume the default
-path is the active configuration or that every event was durably logged. See
-[upstream auditd configuration](https://raw.githubusercontent.com/linux-audit/audit-userspace/master/docs/auditd.conf.5).
+### 3.1 Authorization and collection intervals
 
-The kernel's multicast Audit bind checks `CAP_AUDIT_READ`; this is distinct from
-becoming the controlling audit daemon. Do not register HIDS as the audit daemon,
-request `CAP_AUDIT_CONTROL`, change filters or displace auditd. Multicast reception
-is live, not a replay source. See
-[kernel Audit implementation](https://raw.githubusercontent.com/torvalds/linux/master/kernel/audit.c).
+**Owner-approved:** explicit root authorization precedes all Audit payload reads.
+Before activation inspect only approved metadata and permission evidence. Securely
+open the approved source after activation, verify its identity and current file-end
+boundary, and preserve that boundary before event emission. Recheck tail-start
+rename/truncation races; exact framing/transaction steps are **Evidence-dependent**.
+No historical backfill. Exclude and report events overlapping the activation
+boundary rather than back-reading or calling partial records complete.
 
-| Approach | Privileges and compatibility | Loss, recovery and operational complexity | M3 assessment |
-|---|---|---|---|
-| Auditd dispatcher/plugin | Auditd remains stream owner; plugin starts privileged and should drop privilege. Requires an existing approved dispatcher path or new Audit plugin configuration. Target plugin ABI/version must be checked. | Low-latency records; finite dispatcher/plugin queues; slow consumer can affect Audit infrastructure. No inherent durable replay/consumer ACK checkpoint; log/spool recovery is extra design. | Not initial M3: conflicts with existing-logging constraint if a plugin must be added. Future separately approved option. |
-| Existing audit log files | Non-root reader with already-authorized directory traversal and file read access; zero Audit control capabilities. Works with auditd's existing file output if enabled; cannot assume ordinary-user access. | Existing logs provide bounded recovery while retained; rotation, partial writes, renames, compression and truncation require explicit handling. Reader lag does not stall auditd, but rotation can overtake it. Disk persistence adds latency and does not prove upstream losslessness. | **Recommended**, conditional on actual read permissions and existing execution records. Best fit for current architecture and no-configuration-change policy. |
-| Audit netlink | Unicast daemon/control registration conflicts with auditd and is excluded. Read-only multicast can coexist but needs `CAP_AUDIT_READ`; target kernel, namespaces and group behavior need validation. | Fast live delivery; socket overflow/ENOBUFS and disconnect gaps; no durable cursor or offline recovery. Requires hardened netlink parser, loss diagnostics and a capability-bearing service. Kernel and consumer losses are different. | Not initial M3. Multicast is a technically distinct future option, not proof that all netlink competes with auditd. |
+Disabling stops reading, releases source access and preserves committed evidence
+and the last safe checkpoint. Re-enabling creates a new authorized interval at a
+new verified current boundary. No automatic reactivation or disabled-period backfill.
+Crash resume of source scanning and durable-delivery reconciliation is limited to
+the same still-authorized interval with verifiable source identity and continuity.
+It never authorizes reconstructing known interrupted event payload into acceptance.
+Reboot or daemon reset does not authorize a new interval,
+a guessed boot ID or merging uncertain identities. Exact persisted authorization,
+reset/reboot reconciliation and revocation races remain **Evidence-dependent**.
 
-**Recommendation:** read one explicitly configured, root-approved local auditd log
-stream and its verified rename-rotation chain. Do not shell out to repeated
-`ausearch --recent` or copy whole logs into SQLite. Start only after explicit source
-activation; initial activation starts at the current file boundary, without
-historical backfill. Catch-up after restart is restricted to the same still-active
-interval and retained files. Disabling the source must close file descriptors.
+## 4. Reconstruction, completeness and semantic parsing
 
-**Coverage blocker:** auditd and general authentication events do not imply
-execution syscall rules exist. If existing policy does not emit execve/execveat,
-report `execution_coverage_not_observed`/`not_configured` only where evidence warrants
-that distinction. HIDS must not install rules to make acceptance pass. Complete
-execution coverage cannot be promised under this constraint. Audit syscall rules
-would require separate owner design/authorization outside this proposal.
+### 4.1 Structural authority and native grouping
 
-## 4. Native event reconstruction
+**Owner-approved:** native grouping identity is `(Audit timestamp, serial, node)`
+within the configured local source and a verified stream/continuity scope. Preserve
+original seconds, complete fractional digits, serial and node independently. Node
+is opaque: do not resolve it through hostname/NSS databases or normalize it. A
+consistently absent node is allowed. Reject conflicting node identities and
+remote/mixed-node streams initially. Establishing local origin and consistent node
+binding is **Evidence-dependent**; a hostname-looking label alone proves neither.
+Never group by PID, command name, filename, adjacency or serial alone.
 
-Audit records with the same `msg=audit(seconds.fraction:serial)` belong to one
-source-native event; record types can be interleaved with other events. Node/origin,
-source stream and epoch must scope grouping; PID, command name or adjacency are
-not grouping keys. A serial alone is not globally unique. See
-[upstream ausearch event/checkpoint semantics](https://raw.githubusercontent.com/linux-audit/audit-userspace/master/docs/ausearch.8)
-and [auparse timestamp representation](https://raw.githubusercontent.com/linux-audit/audit-userspace/master/docs/auparse_get_timestamp.3).
+Physical identity is separate: configured source UUID, ingestion-assigned
+file-generation UUID and first-record byte offset (section 6). Native timestamp
+identity, original bytes/positions, record order, closure and volatile acknowledgment
+remain structural responsibilities; libauparse must not infer or rewrite them.
 
-The EXECVE/PATH/CWD/PROCTITLE/EOE handling below is owner-accepted. Additional
-SYSCALL classification/cardinality details remain proposed pending grammar and
-scope review, apart from the explicitly required identity fields in section 5.
+The local working tree contains a separate fixture-driven structural increment,
+described in `tests/integration/M3-README.md`. That untracked work is not modified
+or published by this documentation task. Its Event metadata, local-node support,
+limits and failure behavior must be reviewed for compatibility before integration.
+A currently stricter or fail-sticky fixture component is not proof that the planned
+production policy is implemented. Interface changes require separate authorization.
 
-| Record | Initial semantic policy | Privacy and interpretation |
+### 4.2 Completion and supported records
+
+**Owner-approved:** EOE is the only initial structural completion marker. Validate
+it structurally and exclude it from libauparse input. PROCTITLE never closes an
+event initially. Timeout, shutdown, capacity exhaustion and discontinuity do not
+establish completeness.
+Reject malformed structure. Late records never silently establish completeness.
+Finalized events remain immutable. EOE closure is not proof of valid fields or lossless delivery.
+
+| Record | Owner-approved initial handling | Retained information |
 |---|---|---|
-| `SYSCALL` | Exactly one for an execution semantic result; verify architecture/syscall and strict field values. | `exit` is the syscall return, not eventual process exit. Numeric UID roles remain distinct; do not retain raw a0–a3 register values. |
-| `EXECVE` | Accept only complete information when supplied; validate argc, argument indices, split fragments, duplicate/conflicting fragments and missing information across all occurrences. | Validate but do not persist argument values. Do not fabricate missing arguments or substitute PROCTITLE. |
-| `PATH` | Optional; multiple occurrences allowed, each validated in original order. | Discard contents from normalized/persistent output. Never assume the first PATH identifies the executable. |
-| `CWD` | Optional; maximum one, validated when present. | Discard contents from normalized/persistent output. |
-| `PROCTITLE` | Optional; maximum one, validated when present. | Discard contents; never a replacement for EXECVE. |
-| `EOE` | Structurally validated terminator. | Exclude from libauparse input; structural closure is separate from semantic validity. |
+| `SYSCALL` | Validate supported architecture/syscall, outcome and required execution/identity fields; do not classify from EXECVE presence alone. | Approved execution and identity context in section 5. Exact record cardinality/field grammar requires fixtures. |
+| `EXECVE` | Require complete information across all supplied records. Validate argc, expected indices, fragments, ordering, missing/duplicate/conflicting fragments. Reject incomplete or absent corresponding EXECVE, including failed SYSCALL execution attempts. | Neither argc nor argument values. No fabricated argv and no PROCTITLE substitution. |
+| `PATH` | Optional, repeated; validate every occurrence without deduplicating it. Never assume the first PATH is the executable. | Presence and record count; discard contents. |
+| `CWD` | Optional singleton (maximum one); validate when present. | Presence only; discard contents. |
+| `PROCTITLE` | Optional singleton (maximum one); validate when present. Never a completion marker or replacement for EXECVE. | Presence only; discard contents. |
+| `EOE` | Structurally validated terminator, not parser payload. | Structural closure evidence. |
 
-**Accepted completeness policy:** reject incomplete EXECVE sequences rather than
-returning partial execution semantics. Support for incomplete sequences is a
-future stretch goal. Absence of any EXECVE record is a different condition from
-an incomplete supplied sequence. **Unresolved:** classification/eligibility of a
-failed SYSCALL with no EXECVE record. Do not silently reject or classify such an
-event under a rule that the owner has not approved. This does not relax the
-complete-EXECVE requirement for sequences that are supplied.
+The previous open question about a failed SYSCALL without EXECVE is now resolved:
+reject it as incomplete under the initial contract; do not create a separate
+failed-execution event type. This does not exclude failed attempts whose supported
+record information is complete. Distinguish absent records from incomplete supplied
+sequences in bounded diagnostics without granting either partial normalized success.
 
-The supported EXECVE grammar must be established before implementation: argc,
-indexed arguments, split/length fragments, cross-record continuity, legitimate
-repetition, conflicting or duplicate fragments, and missing information need
-explicit rules and representative sanitized fixtures. A repeated record type is
-not automatically a duplicate field or a complete argument sequence.
+**Future goal:** incomplete EXECVE support, a separate failed-execution representation
+and PROCTITLE-based completion. Neither timeout nor libauparse's own completion rules
+may serve as a workaround. Additional completion mechanisms need separate review.
 
-Use architecture-specific syscall tables: candidate AArch64 execve/execveat are
-221/281 with Audit arch `0xC00000B7`; verify the target UAPI headers and fixtures
-before claiming support. Unsupported/compat architectures must not be guessed.
-See [Linux syscall definitions](https://raw.githubusercontent.com/torvalds/linux/master/include/uapi/asm-generic/unistd.h).
-A successful exec changes the process image, not its PID, and does not prove later
-program success. Interpreter scripts/fexecve and failed attempts need specific
-fixtures before equivalent coverage is claimed.
+### 4.3 Strict field and fragment validation
 
-### 4.1 Structural authority and semantic eligibility
+**Owner-approved:** reject unknown fields initially, use explicit record-specific
+validation and reject duplicate singleton fields even when equal. No first/last-
+value-wins. Preserve legitimate repeated EXECVE/PATH occurrences and validate every
+field, including known fields discarded from output. Native GID fields can be known,
+validated-discard fields; excluding GIDs from output does not make them unknown.
 
-The local working tree contains a fixture-driven structural increment described
-in `tests/integration/M3-README.md`. That separate untracked implementation/test
-work is not included in this documentation commit and requires its own review.
-The structural boundary owns native identity, original timestamp strings, source
-generation/byte positions, ordering, closure, replay checks and volatile contiguous
-acknowledgment. This reconciliation changes none of that work or its fixtures.
+**Evidence-dependent:** exact RAW Audit lexical rules, supported record/field
+allowlists, numeric ranges and fragment grammar. Verify argc/index/length/fragment
+relationships across repeated EXECVE records; do not invent argument continuity,
+escape, quoting, hex or byte-pair rules. Validate complete tokens, field names,
+encoding, duplication/conflicts, bounds and overflow rather than relying on library
+acceptance. Apply field-specific rules to discarded values too; encoded separators
+in discarded data never permit raw NUL input or embedded NUL in retained exe/comm. Unknown/unsupported encodings or records cannot be silently
+accepted to improve coverage. Malformed input invalidates the entire semantic result.
 
-Closure is not semantic completeness. Timeout, shutdown, capacity exhaustion or
-unresolved discontinuity cannot establish complete execution context. Initial
-EOE-based semantic eligibility remains a recommendation; additional closure
-mechanisms require explicit approval and evidence. PROCTITLE-terminal opt-in in
-structural fixtures is not approval to use it as semantic completeness. The
-current Event interface must be checked for sufficient closure/completeness
-metadata before semantic integration; do not infer unavailable metadata or change
-reconstruction implicitly. The proposed exactly-one-SYSCALL check belongs to semantic validation, not a
-new requirement for structural reconstruction.
-Late/conflicting records remain structural failures, not new executions or
-permission to amend immutable results. Durable finalization and restart behavior
-remain unresolved in section 6.
+**Future goal:** validated check-and-discard support for unknown fields. Current
+strict rejection remains in force until that extension is approved and validated.
 
-### 4.2 Accepted temporary timestamp policy
+### 4.4 Fresh BUFFER lifecycle and temporary timestamps
 
-Only the temporary libauparse input uses three fractional digits:
+**Owner-approved:** use a fresh `AUSOURCE_BUFFER` per structurally reconstructed
+event, with EOE excluded, complete bounded NUL-terminated input, full traversal and
+positional accounting. No FEED/callback parsing, persistent parser state or fallback
+to another architecture. Recommend libauparse over independently implementing a
+complete Audit grammar, subject to dependency approval (section 9.1).
+
+The accepted parser-compatibility policy is temporary three-digit truncation when
+needed. Do not reselect rounding:
 
 | Original fraction | Temporary fraction |
 |---|---|
@@ -189,470 +316,999 @@ Only the temporary libauparse input uses three fractional digits:
 | `.123456` | `.123` |
 | `.123456789` | `.123` |
 
-Right-pad short fractions and truncate longer fractions; **do not round**. The
-validated initial widths are 1, 3, 6 and 9; other widths remain unsupported by this
-semantic projection until separately validated/approved, without changing the
-structural parser's timestamp acceptance. Reject malformed syntax instead of
-repairing it. Original seconds, complete fraction, serial, record bytes, source
-byte offsets and identity stay unchanged. Never use temporary millisecond values
-for deduplication, durable identity, ordering or checkpointing. Colliding temporary
-timestamps cannot merge structural events; each gets its own parser state.
-Round-half-up remains historical experimental comparison, not the selected policy.
+Original seconds, full fraction, serial, node, record bytes, byte offsets and
+structural identity remain unchanged. Temporary millisecond values must never
+be used for durable identity, deduplication, ordering or checkpointing. Collisions
+between temporary times cannot merge structural events. Supported fractional widths
+and exact source ranges remain **Evidence-dependent**; the four examples do not
+approve every possible width or change structural acceptance rules.
 
-### 4.3 Accepted fresh BUFFER lifecycle and record accounting
+Required lifecycle for the eventual adapter:
 
-1. Check structural eligibility and approved bounds before allocation. Enumerate
-   original records, including EOE for original-size accounting; reject embedded
-   NUL and malformed timestamps. Calculate projected non-EOE input length from
-   validated source spans with checked addition/subtraction, without constructing
-   an unbounded intermediate buffer.
-2. Build the complete temporary representation in structural order, excluding EOE.
-   Overflow-check `input_bytes + 1`, allocate the bounded input plus a mandatory
-   NUL terminator, and populate it directly where practical. Bound any intermediate
-   copies and decoding buffers independently. The terminator is allocation overhead,
-   not a logical parser-input byte.
-3. Call `auparse_init(AUSOURCE_BUFFER, buffer)` once for this event. BUFFER requires
-   NUL termination and copies its input; it has no explicit-length initialization
-   argument. A NULL result is an explicit parser-initialization failure, potentially
-   including library allocation failure, not proof of application `std::bad_alloc`.
-4. Drain every library event with `auparse_next_event()` (positive: event, zero:
-   exhaustion, negative: error), and traverse every record and field. Independently
-   validate semantics using numeric/raw field representations, not interpreted
-   account names or host-dependent identifier/path lookups.
-5. Compare returned records positionally with expected types and complete temporary
-   record representations. Every supplied non-EOE occurrence must appear exactly
-   once in order; omissions, unexpected records, extra duplicates, reordering or
-   unexplained representation changes reject the complete semantic result.
-6. Return one fully validated result or one typed failure, never partial output.
-   Use RAII for destruction on all paths and discard temporary sensitive values.
+1. Verify structural eligibility and approved bounds before normalized construction.
+   Enumerate original records (including EOE for original size accounting), reject
+   embedded NUL and malformed timestamps, and identify exact replacement spans.
+2. Compute projected non-EOE input length without constructing it. Check every size
+   addition/subtraction for overflow, enforce bounds and overflow-check `length + 1`.
+   Populate a bounded final buffer in structural order with required delimiters
+   and a terminating NUL. Bound intermediate/decoded copies separately.
+3. Initialize `auparse_init(AUSOURCE_BUFFER, buffer)`. This API requires NUL
+   termination and copies its input; it is not an explicit-length initializer.
+   NULL is a parser-initialization failure, not proof of application bad_alloc.
+4. Drain every event with `auparse_next_event()` (positive: event, zero: exhaustion,
+   negative: error), and inspect every returned record and field. Use raw numeric
+   values, not interpreted account names or host-dependent NSS/path transformations.
+5. Independently validate semantics and compare returned records positionally with
+   expected types and complete temporary record representations. Every supplied
+   non-EOE occurrence must match exactly once in order. Missing, silently skipped,
+   extra, duplicated, reordered or unexpectedly rewritten records invalidate output.
+6. Return one complete semantic result or one typed failure, never partially populated
+   success. Use RAII on every path and discard temporary sensitive values. No raw
+   values in diagnostics; no claim of secure erasure of all library allocations.
 
-No `AUSOURCE_FEED`, feed/flush calls, callbacks, persistent BUFFER reuse or fallback
-parser architecture is part of this accepted approach. libauparse event boundaries
-never become structural boundaries. Successful library parsing is not successful
-semantic validation. The exact allocation-free internal result/failure API remains
-unapproved; no libauparse types should escape the adapter boundary.
+**Evidence-dependent:** actual installed-library API/header/ABI behavior, internal
+allocation-free result/failure API, malformed-record behavior and allocation/traversal
+failure vectors. No API implementation is authorized by this lifecycle description.
+Successful library parsing is not semantic validity or structural completeness.
 
-### 4.4 Accepted strict validation policy
+## 5. Initial normalized execution and privacy requirements
 
-Reject unknown fields in the initial semantic profile. Unfamiliar record types
-must not be silently accepted; the supported native type allowlist and exact
-failure classifications still require the grammar review.
-Use explicit record-specific allowlists and encoding/numeric validation, including
-recognized fields whose values are discarded. Reject duplicate singleton fields,
-even when equal; never use first/last-value-wins. Preserve legitimate repeated
-EXECVE/PATH occurrences and distinguish fragmented argument syntax from duplicate
-singleton fields. Required, missing, malformed and explicitly unset states are
-not interchangeable.
+**Owner-approved:** M3 will use its own `m3.audit-exec/0.1.0` contract, protocol 3 and separate
+ingestion boundary. The contract/protocol direction is approved; exact closed JSON
+objects, response/control messages, encoding tags and validation vectors remain
+**Evidence-dependent**. Do not send M3 through M2's SSH contract or finalize global
+ECS mappings from this source-specific requirement set.
 
-The exact Audit lexical and field-specific encoding grammar remains a blocker:
-verify quoting, escapes, hexadecimal byte pairs where applicable, numeric ranges,
-field names and complete token consumption rather than inventing a full ad hoc
-Audit grammar or relying on library acceptance. Native GID fields can be explicitly
-recognized and validated for discard without including them in normalized output;
-omission from output does not itself make a known source field unknown.
+| Retained information | Owner-approved requirement | Evidence still needed |
+|---|---|---|
+| Identity | Mandatory `uid`, `euid`, `suid`, `fsuid`, `auid`, `session_id` (native `ses`). Reject missing/malformed values. No normalized GID fields. | Field-specific ranges, numeric wire representation and explicit-unset encodings. |
+| Execution | Architecture, syscall number/name, success/failure, syscall return value, PID, PPID, full exe and comm. | Exact field names/types, RAW encodings and fixtures. No invented TGID or process-exit status; syscall return is not eventual process exit. |
+| Record context | PATH presence/count; CWD and PROCTITLE presence. | Exact contract keys and consistency checks. Values remain discarded. |
+| Source time/identity | Original Audit seconds as decimal string, exact fraction string, separate serial decimal string, opaque node and physical source provenance. | Exact ranges, node binding and envelope representation. |
+| Observation/storage | C++ observation timestamp separate from native activity time; Python receipt and persistence timestamps separately attributed. | Exact representations and clock/failure rules; no invented or substituted activity time. |
 
-Validated check-and-discard handling of future unknown fields is a **stretch goal**,
-not the current compatibility policy. Do not accept unfamiliar fields to improve
-coverage. All supplied records must validate, including excluded arguments, PATH,
-CWD and PROCTITLE values. Malformed data invalidates the whole semantic result;
-no raw values may enter errors, diagnostics, spools or persisted output. Bounded
-transient processing does not imply secure erasure of every library allocation.
+Preserve every valid identity number exactly. Preserve recognized explicit-unset
+sentinels distinctly from missing or malformed fields; never turn unset AUID into
+root/euid or infer any identity from another. Field-specific sentinel forms and
+numeric ranges must be verified rather than assuming every UINT32_MAX has the same
+meaning. A mandatory field may carry explicit unset where defined; it cannot become
+an absent optional field. Missing and malformed remain distinct rejection reasons.
 
-## 5. Proposed separate M3 event contract
+Operation is determined from `(audit_arch, syscall_number)`, not comm, exe, PROCTITLE
+or EXECVE presence. Native AArch64 is the **Owner-approved** initial scope; candidate
+UAPI values `0xC00000B7`, execve 221 and execveat 281 require target-header/fixture
+verification before support is claimed. Unsupported/compat architectures fail closed.
 
-Candidate identifier: `m3.audit-exec/0.1.0`; candidate protocol **3** on an M3-only
-endpoint. The external envelope/protocol/encoding remain provisional. The accepted semantic
-requirements below constrain the eventual contract but do not finalize it or change
-any existing M1/M2 contract/schema.
-Keep protocol-2 decoding and M2 schema unchanged. No new mandatory ECS fields or
-custom namespace are finalized; these are source-specific transport fields.
+Preserve original time precision, clock reversals and serial resets. No float
+conversion, invented boot or monotonic identity, local-time substitution, synthetic
+activity timestamp or silent precision change. Keep observation, receipt and
+persistence clocks distinct. Missing native identity/time cannot be repaired with
+observation time. Receipt/storage failures must not be described as confirmed activity.
 
-The following older wire sketch is provisional, not an approved validator.
-Identity value/unset encoding and rejection/health messages still need approval.
-Other sketched keys are required unless explicitly nullable. Objects reject extra and
-duplicate keys; integers reject Boolean values. Decimal source numbers are canonical
-strings to preserve ranges across languages. No NaN/floats or implicit defaults.
+### 5.1 Executable bytes and encoding
 
-| Object/key | Proposed type and semantics |
-|---|---|
-| `protocol_version`, `contract_version`, `message_type` | Integer 3; exact contract string above; `audit_execution`. Rejections/health/control need separate closed message types before implementation. |
-| `source_id`, `activation_id` | Private configured source UUIDv4; current authorization UUIDv4. Never commit machine-specific values. |
-| `event_id` | Stable source-position identity described in section 6; not PID, serial or content hash alone. |
-| `expected_revision` | Integer 0..2^63−1 for compare-and-swap source progress, not Audit serial order. |
-| `provenance` | `{adapter:"audit-log", file_generation:UUIDv4, first_record_offset:decimal, record_locations:[{generation:UUIDv4,start:decimal,end:decimal}]}`; byte intervals, not path-derived trust. |
-| `audit` | `{seconds:decimal, fraction:string, serial:decimal, node:null, boot_id:null, record_types:[string], record_count:integer}`. Preserve timestamp precision; first profile rejects remote/non-local node streams rather than merging hosts. Audit log records do not supply a universal boot ID. |
-| `execution` | `{arch:string|null, syscall_number:decimal|null, syscall_name:"execve"|"execveat"|null, success:boolean|null, return_value:signed_decimal|null, pid:decimal|null, ppid:decimal|null, executable:string|null, comm:string|null}`. Missing versus malformed states remain explicit. No invented TGID: Audit PID semantics need namespace/thread fixtures. |
-| `identities` | Required semantic fields: `uid,euid,suid,fsuid,auid,session_id` (native `ses` maps to the last). Each must be present and valid, with explicit unset supported where defined by the source. No GID fields in the initial normalized contract. Exact numeric/unset wire representation remains pending; missing or malformed required fields reject semantic output rather than becoming null/zero/root. |
-| `reconstruction` | Candidate provenance includes basis/issues, EOE presence and record counts. This draft must distinguish structural closure from semantic completeness and lossless source delivery; any incomplete disposition/health representation is separate from a successful execution result and remains unapproved. Incomplete EXECVE is rejected, not emitted as partial execution output; rejected dispositions need their own design. Failed SYSCALL with absent EXECVE remains unresolved. |
-| `privacy` | `{arguments:"not_collected_policy",cwd:"not_collected_policy",path_values:"not_collected_policy",proctitle:"not_collected_policy"}`; does not claim those values were absent from native records. |
-| `observation` | `{producer_instance_id:UUIDv4, observed_at:UTC_microsecond_string}` captured by C++; Python adds receipt/storage times separately. |
+**Owner-approved:** retain the original decoded bytes of `exe` and `comm`, distinct
+from arguments. Base64 is required in IPC and persistent storage; it is encoding,
+not encryption. Decode for display only when bytes are valid UTF-8. Do not silently
+replace/normalize invalid bytes, infer names, or truncate. Reject embedded NUL in
+these retained fields. Apply decoded-byte limits before Base64 encoding and account
+for checked Base64 expansion within the request-size limit.
 
-Audit seconds/fraction are the native kernel Audit wall-clock timestamp with source
-precision, **not** observation or commit time. Preserve clock reversals and serial
-resets without sorting activity by wall time. No native monotonic timestamp is
-invented; a local monotonic observation, if later justified, belongs to observation
-metadata and its own boot scope. Missing native activity time remains missing and
-makes native grouping untrustworthy; create a bounded source rejection/health
-record rather than synthesizing activity time. Exact external timestamp encoding/ranges and reason enums remain open; the
-accepted temporary library projection in section 4.2 does not change native time.
+| Field | Provisional decoded-byte ceiling |
+|---|---:|
+| exe | 4,096 bytes |
+| comm | 256 bytes |
 
-**Accepted identity requirements:** `uid`, `euid`, `suid`, `fsuid`, `auid` and
-`session_id` are mandatory. GIDs are deliberately excluded. Preserve the distinct
-real/effective/saved/filesystem/login/session roles. Missing is a validation failure,
-malformed is a separate failure, and a recognized emitted unset sentinel remains
-explicitly unset. Never turn unset AUID into root or use euid in its place. Verify
-field-specific native sentinel forms before choosing an external encoding; do not
-invent a universal unset mapping for every UID field.
+These are **Provisional** owner-approved initial limits, not unresolved suggestions;
+validate them and their encoding/framing behavior. Exact Base64 keys/tags and
+canonical comparison rules require the contract addendum. Retaining full bytes
+within bounds does not authorize oversized-value truncation.
 
-**Accepted executable-identity direction:** preserve useful `exe` (executable path)
-and `comm` (task name), distinct from argv. Their exact normalized names, encoding,
-requiredness and text bounds still need contract approval. Paths/names may be
-sensitive or attacker-controlled; validate them without granting access or inferring
-intent. Argument count is not newly approved for retention.
-Arguments, environment, full raw lines, CWD/PATH values and PROCTITLE are excluded
-from persistence and diagnostics. Existing raw argument bytes necessarily pass
-through bounded reader/parser memory; this is authorized payload processing only
-after activation, not a promise that excluded values never enter the process.
-Do not put them in crash reports, debug logs or temporary spools. Read access nevertheless exposes the broader log
-to the collector; filtering is minimization, not an OS access boundary. Invalid
-UTF-8/hex/NUL cannot be replaced silently; either reject the chosen text field or
-adopt an explicitly versioned bounded byte encoding after owner review.
+Do not persist argc, arguments, environment, PATH contents, CWD contents, PROCTITLE
+contents or raw Audit records in HIDS normalized data, progress ledgers or diagnostics.
+Preservation of existing original source generations is distinct; see
+[Section 6.4](#64-original-source-evidence-and-retirement-eligibility).
+Validate them transiently within approved bounds;
+never place them in diagnostics, spools, exports or crash-report payloads. Read
+permission exposes broader logs to the reader than the output whitelist; filtering
+is data minimization, not an OS access boundary.
 
-Existing structural/pipeline resource candidates (engineering proposals, **not
-accepted defaults**):
-64 KiB per native record; 256 KiB/256 records per assembled event; 128 open groups;
-8 MiB aggregate assembly accounting; 64 KiB normalized JSON payload excluding LF;
-2048-byte responses; one pending delivery; 4096-byte read chunks. Enforce the
-aggregate cap before appending, so per-group limits cannot multiply into an
-unbounded allocation. Propose executable 4096 bytes, comm 256 bytes and closed
-bounded diagnostic arrays. Oversized arguments can make an otherwise legitimate
-event exceed the native budget: report a bounded rejection/incomplete event, do
-not claim truncation yields completeness. Parser/library overhead must be measured
-in addition to these application budgets. Retention/page/row budgets are separate
-owner decisions; M2's 100/4096 acceptance values do not become M3 defaults.
+**Future goal:** encryption at rest for sensitive exe/comm identity, including key
+management. No encryption is implemented or implied by Base64 or root-only access.
 
-### Future independently configurable retention
+## 6. Physical identity, rotation, checkpoints and crash recovery
 
-The owner accepts a future design goal of independently configurable retention
-for selected security-information categories: executable path, process name,
-arguments, working directory, filesystem paths and process title. This is not an
-M3 implementation requirement and does not expand current retention.
+### 6.1 Generations and rename-only rotation
 
-Defer exact toggleable fields, defaults, global versus per-source scope,
-configuration format/interface, access controls, disabled-retention behavior,
-and whether validation/transient processing remain enabled. Do not infer that
-turning retention off will stop processing, or that processing must continue; that
-future behavior is deliberately undecided. For current M3, validate excluded data
-and retain no arguments, environment, PATH values, CWD values, PROCTITLE or raw lines.
-Retention duration, database/disk budgets and migrations remain separate decisions.
+**Owner-approved:** physical identity comprises configured source UUID, persistent
+ingestion-assigned file-generation UUID and first-record byte offset. A candidate
+serialization remains `a1.<source>.<first-generation>.<first-offset>`; the exact ID
+encoding is **Evidence-dependent**, not PID, serial or content hash alone. Preserve
+native grouping identity independently. No cross-source correlation/import identity
+or historical backfill is implied.
 
-## 6. Identity, checkpoints and restart
+Verify device/inode, creation observations, bounded integrity anchors and successor
+relationships; device/inode can be reused and filenames alone are not trusted.
+Retain generation identity across rename rotation, keep old descriptors while
+processing old generations and preserve the first-record identity when an event
+crosses a verified rotation. New process instances/pathnames do not create new
+source generations automatically.
 
-### Recommended identity model
+Support rename rotation only initially. Report/reject copytruncate, missing source
+generations, unexpected replacement, uncertain inode reuse, unverified succession,
+compression and unexpected permission changes. Never silently restart at beginning
+or tail. Exact identity anchors and race/recovery proof are **Evidence-dependent**.
+**Future goal:** compressed archive support.
 
-Persist an ingestion-assigned file-generation UUID with verified source device,
-inode, creation observations and bounded prefix anchors; device/inode alone can be
-reused. Keep generation identity through rename rotation. Do not treat a new reader
-instance or pathname as a new source generation. The C++ reader reconciles this
-registry through authenticated IPC; Python alone writes its durable state.
+### 6.2 Contiguous frontier and atomic Python persistence
 
-Candidate `event_id = "a1." + source_id + "." + first_record_generation + "." + first_record_byte_offset`.
-This identifies one physical reconstructed event in one configured log lineage.
-Preserve native timestamp/serial/node grouping separately. It is not a universal
-identity across copied logs or different Audit sources; such imports/backfill are
-excluded. Record spans can cross files; the first-record location remains the
-identity anchor. An orphan EXECVE group is incomplete execution evidence, not
-proof of a successful syscall; missing SYSCALL outcome must remain unknown. Never infer chronological ordering from serials or event IDs.
+**Owner-approved:** use a contiguous resolved-byte frontier. An earlier unresolved
+event prevents advancing beyond its first unresolved position even if later
+interleaved events finish. Resolve only proven record intervals; never treat an
+entire interleaved event span as ownership of all enclosed bytes. Existing volatile structural acknowledgment
+is not the durable range/frontier algorithm or a lossless-delivery guarantee; its
+compatibility must be reviewed without changing the current component here.
 
-Identical replay compares independently validated, canonical source content and
-privacy/reconstruction profile. Exclude observation, activation and transport
-revision; preserve first stored observations. Same ID with different valid canonical
-content is `id_conflict`; do not overwrite. Retry exact immutable pending bytes.
-Unsupported versions are rejected before collision checks. Lost ACK means
-unconfirmed delivery: reconcile, then replay the same ID/content. ACK only after
-commit; no exactly-once delivery claim or C++ database writes.
+Python alone owns durable writes. One transaction must atomically persist the
+execution event or rejection disposition, canonical identity, relevant source ranges,
+finalization/interruption disposition, resolved-range/source-progress updates,
+checkpoint advancement and expected revision/activation checks. Reject stale
+revision or activation updates. No arbitrary collector checkpoint writes.
+Handle unrelated Audit records through bounded scan-progress accounting proving
+that no unresolved group was skipped; retain no unrelated payloads.
 
-### Checkpoint model and unresolved completion durability
+### 6.3 Interrupted payload is discarded; durable dispositions are immutable
 
-Use a **contiguous consumed-byte frontier**, not the most recently completed
-Audit serial: interleaved event A may still be open when later event B commits.
-An atomic Python transaction inserts an event/rejection disposition and updates
-only a proven contiguous frontier under expected revision and current activation.
-Never advance beyond an unresolved earlier group. Record handling of unrelated
-(non-execution) records as bounded scan progress, so a quiet execution stream does
-not require rereading an entire log forever. Scan-progress requests must prove no
-unresolved group was skipped; they are not arbitrary collector checkpoint writes.
+**Owner-approved:** this policy supersedes earlier source reconstruction of unfinished
+events after interruption. A crash, restart, shutdown or other abandonment of accepted
+assembly produces an INTERRUPTED sanitized disposition and health/rejection report.
+Discard unfinished payload permanently as an execution candidate. Never rebuild that
+event into an accepted execution, infer its missing records, or silently treat it as
+success. Raw records, argv/environment and partial executable payloads are not durable.
 
-**Blocking design choice:** timeout-finalized incomplete groups and pending groups
-must reconstruct identically after a crash. Keeping only a byte offset is
-insufficient: timeouts, late records and interleaving can change the canonical
-result. Recommend durable bounded finalization decisions (group key, span,
-completeness/profile and deadline decision, without raw arguments) in the same
-Python-owned transaction, plus conservative replay from the earliest unresolved
-record. An alternative is durable sanitized pending assembly state. Exact tables,
-state transitions and scan/frontier proof require a focused contract addendum and
-failure-injection vectors before coding; do not claim M2 cursor semantics solve it.
-This is source reconstruction bookkeeping, not a detection correlation graph or a
-new general-purpose durable outbox.
+Before accepting record payload into assembly, sanitized source/event progress must
+be durably registered by Python. If that registration is unavailable or uncertain,
+pause/reconcile before admission. On recovery, registered unfinished progress is
+interrupted and suppressed; source bytes not yet durably registered are not falsely
+claimed as prior assembly. Later complete, independently committed interleaved events
+remain preserved. See [admission ordering](#124-durable-admission-progress-ledger-and-interruption-ordering)
+for the explicit read/registration/admission boundary.
 
-For identifiable malformed/oversized execution groups, propose durable minimal
-rejected dispositions with source spans/reason and atomic checkpoint handling.
-If record framing/identity or rotation continuity cannot be trusted, stop at the
-last safe frontier and report a gap; do not invent an identity or skip bytes to
-make progress. No automatic retry of ambiguous database repair or archive import.
+Conservative source re-reading is permitted for framing, continuity, position accounting
+and identifying records to discard, never for resurrecting known interrupted identities.
+Bounded tombstones prevent later EXECVE/EOE from creating a new accepted event. Missing,
+exhausted or ambiguous suppression state degrades/stops M3 and reports a possible gap.
+Exact durable lookup, bounds and reset/reboot behavior remain **Evidence-dependent**.
 
-## 7. Activation, rotation, ordering and failure behavior
+Pending delivery bytes remain immutable. Only durably finalized immutable delivery may
+retry after authenticated durable-state reconciliation. Identical retries deduplicate;
+conflicting canonical content rejects without overwrite. Preserve first observations.
+ACK only after commit; lost ACK/uncertain commit is unconfirmed, not proof of failure.
+A complete-but-uncommitted candidate is not automatically retried or reconstructed;
+its reconciliation/liveness mechanics must be specified before code (section 12.9).
 
-1. Before explicit root authorization, inspect only approved source metadata and
-   permission evidence. No Audit payload reads or active netlink subscription.
-2. After authorization, securely open the pinned local regular file, capture its
-   identity/size as the initial tail boundary, and persist that boundary before
-   emitting events. Recheck rename/truncation races. Boundary verification may
-   require limited post-authorization framing reads; do not emit pre-boundary data.
-3. A line or multi-record event already in flight at activation can straddle the
-   boundary. Mark boundary-overlap groups incomplete/excluded with an explicit
-   disposition; do not back-read old records or call them complete. Exact handling
-   of headerless partial first lines belongs in the contract addendum.
-4. Keep old descriptors through rename rotation and discover only an approved,
-   verified successor. Resolve retained generations on restart using authenticated
-   generation metadata and integrity anchors; never compare filenames as cursors.
-   Stop if succession cannot be proved. Copytruncate, unexpected replacement,
-   missing generations, inode reuse, compression or permission loss must not
-   silently reset to the current tail. Initial M3 does not auto-decompress archives.
-5. Reconstruct interleaved groups independently within bounds. Duplicate byte
-   delivery at an identical location is not two native records; repeated distinct
-   record locations are not automatically duplicates. Preserve type multiplicity;
-   conflicting duplicates or late data after finalization produce diagnostics.
-6. Resume only within the still-authorized interval. Reboot/daemon reset or uncertain
-   historical boot attribution does not justify inventing a boot ID. If native
-   grouping identity may collide across an unproven stream transition, block for
-   review instead of combining records. No automatic reactivation or backfill.
-7. Backpressure pauses file reading within fixed memory bounds. Auditd continues;
-   retained files may disappear before catch-up. On capacity, slow receiver, lease
-   expiry, access loss or uncertain commit, expose source-local failure, preserve
-   committed data/checkpoints, and stop unsafe progress. No disk spool by default.
-8. Cancellation is cooperative and bounded; no file/SQL/socket operations in signal
-   handlers. Flush only justified bounded dispositions; preserve safe resume state
-   if shutdown interrupts reconstruction. Database failure is not proof of noncommit.
+Timeout produces an incomplete sanitized rejection, never completeness. Persist identity,
+positions, reason, EOE flag, timeout-policy version and scoped operational timing metadata.
+Interrupted positions resolve only after durable interruption; late records produce
+new-position diagnostics, never amendments or second execution events. Previously
+resolved physical positions are replay duplicates, checked before native tombstones.
 
-Health must distinguish source missing, unsupported format/architecture, access
-denied, execution coverage unobserved, Audit not configured where proven, idle,
-active, interrupted, malformed/incomplete, storage failure, lag and possible gap.
-A readable empty file or zero matching events is not healthy coverage evidence.
-Expose assessment freshness and counters with provenance. Audit global lost/backlog
-counts are not this reader's drop count; serial gaps are not a loss estimate.
+[The state-machine addendum](#12-owner-approved-evidence-and-state-machine-addendum)
+records independent lifecycles, two paused monotonic deadlines, durable admission,
+suppression, rotation, range/frontier transactions and crash/failure matrices. Exact
+schema, protocol, batching/write frequency and verified native behavior are still
+**Evidence-dependent**. This is not implementation or exactly-once/lossless collection.
 
-For initial M3, ingest only already-available, authorized health evidence; do not
-add `CAP_AUDIT_CONTROL` merely to query status, signal auditd, or change its reporting
-configuration. Without an approved status source, kernel backlog/lost counters are
-**unknown**, not zero. Separate file-reader drops, reconstruction rejections,
-retention gaps and confirmed source counters. Report diagnostic persistence failure
-out-of-band without claiming it was stored.
+### 6.4 Original source evidence and retirement eligibility
 
-## 8. Security, privileges and ingestion integration
+**Owner-approved:** original Audit source generations are evidence, not disposable
+input. Preserve them until their contents are safely and durably resolved. Auditd
+rotation-count retention must not silently remove unprocessed generations. Keeping
+an old descriptor open is not durable preservation across restart or unlink, and
+closing a descriptor does not authorize retiring or deleting its source generation.
 
-Recommend a dedicated non-login `hids-audit` reader, distinct from `hids-journal`
-and `hids-ingest`; exact account/group IDs and creation require owner approval.
-No permanent privileged journal/Audit-group membership is assumed. If the existing
-Audit log already grants an appropriate non-root read group, propose service-only
-membership after approval and actual target checks. Reject shared groups that
-allow unintended ordinary-human security-data access. No new log ACLs, permissions,
-`log_group` setting or auditd configuration are authorized.
+A generation is fully processed only when all of the following are established:
 
-If existing logs are root-only, the non-root file-reader proposal is **blocked**
-on a separately approved narrow access design. Do not quietly run the full parser
-as root or grant `CAP_DAC_READ_SEARCH`/`CAP_DAC_OVERRIDE` to bypass this blocker.
-A minimal privileged file-descriptor broker is an alternative requiring its own
-review of fixed paths, rotation, lifetime, and compromise impact, not an implied
-M3 component. Ordinary-user feasibility in cn_proc research says nothing about
-Audit log readability.
+- Its relevant terminal boundary is verified; a moving EOF or in-memory cursor is
+  insufficient proof that a generation has reached its terminal boundary.
+- Every physical position has a durable disposition, including accepted events,
+  rejection/interruption records and unrelated-record scan accounting.
+- Resolved ranges and contiguous checkpoint advancement are committed.
+- No unresolved event or unaccounted position remains.
+- Generation identity, complete coverage and source continuity are verified.
 
-| Component/resource | Proposed permission boundary |
-|---|---|
-| C++ Audit reader | Read only approved source files; no Audit control, journal group or SQLite access. New log opens only during an active interval. |
-| Python ingestion | Existing unprivileged `hids-ingest` responsibility; receives normalized M3 frames, independently validates and alone writes M3 SQLite. No Audit-log access. |
-| M3 data endpoint | Separate proposed `/run/hids/ingest/audit.sock`, ingest:hids-ipc 0660, protected parent; reject stale/symlink sockets. Both sides authenticate exact approved UID/primary GID through SO_PEERCRED; bind lease to PID/activation. |
-| Root control | Existing root-only authorization principle and genuine socket activation; add an explicitly versioned M3 control binding without changing protocol-2 control messages. No endpoint accepts arbitrary file paths or commands from peers. |
-| Database/evidence | Proposed separate `/var/lib/hids/m3` ingest-owned 0700, files/sidecars 0600; service-only access differs from human authorization. Reader cannot traverse it. |
+Reading bytes, parser traversal, sending an IPC acknowledgment or advancing volatile
+state alone never establishes durable processing. Interrupted processing blocks
+eligibility until sanitized interruption dispositions and all affected ranges are
+durable; it never authorizes reconstruction into an accepted execution event.
+An interleaved event spanning generations must not leave unresolved positions in a
+generation declared fully processed.
 
-Do not just send protocol 3 into `Service.dispatch()`: M2 hardcodes one source,
-protocol, lease and global failure. Recommend an additive, tested multi-source
-routing layer in the existing ingestion service, with M2 and M3 independent
-validators, stores, activation/lease and source-failure state. Keep M2 wire behavior
-and three-key configuration unchanged; give M3 its own protected configuration.
-Bound dispatch work/SQLite waits so a failing or busy Audit source cannot starve
-M2 control/revocation or collection. One Python process owns all its SQLite writes.
+A checkpoint covering an authorized interval does not prove whole-generation
+coverage. Historical prefixes, disabled-period bytes and boundary-overlap exclusions
+must not be silently called processed or backfilled. **Evidence-dependent:** define
+terminal-boundary and full-generation coverage/exclusion proof consistent with the
+existing no-backfill policy. Until eligibility is proven, preserve the generation.
 
-This necessary future integration is **not implemented or approved here**. Shared
-process crash/disk exhaustion remain common failure domains. If regression-safe
-source isolation is impractical, propose a separate M3 ingestion worker using the
-same protected architecture for owner review rather than silently redesigning M2.
-The routing/control/configuration decision is a prerequisite to implementation.
+**Future goal:** a verified archival handoff may permit retirement from the active
+source location. It must establish complete generation coverage, integrity,
+original identity/provenance, durable archive availability, recovery/retrieval and
+atomic or otherwise safely recoverable handoff state. Failed, incomplete or corrupt
+handoffs cannot establish eligibility; preserve the original. Exact archive and
+handoff mechanics remain **Evidence-dependent**, not initial implementation work.
+Original archives may contain sensitive raw payloads: any future copying requires
+separate privacy/access review and protected storage. This does not widen normalized
+retention or permit raw partial-event persistence in HIDS ledgers/databases.
 
-Compromise tradeoffs: the reader can see broader raw Audit data than its retained
-whitelist; ingestion compromise exposes normalized storage within its identity's
-access. It must not gain log access or privileged control. Root compromise remains
-outside confidentiality guarantees. Avoid logging raw rejected records, arguments
-or private paths in error text; prevent core dumps in approved service policy.
+**Owner-approved:** neither durable processing nor verified archival eligibility
+authorizes deletion. Initially there is no automatic source cleanup, retention
+shortening, silent rotation deletion or historical source overwrite. Later cleanup
+requires separate owner approval; its mechanism is a **Future goal**.
 
-### 8.1 libauparse filesystem behavior and non-root parsing
+#### Observed Auditd retention conflict and open gate
 
-**Accepted:** never run semantic parsing as root or grant extra capabilities merely
-for parsing. Initialization loads userspace configuration and may attempt to open
-the configured log for validation, even with BUFFER input. Successful parsing
-without log-read permission does not establish filesystem independence or absence
-of attempted access. Verify actual opens, permissions and behavior under the eventual
-production identity; synthetic ordinary-user tests do not prove its access policy.
-Do not modify host Audit configuration to accommodate the library.
+The owner supplied the following observed configuration; it was not independently
+reverified during this documentation task and is not a recommended configuration:
 
-The latest owner decision does **not** require a separate parsing daemon, curated
-RootDirectory/RootImage or elaborate filesystem isolation as an implementation
-prerequisite. Earlier recommendations to mandate that design are superseded.
-Introduce additional isolation only if actual-identity testing demonstrates a need,
-then obtain approval for the specific boundary. Production filesystem isolation,
-source acquisition and actual non-root Audit-log permissions remain unresolved;
-no access grant or service configuration is approved here. Keep existing least-
-privilege separation and root-only human access. No undocumented configuration
-path override or claim that BUFFER avoids configuration/log access is permitted.
+```ini
+max_log_file = 8
+num_logs = 5
+max_log_file_action = ROTATE
+admin_space_left_action = SUSPEND
+disk_full_action = SUSPEND
+disk_error_action = SUSPEND
+```
 
-## 9. Dependencies and verification gates
+Finite rotation retention presents a potential preservation conflict. Documentation,
+reader backpressure and open descriptors cannot prevent Auditd or external cleanup
+from removing generations. **Evidence-dependent:** verify actual Ubuntu retention
+behavior, identify external rotation/cleanup, and determine the safest supported
+retention configuration and preservation mechanism before claiming this guarantee.
+No configuration change is authorized; any required change needs separate review
+and authorization under the existing prohibition on automatic Audit configuration.
+Configured SUSPEND actions do not establish that logging is currently suspended.
 
-Existing: C++20/GCC 15.2.0 target, vendored nlohmann/json 3.12.0, Python standard
-library/SQLite, Unix sockets and existing test scripts. No C++ SQLite dependency,
-message broker, new build framework or Python OS collector is proposed.
+Capacity planning covers both M3 database storage and original Audit source storage,
+including shared-filesystem pressure where applicable. Report warning, critical and
+exhausted conditions; preserve unprocessed sources and never delete evidence for
+space. Report possible Auditd suspension or source unavailability without claiming
+that an unpersisted report is durable. Protect HIDS core uptime. Exact capacity
+budgets, thresholds and safe response mechanics remain **Evidence-dependent**;
+pausing HIDS alone neither stops Auditd growth nor enforces source preservation.
 
-Recommend **libauparse** rather than a new full Audit grammar implementation.
-Ubuntu's official Resolute source package lists `libauparse-dev`; published indexes
-show audit userspace 4.1.2 packaging (base `1:4.1.2-1build1`, updates
-`1:4.1.2-1ubuntu0.1`). These were initial repository listings, not a production pinned minimum;
-the later owner-reported tested version is recorded below, and architecture/pocket candidates must be checked on the
-actual machine. See [Ubuntu audit source package](https://packages.ubuntu.com/source/resolute/audit)
-and [Ubuntu updates package index](https://packages.ubuntu.com/resolute-updates/allpackages).
+## 7. Provisional resource ceilings, oversize and backpressure
 
-Upstream v4.1.2 auparse source declares LGPL-2.1-or-later. Audit userspace as a
-whole has other licensing; do not label every component LGPL. Review packaged
-copyright/transitive library obligations and the exact public headers before
-approving linking/distribution. See [versioned auparse source](https://raw.githubusercontent.com/linux-audit/audit-userspace/v4.1.2/auparse/auparse.c).
+The following **Provisional** limits are owner-approved initial ceilings, requiring
+validation/tuning rather than another decision on whether to bound resources:
 
-The accepted library path is the fresh BUFFER lifecycle in section 4.3, not the
-earlier FEED/callback recommendation. Consult the pinned
-[BUFFER initialization API](https://github.com/linux-audit/audit-userspace/blob/v4.1.2/docs/auparse_init.3)
-and [v4.1.2 implementation](https://raw.githubusercontent.com/linux-audit/audit-userspace/v4.1.2/auparse/auparse.c).
-Use raw numeric identity values and explicit application validation. Library
-acceptance or record-ready behavior cannot establish semantic completeness.
+| Assembly measurement | Initial ceiling |
+|---|---:|
+| Maximum event assembly | 16 MiB |
+| Aggregate assembly accounting | 32 MiB |
 
-The owner reports Ubuntu 26.04.1 ARM64 experiments with libauparse 4.1.2 and package
-version `1:4.1.2-1ubuntu0.1`, ordinary-user initialization under five synthetic
-permission configurations, and fresh BUFFER reordered-record coverage with EOE
-excluded. Temporary three-digit truncation is the selected policy; persistent
-BUFFER is rejected. These bounded reports are not complete grammar, production
-service access, live Audit coverage or long-running reliability validation. No new
-experiment is performed or historical report altered by this reconciliation.
-Production dependency/version/distribution policy remains open despite that tested
-version; preserve macOS validation without unconditional Linux linkage.
+These supersede the older 256 KiB/event and 8 MiB aggregate candidates; those values
+are no longer current M3 policy. Existing fixture defaults are not modified by this
+documentation decision and do not demonstrate production conformance.
 
-Read-only target preflight to request separately: package/candidate versions for
-`auditd`, `libauparse-dev`, relevant runtime libraries and any required `libaudit-dev`;
-compiler header/link availability and transitive dependencies; effective auditd
-log path/format/write/rotation configuration; actual service identity access;
-existing rules and kernel status only under already-authorized read permissions.
-Do not dump raw logs/arguments, install packages, signal services or grant privileges.
-Representative source-derived EXECVE grammar/coverage evidence still requires
-separate authorization; synthetic fixtures alone do not establish live coverage. Headers were not found at standard host include paths in this
-macOS inspection; that does not establish Ubuntu package availability or absence.
+**Owner-approved** initial transport direction:
 
-## 10. Tests, phases and acceptance criteria
+| Measurement/policy | Initial value |
+|---|---:|
+| Normalized JSON request payload (excluding LF) | 64 KiB |
+| Response payload (excluding LF) | 2 KiB |
+| Read chunk | 4,096 bytes |
+| Outstanding deliveries | One |
+| Default disk spool | None |
 
-Preserve unchanged native collector/backend suites, production link smoke, 62 M1
-and 35 M2 shared vectors, M1 native/contract/Python/policy/launcher tests, existing
-Linux M1 integrations, M2 storage/fixture/lifecycle/runtime-process integrations,
-automation and archival tests. Reuse `tests/integration/validate_m2_offline.sh`
-and existing sanitizer procedure; keep Linux-only skips distinct from passes.
-No regression suite or live test was executed for this documentation-only proposal.
+Bound queues and allocations; check arithmetic and capacities before append/copy.
+Native records can be larger than privacy-minimized normalized output; the 16 MiB
+assembly ceiling does not increase the 64 KiB normalized-message ceiling. Account
+for Base64 expansion and independent transport buffers.
 
-The local structural increment and fixture limits are described in the workspace
-file `tests/integration/M3-README.md`, which is not part of this documentation
-commit. Do not describe that separate work as a published semantic parser or
-production durable file reader.
-Before any new semantic implementation, review its Event metadata, accepted field
-requirements, strict allowlists/fragment grammar, failure API, production bounds
-and actual-identity filesystem plan. No structural source change is implied.
+**Evidence-dependent:** native record sizes, record/open-group counts, field and
+decoding limits, diagnostic bounds, worker concurrency, actual timeout duration,
+exact assembly/metadata charging, caller-owned retention and library allocation
+footprint. Do not carry forward older numeric suggestions as approved production
+limits or silently widen a stricter upstream implementation. Input limits are not
+an upper bound on libauparse internals/RSS; service-wide memory enforcement and
+CPU/memory/backlog/lag/disk measurements require evidence.
 
-Required future semantic vectors: all mandatory UID/AUID/session roles, explicit
-unset/missing/malformed distinctions, native GID validation without output, useful
-exe/comm distinct from argv, complete/split EXECVE and missing/conflicting fragments,
-unknown-field/type and duplicate-singleton rejection, optional/repeated PATH and
-optional singleton CWD/PROCTITLE, positional coverage across every library event,
-original identity/byte-position preservation under truncation, embedded-NUL rejection,
-preallocation overflow/bounds, NULL initialization, allocation/traversal failures,
-no partial output and no sensitive-value diagnostics. Absent EXECVE on failed
-SYSCALL needs an approved classification before its acceptance expectation is set.
+### 7.1 Oversized events, aggregate fallback and host availability
 
-The phases below remain a proposed full-pipeline roadmap, not renewed authorization
-or a requirement to build IPC/SQLite before the isolated semantic increment:
+**Owner-approved:** individual oversize enters DISCARDING_OVERSIZED: report the
+incident, release accumulated payload, retain bounded identity/position suppression,
+discard subsequent same-event records, and finalize rejection at EOE/eligible timeout.
+Continue unrelated events where safe; never truncate/accept or terminate the whole
+collector merely for one oversized event. Unknown framing/identity blocks safe progress.
 
-| Phase | Deliverable and gate |
-|---|---|
-| 0 — Evidence and owner decisions | Verify read path, existing exec coverage, dependency/license, service permissions and representative sanitized fixtures; approve contract and reconstruction/checkpoint rules before coding. If unavailable, report graceful unavailability rather than change Audit. |
-| 1 — Fixture/native reconstruction | Proposed `collector/include/hids/audit_collector.hpp`, `collector/src/audit/{record_parser,event_assembler,contract}.cpp`, sanitized `tests/fixtures/audit/` and independent shared vectors. Positive/failed execve/execveat; AArch64/unsupported arch; raw/enriched formats; encoded strings, fragments, repeated keys/types, EOE/PROCTITLE/timeout, missing/malformed/oversized fields, unrelated/interleaved events. No live subscription. |
-| 2 — Protected fixture pipeline | Proposed `engine/ingestion/m3_{contract,receiver}.py`, `engine/database/m3_store.py`, M3 endpoint/approved router, schema vectors and two-process tests. Valid and invalid frames; split/coalesced/LF-at-limit; wrong peer before payload; unauthorized/stale activation; canonical duplicate/conflict/version ordering; lost ACK; commit uncertainty; read-only retrieval; bounded slowdown and storage failure. |
-| 3 — File source/recovery | Injectable `AuditFileIo` with descriptor-relative pinned paths; proposed `collector/src/audit/{linux_audit_file,runtime}.cpp`. Synthetic files only: partial writes, interleaving and contiguous frontier, event crossing rotation, rename/replacement, inode reuse, truncation, missing/compressed generations, changed ownership, restart before/after event/checkpoint/ACK, timeout decisions and late records. Prove immutable identities across each interruption. |
-| 4 — Health/security and fairness | Separate source health/cancellation, source-local errors, denied metadata/status evidence, bounded memory/record/group/scan queues and fresh health. Verify M3 overload cannot alter M2 contract or starve its activation/revocation path. Proposed packaging artifacts only; no deployment without approval. |
-| 5 — Separately authorized Ubuntu acceptance | Validate intended identities, existing output/rules, actual read access and encoding, controlled harmless execution without adding rules, exact native grouping through C++→IPC→Python→SQLite/retrieval, duplicate/restart behavior and safe shutdown. Record every missing/failed/skipped branch and preserve evidence privately. |
+Aggregate pressure first enters BACKPRESSURED and pauses source reading. Both event
+timeouts freeze during intentional backpressure. Full memory may itself block the
+EOE needed to release groups; do not wait forever on frozen deadlines. A bounded
+operational policy transitions affected blockers to DISCARDING_RESOURCE_LIMIT,
+releases payloads and preserves suppression/reporting metadata, allowing safe independent
+progress without exceeding the 32 MiB accounted assembly ceiling. Individual oversize
+and aggregate-resource rejections remain distinct. Exact victim selection, metadata
+limits and pressure durations are **Evidence-dependent** (section 12.8).
 
-Acceptance requires identifiable execution records from **existing** configuration,
-not merely a running auditd or a readable empty file. Every source byte/checkpoint
-advance must have a reproducible disposition; no open group may be skipped.
-Incomplete/unsupported records must stay distinguishable from complete successful
-execs. Confirmed kernel loss, possible retention gaps and collector errors must
-remain separately attributable. Demonstrate identity preservation, first observation
-preservation, atomic persistence and healthy continued M2 operation when M3 is denied
-or fails. Report measured idle/burst/lag/memory/disk costs before setting production
-budgets; do not claim exhaustive monitoring or exactly-once delivery.
+Priority is host stability, then HIDS core uptime, then M3 availability. If registration,
+suppression, source continuity or durable reporting is unsafe, pause/degrade M3 rather
+than guess a skip. Auditd continues independently and retained files may disappear
+while reading is paused; report possible gaps, never lossless/exactly-once delivery.
+No M3 overload should unnecessarily starve M2/root control or terminate core services.
+
+## 8. Service architecture, IPC and parsing permissions
+
+**Owner-approved** initial direction: dedicated non-login `hids-audit` reader,
+existing `hids-ingest` independent validation/control and Python-owned persistence,
+M3 protocol 3 / `m3.audit-exec/0.1.0`, separate M3 endpoint/database, mutual
+SO_PEERCRED checks, one authenticated reader lease and root-only administration.
+Use additive routing inside the existing Python ingestion service, with independent
+validation, activation, configuration, lease, database, source-health and failure
+state for M3. Preserve M2 protocol 2, its database, filters and runtime behavior.
+
+**Evidence-dependent:** actual IDs/groups/read permissions, endpoint ownership and
+mode, protected configuration/runtime/state directories, peer allowlists, dispatcher
+fairness, configuration/control messages, migrations and failure isolation details.
+Proposed paths `/run/hids/ingest/audit.sock` and `/var/lib/hids/m3`, socket ownership
+`hids-ingest:hids-ipc`/0660, protected parents and restrictive database/sidecar modes
+remain proposals until actual service configuration/access is reviewed. Account
+names are approved direction, not proof of account existence or permission to
+create them. Reader has no SQLite access; ingestion has no direct Audit-log access.
+
+No automatic account/group/ACL/permission changes, new capabilities, deployment or
+privileged retry. If root-only logs block non-root reading, stop for a separate
+access design. Never run the full parser as root or grant broad DAC bypass merely
+to access logs. No CAP_AUDIT_CONTROL or Audit daemon registration. A privileged
+broker is not an approved implicit component.
+
+**Future goal:** a separate M3 ingestion worker only as a reviewed fallback if
+regression-safe isolation inside the existing service proves impractical. It is
+not the default architecture or a reason to change M2 now.
+
+### 8.1 libauparse filesystem behavior
+
+**Owner-approved:** parsing is non-root with no additional capabilities merely for
+parsing. Initialization accesses userspace configuration and may attempt to open
+the configured log, even with BUFFER input. Successful BUFFER parsing without
+log-read permission is not filesystem independence or absence of attempted access.
+Verify opens/permissions under the eventual service identity. Do not modify host
+Audit configuration to accommodate libauparse or invent undocumented overrides.
+
+Production filesystem restrictions are **Evidence-dependent**. Do not mandate a
+separate parsing daemon or elaborate curated RootDirectory/RootImage unless testing
+shows a need and the specific design is reviewed. Earlier mandatory-sandbox
+recommendations are superseded as a default prerequisite. This does not approve
+broad log exposure, claim ordinary-user identity alone is a sandbox or authorize
+source access. Any introduced isolation must be verified under actual native
+service conditions, including alias/descriptor exposure where relevant.
+
+## 9. Dependencies, persistence, retention and source health
+
+### 9.1 Dependency and evidence gates
+
+Recommend libauparse rather than a complete independent Audit grammar parser.
+The owner reports bounded Ubuntu 26.04.1 ARM64 experiments with libauparse 4.1.2
+(package `1:4.1.2-1ubuntu0.1`), unprivileged initialization in synthetic permission
+configurations and record-coverage investigations. These reports do not establish
+all grammar, current service access, live execution coverage, deployment, sustained
+reliability or M3 acceptance. Preserve historical outputs and their failures; no
+new experiment is performed here. Persistent BUFFER remains rejected.
+
+**Evidence-dependent:** exact installed package/version/header/ABI/build and license
+approval, dependency/transitive obligations and supported API behavior. Upstream
+v4.1.2 auparse files declare LGPL-2.1-or-later; other Audit components have other
+licenses. Verify packaged source coverage before distribution. No installation or
+new build framework is authorized. Keep existing C++20 and Python standard-library/
+SQLite architecture; no C++ SQLite writer or Python native OS collector. Preserve
+portable macOS validation without unconditional Linux dependency linkage.
+
+References: [versioned initialization documentation](https://github.com/linux-audit/audit-userspace/blob/v4.1.2/docs/auparse_init.3),
+[versioned parser source](https://raw.githubusercontent.com/linux-audit/audit-userspace/v4.1.2/auparse/auparse.c).
+Read-only Ubuntu preflight, controlled source fixtures and native acceptance still
+require their own authorization. Existing synthetic fixtures are not proof that
+Ubuntu's current Audit policy emits the required execution events.
+
+### 9.2 Separate M3 SQLite and no automatic deletion
+
+**Owner-approved:** separate M3 SQLite database, WAL, Python-only writes, versioned
+migrations and atomic event/disposition/checkpoint transactions. No automatic event
+deletion, overwriting evidence, silent retention shortening or automatic cleanup
+to free space. Generic configurable-retention goals in
+[ADR-002](../decisions/002-sqlite-storage.md) do not authorize initial M3 pruning.
+
+If storage is unavailable, stop new M3 writes and safely pause/stop M3 collection;
+preserve committed evidence and the last safe checkpoint while keeping HIDS core
+operational. Report degradation independently where possible. Never claim a
+diagnostic was persisted when the database could not accept it. Warning, critical
+and exhausted storage states must be proactive and distinct; measured thresholds,
+actual disk/page/row budgets and retention capacity remain **Evidence-dependent**.
+No schema DDL, migration, retention duration or storage cap is finalized here.
+These capacity and no-deletion requirements also cover original Audit source
+storage; [Section 6.4](#64-original-source-evidence-and-retirement-eligibility)
+records preservation eligibility and the current retention-configuration conflict.
+
+### 9.3 Future independent retention controls
+
+**Future goal:** independently configurable retention/collection controls for exe,
+comm, arguments, CWD, PATH and PROCTITLE. Initial behavior is unchanged: retain
+approved identity/execution and record-presence metadata; no argc, argv, environment,
+CWD/PATH/PROCTITLE contents or raw records. This goal does not authorize automatic
+deletion or change the no-deletion policy.
+
+Exact toggle membership/defaults, global/per-source scope, format/interface,
+permissions, timing of changes, disabled behavior and whether transient validation/
+processing remains enabled are **Evidence-dependent** future-design questions.
+More sophisticated retention/archival needs separate approval, including an explicit
+revisit of no automatic deletion. Encryption/key management is a **Future goal**,
+not protection already supplied by Base64 or this design.
+
+### 9.4 Source health and provenance
+
+**Owner-approved:** distinguish active, idle, source missing, unsupported format,
+unsupported architecture, access denied, execution coverage not observed, not
+configured only where proven, malformed, incomplete, oversized, backpressure,
+memory/storage pressure, IPC/database failure, possible retention gap, confirmed
+collection gap and recovery in progress. Include provenance and freshness.
+
+Never infer kernel lost/backlog from serial gaps or reader-local counters. Without
+an approved source, those values remain unknown, not zero. Do not add
+CAP_AUDIT_CONTROL for status/configuration. Separate known source loss from retention
+uncertainty and collector rejection; no diagnostic may falsely claim successful
+persistence. Actual approved health evidence and bounded formats are
+**Evidence-dependent**.
+
+## 10. Evidence gates, testing and staged acceptance
+
+No implementation, regression suite, experiment, service execution or Ubuntu
+acceptance is performed or authorized by this documentation consolidation. The
+unchanged local M3 structural work remains separate from production semantic or
+source integration; historical M1/M2 evidence retains its original scope.
+
+The owner-approved state-machine direction is now recorded in section 12. Before
+implementation, its evidence-dependent mechanics must still be specified/validated:
+
+See [Section 12.10: acceptance plan and evidence-dependent gates](#1210-required-acceptance-plan-and-remaining-evidence)
+for the complete pre-implementation evidence requirements; this reference waives none.
+
+Later separately authorized fixture tests must cover native/interleaved/duplicate/
+late records, EOE-only completeness, malformed and fragmented EXECVE, absence of
+EXECVE on failed SYSCALL, known discarded fields, unknown fields, mandatory identity
+states, GID omission, exe/comm bytes/Base64/NUL/limits, original timestamp/position
+preservation, all returned parser records, preallocation bounds/overflow, typed
+failures, oversize safe continuation, backpressure and absence of sensitive output.
+
+Pipeline tests must prove framing/peer authentication, activation/revocation and
+boundary overlap, immutable retries and conflicts, lost ACK/uncertain commit,
+atomic event/rejection/progress, rename/replacement/truncation/reset races, safe
+source-position scanning without interrupted-event reconstruction, timeout/late
+decisions, storage-pressure behavior and continued
+M2/core availability. Exact transaction/schema/protocol details and failure-injection vectors precede code;
+this documentation does not silently resolve them with a new protocol/DDL example.
+
+Preserve all existing native regressions, production link smoke, M1 contract/native/
+Python/policy/launcher/two-process tests, M2 contract/storage/fixture/lifecycle/runtime
+integrations, automation/archival tests and separate M3 structural fixtures unchanged.
+Use existing test workflows after future authorization; skips are not passes.
+Semantic acceptance requires approved semantics, safe resource accounting, unprivileged
+operation, verified actual filesystem behavior, normal/sanitizer and regression
+success. Full M3 additionally needs actual existing Audit coverage and end-to-end
+source/recovery/health acceptance. Neither is claimed here.
 
 ## 11. Owner decision register
 
-**Accepted** means an owner-approved design requirement/direction, not permission
-to implement. **Provisional** means a proposal requiring review; **Unresolved**
-means evidence or a decision is still needed. Future goals are not initial scope.
-Earlier A-01–A-10 identifiers are retained with their accepted subdecisions separated
-below rather than marking each broad integration proposal accepted wholesale.
+Statuses have the four meanings in section 1. A policy can be **Owner-approved**
+while its implementation details are **Evidence-dependent**. A **Provisional**
+ceiling is owner-approved for initial validation, not an unresolved recommendation.
+A-01–A-10 retain their identifiers and now separate policy from evidence gates.
+None of these decisions grants implementation, environment or Git authorization.
 
-| ID | Subject | Status and boundary |
+| ID | Subject | Classification and remaining boundary |
 |---|---|---|
-| A-01 | Existing Audit logs and actual execution coverage | **Provisional** initial source: existing log files only; **Unresolved** actual read path/output/coverage. No rule/configuration change. |
-| A-02 | Actual non-root acquisition identity and permissions | **Unresolved**; no new accounts, access grants, privileged broker or automatic escalation. |
-| A-03 | Architecture, success/failure and closure scope | **Provisional** native AArch64; target UAPI/fixtures and initial completeness allowlist need review. Failed SYSCALL without EXECVE remains **Unresolved**. Preserve ADR-006. |
-| A-04 | External M3 envelope, encoding and schema | **Provisional** `m3.audit-exec/0.1.0`/protocol 3; accepted semantic requirements below do not finalize wire keys, ECS, IPC or database schema. |
-| A-05 | Durable finalization, late records, generations, rotation and checkpoints | **Unresolved**; volatile structural acknowledgment is not durable persistence or restart proof. |
-| A-06 | Multi-source ingestion routing, control and SQLite | **Provisional**, separate approval/authorization; unchanged M1/M2 boundaries and Python-owned writes. |
-| A-07 | Dependency/version/license and distribution policy | **Unresolved** production policy; libauparse 4.1.2 is owner-reported tested, not a finalized version policy or installation authorization. |
-| A-08 | Retention/storage, queue/retry/resource and restart budgets | **Unresolved**; no experimental limits or M2 acceptance values become M3 defaults. |
-| A-09 | Audit lost/backlog health evidence | **Unresolved**; no CAP_AUDIT_CONTROL or invented zero counts. |
-| A-10 | Implementation, live testing and deployment | Separate authorization required; this task permits documentation only and does not revoke or expand the existing structural increment. |
-| A-11 | Required `uid,euid,suid,fsuid,auid,session_id` | **Accepted**; no partial normalized success when required information is missing/malformed. |
-| A-12 | Omit GIDs from initial normalized contract | **Accepted**; recognized native GIDs can be validated and discarded. |
-| A-13 | Identity/session states | **Accepted** distinction: explicit unset, missing and malformed. Never map unset AUID to root/euid. Exact field-specific sentinel encodings remain **Unresolved** pending source verification/contract review. |
-| A-14 | Complete EXECVE information | **Accepted**; validate argc, indices, fragments, conflicts/duplicates and missing information; reject incomplete sequences. Exact verified grammar remains a prerequisite. Absence is not incompleteness. |
-| A-15 | Incomplete EXECVE support | **Future stretch goal**; no fabricated arguments or PROCTITLE substitution. |
-| A-16 | Optional PATH, multiple occurrences | **Accepted** validate-and-discard contents; never infer executable from first PATH. |
-| A-17 | Optional CWD/PROCTITLE, maximum one each | **Accepted** validate-and-discard contents; no argument fallback. |
-| A-18 | EOE | **Accepted** structural validation and exclusion from library input; structural closure remains separate from semantic validity. |
-| A-19 | Unknown fields and duplicate singleton fields | **Accepted** reject using record-specific validation; no last-value-wins or compatibility bypass. Exact native type allowlist/failure classification remains subject to grammar review. |
-| A-20 | Future validated-discard unknown fields | **Future stretch goal**, not current acceptance behavior. |
-| A-21 | Temporary timestamp truncation | **Accepted** section 4.2; originals authoritative, no rounding or temporary-time identity/order/checkpoints. |
-| A-22 | Fresh `AUSOURCE_BUFFER` per structural event | **Accepted** complete bounded NUL-terminated input, all returned events/records/fields, positional accounting, independent validation and RAII; no FEED or persistent state. |
-| A-23 | Non-root parsing and filesystem access verification | **Accepted** no capabilities merely to parse; document/verify configuration and possible log access under actual identity, no host configuration changes. |
-| A-24 | Additional production filesystem isolation | **Unresolved/conditional** on demonstrated need and approval. A separate parsing daemon or mandatory curated filesystem is not approved/required by default. |
-| A-25 | Executable identity retention | **Accepted direction** preserve useful exe/comm separately from argv; exact encoding/requiredness/bounds remain **Unresolved**. No argv/environment/CWD/PATH/PROCTITLE retention. |
-| A-26 | Independently configurable category retention | **Future design goal**, not an M3 implementation requirement. |
-| A-27 | Exact retention-toggle specification | **Deferred** fields, defaults, scope, interface, access controls, disabled behavior and transient validation/processing policy. |
-| A-28 | Internal result/failure API and production safety limits | **Provisional** allocation-free typed failures/no partial output; exact API, numeric bounds and library/process memory enforcement remain unapproved. |
+| A-01 | Existing local RAW Audit logs | **Owner-approved** initial source; actual configuration and execution coverage **Evidence-dependent**. No plugin, netlink registration or configuration changes. |
+| A-02 | Non-root reader/access | **Owner-approved** dedicated non-login hids-audit direction, no privilege escalation; actual identity/read permissions/broader-log exposure **Evidence-dependent**. |
+| A-03 | Execution and completeness scope | **Owner-approved** native AArch64 execve/execveat, success/failure only with complete supported records, EOE only; missing/incomplete EXECVE rejected including failed attempts. Target grammar/UAPI **Evidence-dependent**. |
+| A-04 | Contract and privacy direction | **Owner-approved** m3.audit-exec/0.1.0, protocol 3, required identities, exe/comm Base64, no GIDs/argc/argv/raw payload. Exact wire objects/value states **Evidence-dependent**. |
+| A-05 | Physical identity, rename rotation and recovery | **Owner-approved** source/generation/first-offset identity, verified generations, contiguous frontier, conservative position scanning, durable admission/discard-interrupted dispositions, sanitized finalization and atomic Python persistence; exact state/scan/late-record implementation proof **Evidence-dependent**. |
+| A-06 | Router and persistence architecture | **Owner-approved** additive existing-service routing, independent M3 state/database, WAL/Python-only writes, mutual peers/lease and root control; actual routing/config/DDL/socket permissions **Evidence-dependent**. |
+| A-07 | libauparse dependency | **Owner-approved** preference over a full independent grammar and fresh BUFFER constraints; production package/version/ABI/build/license approval **Evidence-dependent**. No installation authorized. |
+| A-08 | Resource, transport and retention | **Provisional** 16 MiB/event, 32 MiB aggregate, exe 4096/comm 256 decoded bytes; **Owner-approved** 64 KiB request, 2 KiB response, 4096-byte chunks, one delivery, no spool/no deletion. Other limits, tuning/storage thresholds **Evidence-dependent**. |
+| A-09 | Health and availability | **Owner-approved** separate states, host/core/M3 priority, bounded oversized reporting and safe continuation; actual status evidence, thresholds and failure vectors **Evidence-dependent**. No CAP_AUDIT_CONTROL. |
+| A-10 | Authorization boundary | **Owner-approved** separate implementation/environment/live-testing/deployment authorization required. This task is documentation only and preserves all pre-existing untracked work. |
+| A-11 | uid/euid/suid/fsuid/auid/session_id | **Owner-approved** mandatory, numeric values exact, explicit unset distinct from missing/malformed, no inferred identities or root conversion. Field-specific sentinel/range encoding **Evidence-dependent**. |
+| A-12 | GID omission | **Owner-approved** no normalized GID fields; known native fields still validated for discard. |
+| A-13 | Identity/session states | **Owner-approved** preserve explicit unset distinctly from missing/malformed and numeric values without inference/root conversion. Exact field-specific sentinel encodings/ranges **Evidence-dependent**. |
+| A-14 | Complete EXECVE | **Owner-approved** argc/index/fragment/order/completeness and conflict validation; no argc/arguments retained, no fabricated argv or PROCTITLE fallback. Exact grammar **Evidence-dependent**. |
+| A-15 | Incomplete EXECVE support | **Future goal**, not permission for partial output. |
+| A-16 | PATH | **Owner-approved** optional/repeated, validate all, retain presence/count, discard contents; no first-PATH executable inference. |
+| A-17 | CWD/PROCTITLE | **Owner-approved** optional singleton, validate, presence retained, contents discarded. |
+| A-18 | EOE and structural identity | **Owner-approved** only initial completion marker; exclude EOE from library input. Timeout/shutdown/capacity/PROCTITLE do not establish completeness. No late amendment. |
+| A-19 | Unknown/duplicate singleton fields | **Owner-approved** reject using explicit record-specific validation, no last-value-wins. Exact allowlists/grammar **Evidence-dependent**. |
+| A-20 | Future unknown-field handling | **Future goal** validated check-and-discard; not current compatibility behavior. |
+| A-21 | Temporary timestamp projection | **Owner-approved** three-digit truncation/right-padding for parser compatibility only; original precision/identity/order/checkpoints unchanged. Exact supported widths **Evidence-dependent**. |
+| A-22 | Fresh BUFFER and accounting | **Owner-approved** bounded NUL-terminated input, all events/records/fields, positional accounting, raw values and RAII; no FEED/callbacks/persistent parser. Installed API verification **Evidence-dependent**. |
+| A-23 | Parsing privileges/filesystem verification | **Owner-approved** non-root, no capabilities merely for parsing, actual-identity configuration/log-access verification. Specific controls **Evidence-dependent**. |
+| A-24 | Additional production filesystem isolation | **Evidence-dependent** on demonstrated need and reviewed service controls; no mandatory extra daemon or curated root by default. |
+| A-25 | Executable identity | **Owner-approved** full decoded exe/comm bytes, Base64 IPC/storage, valid UTF-8 display, NUL rejection/no replacement/truncation; decoded-byte limits **Provisional**. |
+| A-26 | Independent category retention/collection controls | **Future goal** exe/comm/arguments/CWD/PATH/PROCTITLE; no change to initial privacy/no-deletion policies. |
+| A-27 | Toggle details and later archival | **Future goal**; exact membership/defaults/scope/interface/permissions/timing/disabled processing **Evidence-dependent** and separate approval required. |
+| A-28 | Safety and failure details | **Evidence-dependent** internal failure API, remaining parser/native/group/diagnostic/concurrency limits, memory measurements and service enforcement. |
+| A-29 | Failed SYSCALL without EXECVE | **Owner-approved** incomplete rejection initially, not a separate normalized failed-execution type. Alternative representation is a **Future goal**. |
+| A-30 | At-rest encryption | **Future goal** exe/comm encryption and key management. Base64 is not encryption. |
+| A-31 | Separate M3 worker | **Future goal** only if regression-safe existing-service isolation proves impractical; necessity **Evidence-dependent**. |
+| A-32 | Compressed archives / PROCTITLE completion | **Future goal**; neither is initially supported. |
+| A-33 | Independent collection/event lifecycles | **Owner-approved** section 12 states/transitions, EOE-only COMPLETE and durable immutable FINALIZED; exact integration mechanics **Evidence-dependent**. |
+| A-34 | Interrupted events | **Owner-approved** report/durably reject and discard payload, never reconstruct into acceptance. Supersedes prior unfinished-source reconstruction; preserve independent complete events. |
+| A-35 | Durable sanitized progress admission | **Owner-approved** registration before accepted assembly, no raw partial-event persistence; exact transaction/batching/write-frequency/performance **Evidence-dependent**. |
+| A-36 | Suppression/tombstones | **Owner-approved** bounded metadata, no resurrection/unsafe eviction; missing/ambiguous/exhausted state degrades. Exact budgets/lookup **Evidence-dependent**. |
+| A-37 | Resolved byte ranges/frontier | **Owner-approved** compact intervals, physical replay before native late checks, interruption durable before resolution, atomic Python disposition/range/checkpoint updates. Schema/coalescing/proof **Evidence-dependent**. |
+| A-38 | Event deadlines | **Owner-approved** independent monotonic inactivity and maximum lifetime; intentional backpressure freezes both. Durations/sampling/scoping **Evidence-dependent**. |
+| A-39 | Aggregate resource fallback | **Owner-approved** backpressure first, bounded blocker rejection/DISCARDING_RESOURCE_LIMIT to release payload while preserving suppression; no breach of **Provisional** 32 MiB accounting. Selection/timing **Evidence-dependent**. |
+| A-40 | Crash/IPC reconciliation | **Owner-approved** no interrupted reconstruction, reconcile SQLite atomic state; immutable durably finalized retry only. Complete-but-uncommitted protocol/liveness details **Evidence-dependent**. |
+| A-41 | Source-generation lifecycle | **Owner-approved** active/detected/verification/new-active stages, retained descriptors, verified succession and first-record identity. Proof/reset/reboot details **Evidence-dependent**. |
+| A-42 | Storage/service failure isolation | **Owner-approved** stop M3 writes/collection on exhaustion, no deletion/cleanup/overwrite, honest non-durable diagnostics and core/M1/M2 availability. Thresholds/runtime isolation **Evidence-dependent**. |
+| A-43 | Original source preservation | **Owner-approved** original generations are evidence; preserve unprocessed generations against silent rotation removal. Actual enforcement and Auditd/external-cleanup compatibility **Evidence-dependent**. |
+| A-44 | Durable processing and retirement eligibility | **Owner-approved** verified terminal boundary/identity/continuity, all positions durably disposed and ranges/frontier committed, no unresolved input. Full-generation/no-backfill coverage proof **Evidence-dependent**. |
+| A-45 | Source no-deletion policy | **Owner-approved** no automatic source cleanup, shortening, silent rotation deletion or overwrite; eligibility is not deletion permission. Later cleanup needs separate approval. |
+| A-46 | Original-generation archival handoff | **Future goal**, not initial implementation. Coverage/integrity/provenance, durable availability/retrieval and recoverable handoff required; exact mechanism/privacy controls **Evidence-dependent**. |
+| A-47 | Database and original-source capacity | **Owner-approved** preserve both, report pressure/suspension risk and protect core uptime without deleting evidence. Budgets, thresholds and native retention behavior **Evidence-dependent**. |
+| A-48 | Separate privileged health checker | **Owner-approved** metadata-only one-shot C++ checker with health-only authenticated IPC; reader/backend remain capability-free and logging configuration stays under host administration. Implemented/Ubuntu-tested. Sampling/freshness/resource settings remain **Provisional**; no exact HIDS loss count or coverage guarantee. |
 
-**Next review:** verify structural interface prerequisites and Audit field/fragment
-grammar, resolve absent-EXECVE failed-syscall classification, exact identity/unset
-and executable text encoding, and finite production bounds. Actual source access,
-coverage, filesystem behavior and durable recovery still require their own evidence.
-Then obtain separate semantic implementation authorization; IPC/SQLite integration,
-permissions/deployment and live testing need separate approval. No automatic source,
-privilege, retention or contract expansion follows from this documentation update.
+**Next step:** review the evidence-dependent schema/protocol/state mechanics and
+native-test gates in section 12; do not reopen the accepted state-machine policy.
+Request separate authorization before evidence gathering, implementation or Ubuntu
+work. No staging, commits or pushes are authorized by this documentation task.
+
+## 12. Owner-approved evidence and state-machine addendum
+
+This section supersedes the earlier recommendation to reconstruct unfinished events
+from source after interruption. **Owner-approved:** known interrupted assembly is
+reported and discarded permanently as an execution candidate. Re-reading source
+for framing, accounting, continuity or suppression is different from reconstruction.
+It must never turn that candidate into an accepted execution. This intentionally
+loses potentially legitimate events to preserve evidence integrity.
+
+The state machines below specify policy, not implemented C++/Python types, IPC
+messages or SQLite DDL. **Evidence-dependent** mechanics are called out explicitly;
+no experiments, performance guarantee, service changes or implementation are claimed.
+Collection, individual events, source generations and durable progress are distinct
+state domains. One degraded source or rejected event must not unnecessarily stop
+HIDS core or M1/M2. All earlier privacy/identity/RAW/BUFFER policies remain in force.
+
+### 12.1 Collection lifecycle
+
+Every root-authorized interval has a unique activation UUID in addition to source
+and generation UUIDs. Collection state does not itself establish event completeness.
+
+| State | Meaning and permitted work | Allowed exits / triggers |
+|---|---|---|
+| UNAUTHORIZED | No active authorization, no Audit payload reading. Approved metadata/access checks only. Previous committed state is preserved. | Explicit root authorization creates a new interval and enters ACTIVATING. |
+| ACTIVATING | Verify approved source/identity, establish and durably identify a verified current-tail boundary, exclude/report overlaps. No historical reads for acceptance. | Verified authorized boundary → ACTIVE; failure → DEGRADED; disable → UNAUTHORIZED. |
+| ACTIVE | Read, register progress, assemble/validate events and submit dispositions within bounds. | Downstream/resource pressure → BACKPRESSURED; source/subsystem/lease failure → DEGRADED; disable → UNAUTHORIZED. |
+| BACKPRESSURED | Intentionally pause source reads; bound pending work and freeze event timeout elapsed-time accounting. Registration failure permits no further accepted assembly progress. | Pressure clears with known continuity → ACTIVE; bounded pressure policy requires rejection/discard handling; unsafe/unavailable subsystem → DEGRADED; disable → UNAUTHORIZED. |
+| DEGRADED | Source/subsystem unavailable, untrustworthy, or durable progress/reporting impossible. Stop affected reads/delivery as appropriate; expose honest health outside durable storage if necessary. | Verifiable recovery attempt under current authorization → RECOVERING; disable → UNAUTHORIZED. No guessed reset/resumption. |
+| RECOVERING | Reconcile transactions, interrupted identities, suppression, generations and resolved ranges before any accepted input resumes. Scanning is limited to authorized continuity/accounting/discard work. | Verified same-interval authorization/continuity and safe durable state → ACTIVE, or BACKPRESSURED if still constrained; gap/ambiguity/failure → DEGRADED; disable → UNAUTHORIZED. |
+
+Disabling in **any** authorized state ends the interval, stops reading and records
+or safely blocks pending interruption dispositions. Partial events never cross to
+a new interval. Re-enabling always creates a new interval at its own verified tail;
+no disabled-period backfill or automatic reactivation. Do not erase old unresolved
+state or falsely advance its checkpoint merely to activate again. Exact handling of
+unresolved old-interval ledgers is **Evidence-dependent**, with the same integrity rules.
+
+A process restart may enter RECOVERING for the same interval only if authorization
+and source continuity remain verifiable. A gap blocks unverified resumption. Reboot/
+daemon-reset behavior is **Evidence-dependent**; do not invent a boot identity or
+rebase unknown monotonic metadata. Recovery is not permission to replay interrupted
+execution payload into acceptance.
+
+```mermaid
+stateDiagram-v2
+    [*] --> UNAUTHORIZED
+    UNAUTHORIZED --> ACTIVATING: explicit root authorization / new activation UUID
+    ACTIVATING --> ACTIVE: verified current tail and authorization
+    ACTIVATING --> DEGRADED: failed verification
+    ACTIVE --> BACKPRESSURED: bounded downstream or resource pressure
+    BACKPRESSURED --> ACTIVE: pressure cleared / continuity known
+    ACTIVE --> DEGRADED: source, lease or subsystem failure
+    BACKPRESSURED --> DEGRADED: unsafe progress or unavailable persistence
+    DEGRADED --> RECOVERING: authorized recovery attempt
+    RECOVERING --> ACTIVE: durable reconciliation and continuity verified
+    RECOVERING --> BACKPRESSURED: safe state / pressure remains
+    RECOVERING --> DEGRADED: gap, ambiguity or failure
+    ACTIVATING --> UNAUTHORIZED: disable
+    ACTIVE --> UNAUTHORIZED: disable
+    BACKPRESSURED --> UNAUTHORIZED: disable
+    DEGRADED --> UNAUTHORIZED: disable
+    RECOVERING --> UNAUTHORIZED: disable
+```
+
+### 12.2 Event lifecycle and durable outcomes
+
+COMPLETE is structural eligibility, not semantic success. FINALIZED is a durable
+sanitized disposition, either accepted or rejected/interrupted. A record-ready
+callback, EOE alone or a volatile result is not a commit acknowledgment.
+
+| State / condition | Meaning | Allowed transitions / triggers and durable meaning |
+|---|---|---|
+| ASSEMBLING | Transient, bounded payload for records whose progress was durably registered before admission. | EOE plus valid structure → COMPLETE; invalid/unsupported/incomplete input → REJECTED; individual oversize → DISCARDING_OVERSIZED; aggregate fallback → DISCARDING_RESOURCE_LIMIT; abandoned assembly on failure/shutdown/restart → INTERRUPTED. |
+| COMPLETE | EOE received and structural validation succeeds; all required EXECVE/identity/semantic validation and accounting still apply. | Valid complete semantic candidate + successful finalization transaction → FINALIZED accepted; semantic/coverage/mandatory-field failure → REJECTED. Abandonment without durable verified finalization → INTERRUPTED, not source reconstruction. |
+| REJECTED | Fixed invalid, unsupported or incomplete disposition; no partially populated semantic success. | A trustworthy bounded rejection and observed positions committed atomically → FINALIZED rejected. If persistence fails, it remains uncommitted and progress stays blocked. |
+| DISCARDING_OVERSIZED | Event exceeded 16 MiB. Report the incident, release payload, retain bounded identity/position suppression metadata; later records cannot restart assembly. | Continue classifying/discarding that identity; EOE or eligible timeout → REJECTED with oversized reason; abandonment → INTERRUPTED while preserving the known cause. |
+| DISCARDING_RESOURCE_LIMIT | Bounded aggregate-pressure fallback released payload for affected blockers. Report resource rejection, preserve suppression metadata. | EOE or eligible timeout → REJECTED with resource-limit reason; abandonment → INTERRUPTED. Independent events may continue only within safe resource/durability bounds. |
+| INTERRUPTED | Accepted assembly progress was abandoned by crash, parser/process failure, shutdown or restart before durable verified completion. Raw unfinished payload is discarded. | Commit sanitized interruption/rejection + suppression metadata + observed ranges → FINALIZED rejected/interrupted. Never → ASSEMBLING or COMPLETE for acceptance. |
+| FINALIZED | Terminal immutable canonical disposition committed in Python's transaction. Accepted execution or durable rejection/interruption, not necessarily an execution success. | Remains FINALIZED. Same resolved physical position → replay duplicate; new position for finalized native identity → LATE_RECORD diagnostic. Neither mutates the original disposition. |
+| LATE_RECORD | A side condition for a new physical record, not reopening the original event. | Persist bounded diagnostic/new position resolution when trustworthy; original FINALIZED event remains unchanged. If identity/frontier integrity is ambiguous, degrade and require review. No second execution event. |
+
+The table describes allowed semantic state, not an in-place mutation API. A live
+rejection candidate may be discarded as payload once its sanitized metadata is
+safe; persistence failure never fabricates FINALIZED. Reject immediately when a
+semantic result is invalid, but resolve only trustworthy accounted ranges. Resource-
+discard states remain suppression-only until their rejection boundary is established.
+
+```mermaid
+flowchart TD
+    A[ASSEMBLING] -->|EOE and valid structure| C[COMPLETE]
+    A -->|invalid or incomplete| R[REJECTED]
+    A -->|individual limit| O[DISCARDING_OVERSIZED]
+    A -->|bounded aggregate fallback| Q[DISCARDING_RESOURCE_LIMIT]
+    O -->|EOE or eligible timeout| R
+    Q -->|EOE or eligible timeout| R
+    A -->|assembly abandoned| I[INTERRUPTED]
+    C -->|abandoned before durable completion| I
+    O -->|interruption| I
+    Q -->|interruption| I
+    C -->|semantic failure| R
+    C -->|valid semantics and atomic commit| F[FINALIZED immutable disposition]
+    R -->|atomic rejection commit| F
+    I -->|atomic interruption and suppression commit| F
+    F -.->|new physical position / diagnostic only| L[LATE_RECORD]
+    L --> D[Commit diagnostic and new position; original F unchanged]
+```
+
+| Finalization condition | Owner-approved outcome |
+|---|---|
+| Valid complete EXECVE, EOE and all other structural/semantic requirements | Accept only after durable transaction. |
+| EOE with missing/incomplete EXECVE | Reject incomplete, including failed SYSCALL attempts. |
+| Missing EOE at inactivity or maximum active lifetime | Reject/report; persist sanitized timeout disposition. |
+| Invalid mandatory identity, unknown field or duplicate singleton | Reject, no partial output. |
+| Conflicting event identity | Reject/report; block unsafe position resolution. |
+| Individual assembly exceeds 16 MiB | Report, release payload and suppress; rejection finalizes on EOE/eligible timeout. |
+| Interrupted accepted assembly | Durable interruption, discard, suppress; never reconstruct to acceptance. |
+| Late record after finalization | Diagnostic/new-position accounting, never amend or emit a second execution. |
+
+### 12.3 Two monotonic deadlines and intentional pause accounting
+
+**Owner-approved:** maintain independent inactivity and maximum-lifetime deadlines.
+Inactivity measures time since the last record belonging to the event. Maximum
+lifetime measures permitted assembly duration from its initial observation. Both
+use a local monotonic timeline; exact durations are **Evidence-dependent**.
+
+For each deadline, account only monotonic elapsed time outside intentional
+BACKPRESSURED intervals. Subtract the union of such intervals, without double
+subtraction for nested reasons. A record resets inactivity, not maximum lifetime.
+During intentional backpressure both counters freeze, including discarding identities
+whose timeout is still pending. No false incomplete rejection merely because HIDS
+stopped reading. Resuming must not charge paused time retroactively.
+
+Operational pressure-stall limits are separate from event completeness deadlines;
+their exact thresholds/durations and fairness are **Evidence-dependent**. Freezing
+assembly clocks cannot be used to wait forever for EOE when full memory prevents
+reading it: section 12.8 defines the bounded aggregate fallback. None of these
+clocks establishes completion. A restart interrupts assembly instead of restoring
+payload or restarting its deadlines to obtain acceptance.
+
+Persist bounded timeout metadata: trustworthy native identity/source positions,
+reason, EOE-observed flag, timeout-policy version, monotonic observation/active-time/
+pause context and relevant process/clock scope. These are operational timing, not
+synthetic activity time. Exact timing capture/serialization is **Evidence-dependent**.
+Never infer an exact crash instant: use labeled interruption-detection/recovery time
+when that is what was observed. No raw records, arguments, environment or executable
+payload fragments in timeout/interruption metadata.
+
+### 12.4 Durable admission, progress ledger and interruption ordering
+
+The following ordering is an **Owner-approved** invariant. Exact messages, batching,
+transaction schemas and write frequency are **Evidence-dependent**, with crash
+injection and performance measurement required before implementation.
+
+1. Read into a bounded ephemeral framing buffer only within an authorized interval.
+   Frame complete records and identify trustworthy source positions/native identity.
+   Reading/framing does **not** mean the record has been accepted into assembly.
+2. Before adding payload to ASSEMBLING, Python durably registers sanitized progress
+   under the current activation, source/generation and expected source revision.
+   A batch may be considered only if every admitted record's position/classification
+   is covered by the committed registration. Never admit first and register later.
+3. Confirm the registration outcome. Only confirmed registered positions may become
+   accepted assembly input. Unknown commit outcome requires reconciliation; do not
+   append payload or infer registration from a lost ACK. If registration cannot be
+   recorded, pause collection before accepting further assembly progress.
+4. Keep the payload only in bounded volatile memory. Update bounded progress metadata
+   before admitting subsequent records. Partial restart state consists of sanitized
+   metadata, not records, arguments or partial executable identity.
+5. On completion, perform validation and the atomic finalization in section 12.7.
+   On interruption, discard payload, persist interruption and suppression, then
+   resolve only its trustworthy observed positions. No recovery path rehydrates it.
+
+Permitted ledger information: trustworthy native identity; activation/source/
+generation identity; first/last observed positions; observed record count/types;
+bounded position/range provenance; reason; labeled interruption/observation time;
+and disposition state. Source intervals/ownership must distinguish interleaved
+records: first/last positions alone cannot prove that all bytes between them belong
+to one event. A progress registration is not an accepted execution or resolved range.
+No raw Audit records, EXECVE argument values, environment values or partial
+executable identity payloads are durably persisted in HIDS progress metadata.
+Original Audit source files remain subject to the separate source-preservation policy.
+
+A crash before any durable registration leaves that input **not yet accepted**; it
+may be reprocessed from source without a false claim of prior assembly. If uncertain
+registration actually committed, recovery discovers that fact and uses interruption
+policy. If the same native identity already has registered unfinished progress from
+earlier records, it is known interrupted and subsequent unregistered records are
+suppressed, not treated as a fresh event. Registration committed but admission ACK
+lost is handled conservatively as interrupted registered progress, never invented
+completion. This may discard events that were never appended in RAM, deliberately.
+
+A crash/restart/shutdown abandons any assembly without independently established
+durable verified finalization. Even EOE observed in a ledger is not proof that all
+semantic requirements and final transaction committed. Preserve a committed complete
+B independently of incomplete A. A COMPLETE result held only in lost process memory
+cannot be recreated from source to claim acceptance. A live complete-but-uncommitted
+candidate is not silently relabeled as durably finalized after a disconnect.
+
+Durable-progress frequency, batching/revision ordering, overlapping registrations,
+lease-loss races and complete-but-uncommitted transport reconciliation need explicit
+state/protocol vectors. Admission and finalization requests must respect the approved
+lease, bounded queues and one-outstanding-delivery policy. Do not use an unapproved
+resend or unbounded metadata queue to work around these gates.
+
+### 12.5 Suppression and physical-position classification
+
+Keep bounded suppression/tombstone metadata for interrupted, discarding and finalized
+native identities scoped to the correct source/activation/generation continuity.
+Release execution payload while retaining only sanitized metadata sufficient to
+recognize later records and account for positions. Future EOE cannot resurrect
+these identities. No silent eviction, guessed expiry or source reset to make room.
+If state is missing, exhausted or ambiguous, stop/degrade the affected source and
+report a possible gap. Persistent evidence is never automatically deleted for space.
+Exact durable lookup, RAM residency and metadata limits are **Evidence-dependent**.
+
+Classify each record in this order, with authenticated durable reconciliation:
+
+| Observation | Classification / action |
+|---|---|
+| Same physical generation/position already durably resolved with matching identity/integrity | Replay duplicate; no new execution or late diagnostic. |
+| Same unresolved position with registered unfinished progress from an interrupted process | Interruption/suppression accounting; never reconstruct payload for acceptance. |
+| New position for an actively discarding identity | Register/classify/discard, retaining bounded ranges/counts; do not restart assembly. |
+| New position for a FINALIZED native identity | LATE_RECORD: diagnostic and source-position accounting; original event immutable. |
+| Unregistered position, no interrupted/finalized suppression and valid current interval | Eligible only for durable registration before new assembly. |
+| Conflicting bytes/identity at a known position, unknown generation or ambiguous suppression | Report integrity failure/gap; no checkpoint guess or automatic accepted reconstruction. |
+
+A physical-position replay check must precede a native-identity tombstone check.
+Otherwise re-reading a resolved A record after an interruption would falsely
+classify a duplicate as late. Source re-reading may identify framing/positions or
+records to discard; it cannot restore execution payload for known interrupted events.
+
+### 12.6 Source-generation lifecycle
+
+**Owner-approved:** rename rotation only, with a separate generation lifecycle:
+
+| State | Trigger and required behavior | Next state |
+|---|---|---|
+| ACTIVE_GENERATION | Approved descriptor/generation is active. Detect rename/successor metadata without trusting name alone; preserve old descriptor. | ROTATION_DETECTED |
+| ROTATION_DETECTED | Pin old generation and candidate successor; stop unverified switching. | SUCCESSOR_VERIFICATION, or degrade on missing/replaced/truncated/uncertain source. |
+| SUCCESSOR_VERIFICATION | Verify device/inode, creation observations, integrity anchors and successor relation; Python registers a new persistent UUID without reusing old identity. | NEW_GENERATION_ACTIVE only on verified continuity and durable registration; otherwise stop affected source/report gap. |
+| NEW_GENERATION_ACTIVE | New generation is admitted under the same authorized interval; old descriptors remain while needed for retained verified generations. | ACTIVE_GENERATION for that generation; future rotation repeats the cycle. |
+
+```mermaid
+flowchart LR
+    G[ACTIVE_GENERATION] -->|rename detected / retain descriptor| R[ROTATION_DETECTED]
+    R --> V[SUCCESSOR_VERIFICATION]
+    V -->|verified successor / new durable UUID| N[NEW_GENERATION_ACTIVE]
+    N --> G
+    V -->|missing or uncertain continuity| D[DEGRADED source; no reset]
+```
+
+An event may span generations only with verified succession; its physical identity
+stays anchored to its first-record generation/offset. Carrying an ongoing live
+assembly across verified rotation is different from restoring interrupted assembly.
+No partial carry across separate activation intervals. Copytruncate/compression are
+unsupported; missing generations, replacement, inode reuse, changed permissions and
+uncertain rotation never cause automatic begin/tail checkpoint resets. Exact successor
+proof and safe descriptor retirement remain **Evidence-dependent**. Descriptor
+closure is distinct from source retirement; apply the preservation and eligibility
+requirements in [Section 6.4](#64-original-source-evidence-and-retirement-eligibility).
+
+### 12.7 Resolved ranges, frontier algorithm and transaction boundaries
+
+Maintain these concepts for every generation in a verified lineage:
+
+| Concept | Meaning |
+|---|---|
+| scan_cursor | End boundary of the highest completely framed and classified source prefix. Durable progress registration records this classification; classification may still be unresolved assembly. Partial/unregistered read-ahead does not advance the durable cursor. |
+| resolved_ranges | Compact, coalesced half-open byte intervals whose records have durable event/rejection/interruption/scan dispositions. No implication that an open event is complete. |
+| checkpoint_frontier | Contiguous resolved prefix end: all bytes from that generation's authorized start boundary to this offset have durable resolution, with no earlier blocker. |
+
+Use bounded range metadata rather than a permanent database row per unrelated
+Audit record. Persist enough ownership/provenance to distinguish resolved positions,
+unresolved progress, replay duplicates and new-position late records after restart.
+Do not resolve an entire first-to-last envelope of interleaved A merely because
+A is disposed: other owners' positions need their own dispositions. Coalescing
+ranges compacts accounting; it does not delete evidence or permit an unsafe gap.
+
+Conceptual advancement algorithm (not an implementation):
+
+1. Verify source/generation/activation, current lease and expected revision.
+2. Add only trustworthy complete record intervals covered by durable dispositions;
+   preserve unresolved ownership intervals and framing gaps as blockers.
+3. Coalesce overlapping/adjacent **resolved** intervals, never bridging unresolved
+   bytes. Start at checkpoint_frontier and advance only through the contiguous
+   resolved prefix, no farther than the durably classified scan_cursor.
+4. Cross a generation boundary only when its lineage/end and successor relation
+   are verified. Never treat numerically similar offsets in different files as equal.
+5. Commit progress/ranges/frontier with the canonical disposition atomically.
+   Failed/uncertain transaction yields no assumed advancement; reconcile SQLite.
+
+Python's finalization transaction atomically commits:
+
+- Accepted execution or rejection, and canonical native/physical identity.
+- Source-position provenance and finalization/interruption disposition.
+- Suppression/tombstone state needed to prevent reopening.
+- Relevant resolved-range updates and source scan progress.
+- Contiguous checkpoint advancement under expected revision and current activation.
+
+Interruption positions are resolved only after their sanitized disposition is durable.
+No acknowledgment of finalization precedes commit. Progress registration is a separate
+atomic transaction before admission; it leaves positions unresolved, not an early ACK
+of execution. Exact schema, range indexes/coalescing, revision compare-and-swap,
+scan-message proof and transaction sizes remain **Evidence-dependent**. They must
+be specified/tested before implementation, not inferred from M2 journal cursors.
+
+Concrete interleaving starts at illustrative authorized boundary 100 and uses
+contiguous record intervals (offsets are not activity timestamps):
+
+| Interval | Record | Resolution before A completes |
+|---|---|---|
+| [100,200) | A starts | Registered, unresolved |
+| [200,300) | B starts | Registered, unresolved until B disposition |
+| [300,400) | B EOE | B may validate/commit; B's two intervals become resolved |
+| [400,500) | A continues | Registered, unresolved |
+| [500,600) | A EOE | If valid, A may commit; A's observed intervals become resolved |
+
+After B commits first, resolved_ranges can contain [200,400), while the frontier
+remains 100 because A's [100,200) is unresolved. After A commits its own ranges,
+coalescing yields [100,600) and the frontier can become 600. B was not held hostage
+as a durable event, but checkpoint progress never skipped A.
+
+Alternative: crash after B commits and A's [400,500) is registered. Recovery commits
+A as INTERRUPTED, without reconstructing it. Its known intervals can then resolve;
+with B preserved, the contiguous frontier reaches 500. A's later EOE at [500,600)
+is a new-position LATE_RECORD, not accepted A. Only a diagnostic/position transaction
+can resolve it. Re-reading A at [100,200) is instead a resolved-position duplicate,
+not a new late record. Ambiguous range/suppression state blocks advancement.
+
+```mermaid
+flowchart TD
+    P[Durable unresolved progress before payload admission] --> E[Independent event decision]
+    E --> T[Within one transaction: disposition, identity, suppression and ranges]
+    T --> B{Earliest prefix fully resolved?}
+    B -->|no| H[Keep frontier; later event may remain committed]
+    B -->|yes| C[Advance only contiguous verified prefix]
+    H --> K[Commit with expected revision and activation; ACK afterward]
+    C --> K
+    K -.-> S[Later resolve earlier blocker by valid completion or durable rejection/interruption]
+    S --> E
+```
+
+### 12.8 Resource pressure, storage and independent failure handling
+
+Preserve **Provisional** owner-approved 16 MiB/event and 32 MiB aggregate assembly
+ceilings. Include bounded bookkeeping/suppression in the approved assembly accounting;
+exact charging and metadata ceilings remain **Evidence-dependent**. This does not
+claim total process/library memory is at most 32 MiB. Count before append and release
+payload without silently dropping identity/positions. No limit may be raised on retry.
+
+| Pressure/failure | Required policy |
+|---|---|
+| Individual event above 16 MiB | Report oversized, enter DISCARDING_OVERSIZED, release payload, register/discard later same-identity records, finalize rejection on EOE/eligible timeout. Continue unrelated events when safe. |
+| Aggregate pressure | First BACKPRESSURED. If occupied groups need unread records/EOE to release memory, bounded operational policy must move affected blockers to DISCARDING_RESOURCE_LIMIT, release payload and resume only safe framing/progress. Never exceed 32 MiB assembly accounting. |
+| Bounded suppression/ledger metadata exhausted | Degrade/stop affected source; do not evict safety state or accept an old identity as new. |
+| Malformed event | Reject/report when identity and ranges are trustworthy; otherwise bounded source-record failure/gap, no invented event ID. |
+| Parser failure | Reject with trustworthy identity; if assembly is abandoned before verified completion, INTERRUPTED. Unknown identity produces source-record failure, not a fabricated execution. |
+| IPC failure | Pause affected M3 delivery/reads as needed. Reconcile; retry only exact immutable, durably finalized delivery. No blind retransmission of an uncommitted execution candidate. |
+| Database unavailable / progress cannot be recorded | Pause M3 before accepting further assembly input; preserve uncertainty and safe checkpoint. |
+| Storage exhausted | Stop new M3 writes and collection; no deletion, overwrite, shortened retention or cleanup. Preserve evidence and report through an available non-durable channel without claiming persistence. |
+| Source gap / uncertain rotation | Stop affected source, report possible/confirmed gap with evidence; no checkpoint reset. |
+| Reader lease lost | Stop source reads; reconcile or interrupt unfinished assembly under the authenticated activation policy. |
+| Unauthorized peer | Reject/report without processing protected payload or exposing stored security data. |
+
+Aggregate rejection is different from individual oversize. Its victim selection,
+pressure-stall budget, concurrency and timing are **Evidence-dependent**. Do not
+wait on frozen event timeouts to break the full-memory/EOE deadlock. If durable
+reporting cannot be done, no payload release licenses unsafe continued source progress.
+
+Host stability precedes HIDS core uptime, which precedes M3 availability. Preserve
+warning/critical/exhausted storage states; thresholds are **Evidence-dependent**.
+M3 source/database failure must not unnecessarily terminate core or M1/M2. Do not
+claim complete coverage while M3 is degraded, interrupted, paused or unavailable.
+
+### 12.9 Crash and reconciliation matrix
+
+| Failure boundary | Required recovery |
+|---|---|
+| Read/framed, before durable progress registration | Reprocess as not-yet-accepted input, unless that identity is already known interrupted/finalized; no claim of prior assembly. |
+| Registration committed, admission ACK lost | Reconcile durable registration; unfinished registered progress is conservatively interrupted, not reconstructed to acceptance. |
+| After registration/admission, before verified completion | INTERRUPTED, durable sanitized disposition/report, payload discarded, suppression retained. |
+| Complete in RAM, no durable verified disposition after crash | Cannot prove/restore acceptance from source; interrupt rather than recreate lost semantics. |
+| During finalization transaction | SQLite atomicity decides committed versus absent; reconcile, never assume success or failure from disconnect. |
+| After commit, before ACK | Preserve committed result; exact immutable retry/deduplication only after durable-state reconciliation. |
+| Later B committed while earlier A unresolved | Preserve B independently; interrupt/dispose A without jumping its unresolved positions. |
+| Parser/process crash | Incomplete accepted assembly is interrupted; no partial payload persists. |
+| IPC disconnection | Pause; reconcile authoritative finalization. Only durably finalized immutable delivery may retry. Live complete-but-uncommitted handling must be specified before code, never bypassed by payload reconstruction/resend. |
+| Database restart/unavailability | Preserve committed evidence; no new assembly progress until durable registration is possible. |
+| Generation missing/continuity uncertain | Stop affected collection, report gap and require review; no source/boot identity invention or checkpoint reset. |
+| Disable/re-enable | End old interval; never carry partial event payload to new interval or backfill disabled time. |
+
+The accepted retry restriction requires an authenticated reconciliation design,
+not a new implicit transport contract. Exact protocol-3 responses, complete-but-
+uncommitted liveness behavior, schemas, migration/transaction boundaries and
+write-frequency costs remain **Evidence-dependent** gates. An uncertain finalization
+must be reconciled before an interruption disposition could conflict with a
+previously committed accepted event. Never overwrite either history to force progress.
+
+### 12.10 Required acceptance plan and remaining evidence
+
+Source-preservation acceptance must additionally cover lag across multiple rotations,
+unprocessed-generation retention, durable processing before retirement eligibility,
+interruption blockers, restart identity, explicit missing-generation gaps and
+source exhaustion without deletion. Verify actual Ubuntu Auditd/external retention
+behavior under separate authorization. Future archive tests must reject corrupt or
+incomplete archives and failed handoffs; see the
+[implementation acceptance plan](v0.1-implementation-plan.md#m3-state-machine-acceptance-plan--future-tests-only).
+
+These are future tests, not executed results:
+
+| Area | Required tests |
+|---|---|
+| Reconstruction | Independent interleaving; EOE-only structural completion; full semantic requirements for acceptance; missing EOE → durable incomplete; mandatory identity/unknown fields/duplicate singletons reject. |
+| Interruption | Crash at read/registration/admission/EOE/commit/ACK boundaries; interrupted event never accepted from later source; suppression of later fragments; independent committed B preserved; pre-registration input never mislabeled as prior assembly. |
+| Suppression | Repeated resolved positions are duplicates, new positions are late diagnostics; missing/ambiguous/exhausted state degrades; no automatic tombstone eviction; scope across activation/generation boundaries. |
+| Resource handling | Individual oversized incident, payload release and rejection; accounted assembly never over 32 MiB; bounded metadata; paused clocks do not create false timeouts; aggregate fallback breaks EOE deadlock safely; independent events continue where safe. |
+| Checkpointing | Interleaving example; compact persisted resolved ranges; earlier blockers hold frontier; interrupted ranges resolve only after durable disposition; transaction failure cannot partially advance progress. |
+| Recovery | Injection at every registration/finalization transaction boundary; lost ACK deduplication; database restart preserves evidence; verified rename succession; no source-gap reset or late mutation. |
+| Storage/service isolation | No automatic deletion on exhaustion; honest non-durable health; M3 failures do not unnecessarily stop core/M1/M2; unauthorized peers denied; actual non-root filesystem access verified under approved identity. |
+
+**Evidence-dependent** gates remain: inactivity/lifetime durations and sampling,
+open-event concurrency; record/fragment/diagnostic/suppression bounds; progress-ledger
+write frequency/batching and throughput; range-storage overhead; parser/library RSS;
+rename proof; reboot/reset identity and authorization; CPU/memory/backlog/disk growth;
+storage thresholds; exact SQLite schema/migrations; service/socket/access configuration;
+protocol-3 envelope/ACK/reconciliation details; and whether additional filesystem
+isolation is necessary. No numeric tuning or empirical validation is invented.
+
+#### Consolidated evidence-dependent gates
+
+The complete gate table previously listed in Section 10 is retained here. These
+requirements remain in addition to the acceptance cases and detailed evidence
+questions above; relocation does not weaken any prerequisite.
+
+| Gate | Classification and required evidence |
+|---|---|
+| Actual Ubuntu configuration/execution coverage and broader-log exposure | **Evidence-dependent**; existing RAW local source and supported records under existing policy. |
+| Non-root log access | **Evidence-dependent**; approved reader identity and actual source/path permissions, no automatic grants. |
+| Dependency package/version, headers, ABI/build/license | **Evidence-dependent**; installed target evidence and distribution approval. |
+| RAW record/fragment grammar and encoding | **Evidence-dependent**; representative sanitized fixtures, argc/indices/fragments and every accepted field. |
+| Numeric ranges, fraction widths and sentinels | **Evidence-dependent**; target definitions and exact value/unset serialization without invented identities. |
+| Internal parser failure API | **Evidence-dependent**; allocation-free typed result, NULL initialization, traversal/malformed/allocation failures and no partial success. |
+| Native record/group/field/diagnostic bounds and concurrency | **Evidence-dependent**; approved accounting compatible with structural limits and the provisional ceilings. |
+| Timeouts and memory/CPU/backlog/lag/disk measurements | **Evidence-dependent**; no guessed timeout or service memory guarantee. |
+| Storage budgets and warning/critical/exhausted thresholds | **Evidence-dependent**; no automatic deletion or cleanup. |
+| Source-health evidence without new privileges | **Evidence-dependent**; provenance/freshness and explicit unknown counters. |
+| Frontier/state tables, scan progress and failure vectors | **Evidence-dependent** mechanics for approved durable admission, discard-interrupted suppression, atomic disposition/ranges and late/oversized handling. |
+| Service identity, socket ownership, filesystem restrictions | **Evidence-dependent**; verify native service access and any demonstrated isolation need. |
+| Additive router/control/configuration and migrations | **Evidence-dependent**; preserve M2 behavior with independent M3 state and no cross-source starvation. |
+| Reset/reboot and same-activation restart | **Evidence-dependent**; prove identity/continuity/authorization without invented boot attribution. |
+| Separate-worker necessity | **Evidence-dependent** assessment; alternate worker itself is a **Future goal** requiring its own review. |
+
+No source change, raw partial-event persistence, permissions grant, deployment or
+Git publication is authorized by this addendum. Future goals from section 9.3 and
+A-15/A-20/A-26/A-27/A-30/A-31/A-32 remain separate and unchanged.
