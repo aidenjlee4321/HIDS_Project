@@ -20,7 +20,9 @@ MANIFEST = 'SOURCE_MANIFEST.json'
 DIGEST = 'SOURCE_MANIFEST.sha256'
 METADATA = {MANIFEST, DIGEST}
 ROOTS = ('collector', 'engine', 'shared', 'tests', 'scripts', 'packaging', 'docs', 'rules', 'api', 'frontend')
-SUFFIXES = {'.cpp', '.hpp', '.h', '.py', '.sh', '.md', '.json', '.service', '.socket', '.conf', '.MIT'}
+SUFFIXES = {'.cpp', '.hpp', '.h', '.py', '.sh', '.md', '.json', '.service', '.socket', '.timer', '.conf', '.MIT'}
+PACKAGING_ARTIFACTS = {'packaging/hids-audit-launcher'}
+SANITIZED_FIXTURES = {'tests/fixtures/audit/structural-exec.log'}
 ROOT_FILES = {'AGENTS.md', 'todo.md', 'README.md', 'LICENSE', 'LICENSE.MIT'}
 EXCLUDED_DIRS = {'.git', '.venv', 'venv', 'node_modules', '__pycache__', 'build', 'dist'}
 HEX = re.compile('[0-9a-f]{64}')
@@ -123,7 +125,7 @@ def source_files(repo):
                 path = Path(parent) / name
                 if path.is_symlink():
                     raise WorkflowError('source file symlink')
-                if name.startswith('.') or path.suffix not in SUFFIXES:
+                if name.startswith('.') or (path.suffix not in SUFFIXES and path.relative_to(repo).as_posix() not in SANITIZED_FIXTURES | PACKAGING_ARTIFACTS):
                     continue
                 if regular(path).st_size > 32 * 1024 * 1024:
                     raise WorkflowError('source file exceeds 32 MiB bound: ' + str(path))

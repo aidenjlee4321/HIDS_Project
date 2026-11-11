@@ -15,8 +15,9 @@ sources=()
 libraries=()
 if [[ ${HIDS_M3_AUPARSE:-0} == 1 ]]; then
     flags+=(-DHIDS_M3_AUPARSE)
+    if [[ -n ${HIDS_AUDIT_INCLUDE_DIR:-} ]]; then flags+=(-I "$HIDS_AUDIT_INCLUDE_DIR"); fi
     sources+=(collector/src/audit/auparse_execution.cpp)
-    libraries+=(-lauparse)
+    libraries+=("${HIDS_AUPARSE_LIBRARY:--lauparse}")
 fi
 "${CXX:-c++}" "${flags[@]}" \
     collector/src/audit/record_parser.cpp collector/src/audit/event_assembler.cpp \

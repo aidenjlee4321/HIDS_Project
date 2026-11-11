@@ -27,6 +27,12 @@ or treat a passing test count as proof of all milestone requirements.
 
 ## Decision authority and reading order
 
+For ongoing work, begin with the compact [current-state/session handoff](docs/current-state.md)
+and the relevant workflow guide. Read the authoritative area documents below before
+changing their behavior; the handoff links to evidence rather than replacing it.
+Prefer current summaries and relevant source over repeatedly loading complete chats
+or chronological validation records. Preserve historical evidence and approvals.
+
 Follow explicit user instructions. The established constraints below capture the
 owner's current decisions and take precedence over conflicting older documents.
 Do not silently revise them; explain conflicts and record agreed changes and their
@@ -269,3 +275,11 @@ permission. Batch routine results into the final report. Existing approvals appl
 this file records them rather than granting unlimited new scope or overriding tool
 approval requirements. Do not add correlation, remediation, wider human access or
 finalized global ECS mappings under an M3 implementation task.
+
+
+For the development-efficiency implementation, the owner additionally requires
+permission before Mac system changes. Project edits under the canonical repository
+and private temporary build/snapshot/test outputs were explicitly approved for this
+task. Mac settings, software installation, credential/SSH configuration and other
+changes outside that scope still require permission. Broad Linux 2 VM authorization
+does not grant Mac system authorization. Commits/pushes retain their separate rule.

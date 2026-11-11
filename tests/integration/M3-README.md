@@ -1478,3 +1478,13 @@ units inactive. Installed collector and eight changed backend/control modules ma
 the tested staging files. There are 127 retained SQLite files including control;
 future long acceptance runs must account for remaining activation capacity without
 deleting history. No commit or push was made for this continuation.
+
+
+## Development workflow automation acceptance
+
+The six-step efficiency workflow now has a compact handoff, complete verified
+snapshots, one-command VM orchestration, test tiers, private reports and verified
+binary reuse. Two full live checkpoint runs passed with the same 17 non-build
+phases and final policy/state/installation checks. Scoped measurements and retained
+pilot failures are in [workflow acceptance](../../docs/validation/m3-workflow-validation.md).
+This tooling result does not close the broader M3 release gates above.

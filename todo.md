@@ -198,3 +198,22 @@ owner approval; future milestone entries do not grant additional scope by themse
 
 Executed evidence and compatibility details are in the
 [M3 continuation record](tests/integration/M3-README.md#storage-admission-and-event-metadata-continuation).
+
+
+### Development-efficiency workflow
+
+Current task details and standing approvals: [session handoff](docs/current-state.md).
+Historical M3 evidence remains chronological. Broad unchecked research/release items
+above refer to remaining coverage, not a reversal of later scoped implementation
+and acceptance results; use the current summary to distinguish them.
+
+- [x] Add compact current checkpoint/authority/VM handoff.
+- [x] Reuse verified snapshots and include timer plus the explicit sanitized fixture.
+- [x] Add VM preflight, dependency-aware matched build/deploy and cleanup runner.
+- [x] Define test tiers, private structured reports, bounded failure output and binary cache.
+- [x] Index current documentation separately from chronological evidence.
+- [x] Complete actual safe-failure/retry and uncached/cached full live VM pilot measurements;
+  all required phases passed twice, cleanup verified, six cached builds avoided.
+  See [workflow acceptance](docs/validation/m3-workflow-validation.md).
+
+Do not infer product-release sign-off from completion of these tooling tasks.

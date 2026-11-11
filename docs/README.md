@@ -18,6 +18,9 @@ Historical validation records are retained.
 
 | File | Purpose |
 |---|---|
+| [current-state.md](current-state.md) | Compact current checkpoint, standing approvals, VM prerequisites and next work; start here when resuming |
+| [validation/m3-workflow-validation.md](validation/m3-workflow-validation.md) | Executed local/VM workflow acceptance, safe failures, cache measurements and limits |
+| [m3-workflow.md](m3-workflow.md) | M3 test tiers, verified SSH transfer, matched VM build/deploy, private reports and cleanup |
 | [development-workflow.md](development-workflow.md) | Standard-library local tests, immutable source snapshots, verified UTM transfer and offline Ubuntu reports; no deployment/live collection |
 | [product-experience.md](product-experience.md) | Accepted v0.1 product/first-run confirmation and measured lightweight operation; navigation/severity labels proposed |
 | [validation/collector-ubuntu-validation.md](validation/collector-ubuntu-validation.md) | Owner-reported Ubuntu ARM64/GCC 15.2.0 strict compilation, offline suites and production link success; live/account/reliability unvalidated |

@@ -23,6 +23,12 @@ def run(*arguments, check=True):
 
 
 def sample(check=True):
+    # Explicit lab samples intentionally run faster than the production timer.
+    # Clear only this test unit's operator start-rate state; do not weaken the
+    # installed unit's rate limits or hide the returned sample exit status.
+    reset=run('systemctl', 'reset-failed', 'hids-m3-health.service', check=False)
+    if reset.returncode and b'not loaded' not in reset.stderr:
+        reset.check_returncode()
     return run('systemctl', 'start', 'hids-m3-health.service', check=check)
 
 

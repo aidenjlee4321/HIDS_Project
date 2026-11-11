@@ -1,5 +1,12 @@
 # Development workflow
 
+For ongoing M3 work, start with [current state](current-state.md) and the separate
+[M3 lab workflow](m3-workflow.md). The commands below retain their original offline
+scope; their snapshot/report helpers are reused, not silently granted deployment
+or source-activation behavior. The source inventory now also includes `.timer`
+artifacts, the extensionless Audit launcher and the explicitly sanitized `tests/fixtures/audit/structural-exec.log`;
+arbitrary logs remain excluded.
+
 These standard-library tools automate **source snapshots and offline tests only**.
 They do not deploy HIDS, authorize sources, read the live journal, install packages,
 change memberships/permissions, or use Git. M1/M2 production implementation and existing contracts are unchanged.
