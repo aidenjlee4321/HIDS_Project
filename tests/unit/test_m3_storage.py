@@ -35,6 +35,25 @@ class StorageTests(unittest.TestCase):
                     dict(options,extra=1),list(options.items())):
             with self.subTest(bad=type(bad)),self.assertRaises(ValueError):m3_storage.validate(bad,64,2)
 
+    def test_cached_totals_track_growth_removal_and_full_rescan(self):
+        now=[0.]
+        guard=m3_storage.Guard(self.directory,64,256,clock=lambda:now[0])
+        for index in range(200):
+            path=self.directory/f'old-{index}.fixture';path.write_bytes(b'x');path.chmod(0o600)
+        database=self.directory/'active.sqlite';database.write_bytes(b'x');database.chmod(0o600)
+        first=guard.observe(database);self.assertEqual(first['state_bytes'],sum(guard.files.values()))
+        wal=Path(str(database)+'-wal');wal.write_bytes(b'x'*8192);wal.chmod(0o600)
+        grown=guard.observe(database);self.assertEqual(grown['state_bytes'],sum(guard.files.values()))
+        self.assertEqual(grown['wal_bytes'],max(wal.stat().st_size,wal.stat().st_blocks*512))
+        wal.unlink();removed=guard.observe(database)
+        self.assertEqual(removed['wal_bytes'],0);self.assertEqual(removed['state_bytes'],first['state_bytes'])
+        new=self.directory/'retained.sqlite-wal';new.write_bytes(b'x'*16384);new.chmod(0o600)
+        now[0]=2;rescanned=guard.observe()
+        self.assertEqual(rescanned['state_bytes'],sum(guard.files.values()))
+        self.assertEqual(rescanned['wal_bytes'],max(new.stat().st_size,new.stat().st_blocks*512))
+        new.chmod(0o644);now[0]=4;self.assertEqual(guard.observe()['state'],'unknown')
+        new.chmod(0o600);self.assertEqual(guard.observe()['state_bytes'],sum(guard.files.values()))
+
     def test_free_space_levels_and_inspection_failure_are_distinct(self):
         guard=m3_storage.Guard(self.directory,64,2)
         for free,expected in ((2*1024*m3_storage.MIB,'normal'),(900*m3_storage.MIB,'warning'),

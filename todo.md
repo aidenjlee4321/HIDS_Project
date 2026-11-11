@@ -217,3 +217,23 @@ and acceptance results; use the current summary to distinguish them.
   See [workflow acceptance](docs/validation/m3-workflow-validation.md).
 
 Do not infer product-release sign-off from completion of these tooling tasks.
+
+
+### M3 controlled performance and longer-workload follow-up
+
+- [x] Use named workflow experiments and verified read-only historical source snapshots
+  for isolated before/after trials; old code never opens installed M3 databases.
+- [x] Measure the combined safeguard/metadata cost with alternating paired trials.
+- [x] Optimize repeated retained-file accounting without weakening inspections,
+  reserves, thresholds, durability or history preservation; pass component and paired tests.
+- [x] Add supervised transient VM jobs, explicit dispatched/running/final states,
+  private progress and a compact read-only watcher for disconnect-independent runs.
+- [x] Verify shared native-cache reuse across two independent detached jobs;
+  all component tests rerun, six verified artifact rebuilds avoided each time.
+- [x] Finish two-hour installed varied fixture workload: all 4096 executions/metadata,
+  24,576 positions, checkpoint and policy/data/cleanup checks passed.
+- [x] Re-run full live checkpoint acceptance for the guard and workload changes.
+- [ ] Separately close remaining rotation/source-preservation, representative workload,
+  release-threshold and packaging/distribution gates before claiming M3/release readiness.
+
+Current results and pending scope: [performance record](docs/validation/m3-performance-validation.md).

@@ -8,13 +8,21 @@ This summary does not override the owner, AGENTS.md or accepted decisions.
 
 - Latest pushed product checkpoint: `ff9049801ed536d0c9f276e2ef87c137442d55c9`
   on `main`, GitHub `aidenjlee4321/HIDS_Project`.
-- Current task: all six development-efficiency steps are implemented and verified.
-  The owner approved committing and pushing the workflow checkpoint to `main`.
-  Check Git history/remote for its identifier and publication status.
-  Next project work: return to the remaining M3 gates below.
-  [Workflow evidence](validation/m3-workflow-validation.md): 70 M3 + 34 workflow
-  tests and two full live Ubuntu checkpoint runs passed; cached Mac driver time
-  was 134.889 seconds versus 183.307 seconds uncached in the paired pilot.
+- Latest pushed workflow checkpoint: `febf25fa810c342c2c4f08ac2a76ca8f16a6f9b0` on `main`.
+- Completed checkpoint approved for commit/push to `main`: controlled M3 performance
+  review, accounting optimization and longer-workload acceptance.
+  The owner requests the new workflow whenever applicable going forward.
+  A guarded accounting optimization passed component and paired performance tests;
+  the two-hour varied load and full live checkpoint passed.
+  Two independent detached jobs verified shared-cache reuse; final restoration
+  and installed-file checks passed. Focused suites: 71 M3 + 39 workflow tests.
+  Do not treat dispatch/running as a pass or deploy other work over an active test.
+  [Current evidence](validation/m3-performance-validation.md) records completed
+  comparisons, the 7200.018-second workload and remaining release gates.
+  Check Git history/remote for the approved checkpoint identifier and publication status.
+  Next project work: rotation/source-preservation testing under existing approvals.
+  Mac work remains limited to authorized project edits and private temporary outputs;
+  ask before Mac system/settings/software/credential changes and specific Git publication.
 - Canonical repository: `/Users/aidenlee/Downloads/hids`; the chat workspace is a
   different directory. Verify branch, working tree and remote before Git mutations.
 - M3 implements root-authorized current-tail Audit execution, separate native
@@ -66,7 +74,9 @@ M3 authority: [specification/register](implementation/m3-linux-audit-spec.md).
 - Before tooling acceptance, 127 SQLite files including control were retained.
   The VM-only lab activation budget was deliberately raised from 128 to 256; the
   original is protected at `/root/hids-workflow-budget.8035odje/config.json`.
-  After acceptance, 200 SQLite files including control are retained.
+  After the performance/soak checkpoint, 244 SQLite files including control are retained.
+  A full checkpoint reserves 30 new intervals: choose a deliberate larger VM-only
+  lab activation budget for future full runs, preserving all retained history.
   The runner restores that new 256-budget baseline after each run. Check interval capacity
   before additional runs. Preserve all history; increasing a lab budget is a
   deliberate VM setting, not automatic deletion or silent capacity repair.

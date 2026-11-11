@@ -283,3 +283,11 @@ and private temporary build/snapshot/test outputs were explicitly approved for t
 task. Mac settings, software installation, credential/SSH configuration and other
 changes outside that scope still require permission. Broad Linux 2 VM authorization
 does not grant Mac system authorization. Commits/pushes retain their separate rule.
+
+
+The owner requests the verified development workflow whenever applicable in future
+work: begin with the compact handoff, select the affected test tier/explicit
+experiment, keep full logs private and inspect summaries first. Use
+`scripts/m3_workflow.py` for supported M3 local/VM work; extend named scopes when
+required, rather than silently claiming unsupported tests were covered. This does
+not waive Mac-system or commit/push approval requirements.

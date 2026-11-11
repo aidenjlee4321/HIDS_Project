@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Reproducible M3 development/isolated-VM acceptance. No Git or package installs."""
+"""Reproducible M3 development/VM acceptance; no Git publication or package installs."""
 import argparse
 from contextlib import contextmanager
 import datetime as dt
 import fcntl
 import hashlib
+import inspect
 import json
 import os
 from pathlib import Path
@@ -19,6 +20,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import textwrap
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -122,8 +124,8 @@ class Run:
                 if tail:print(tail,flush=True)
             raise dev.WorkflowError('failed or skipped phase: '+name)
 
-    def finish(self,error=None):
-        self.report.update(finished_utc=now(),status='failed' if error else 'passed',error=error)
+    def finish(self,error=None,*,dispatched=False):
+        self.report.update(finished_utc=now(),status='failed' if error else ('dispatched' if dispatched else 'passed'),error=error)
         self.report['wall_seconds']=round(time.monotonic()-self.started,3)
         self.report['retained_log_bytes']=sum(p.stat().st_size for p in self.path.glob('*.std*'))
         self.report['phase_console_bytes']=sum(len(json.dumps({k:p[k] for k in
@@ -193,12 +195,12 @@ def build_valid(directory,key):
     except (OSError,ValueError,KeyError,dev.WorkflowError):return False
 
 
-def build(run,cache,headers,environment):
+def build(run,cache,headers,environment,phase_prefix="build"):
     # Only native inputs participate; docs/Python changes do not force relinking.
     inputs={n:dev.sha(ROOT/n) for n in dev.source_files(ROOT)
             if Path(n).suffix in ('.cpp','.hpp','.h') and (n.startswith('collector/') or n.startswith('tests/unit/m3_') or n=='tests/integration/m3_fixture_producer.cpp')}
     key=digest(dict(version=1,inputs=inputs,dependencies=environment,
-                    runner=dev.sha(Path(__file__))))
+                    recipe=hashlib.sha256(inspect.getsource(build).encode()).hexdigest(),artifacts=ARTIFACTS))
     cache=dev.private_dir(cache);directory=cache/key
     candidates=[directory,*sorted(cache.glob(key+'-retry-*'))]
     valid=next((p for p in candidates if build_valid(p,key)),None)
@@ -214,7 +216,7 @@ def build(run,cache,headers,environment):
         (Path('collector/src')/group/'contract.cpp',Path('collector/src')/group/'transport.cpp')]
     audit=[str(p.relative_to(ROOT)) for p in sorted((ROOT/'collector/src/audit').glob('*.cpp'))]
     def compile(name,sources,extra=()):
-        run.phase('build_'+name.replace('-','_'),[compiler,*flags,*sources,*extra,'-o',str((run.work or directory)/name)],unprivileged=True)
+        run.phase(phase_prefix+'_'+name.replace('-','_'),[compiler,*flags,*sources,*extra,'-o',str((run.work or directory)/name)],unprivileged=True)
     compile('hids-audit-plugin',audit+common,['-l:libauparse.so.0'])
     compile('hids-m3-health',['collector/src/health/main.cpp','collector/src/health/snapshot.cpp'])
     compile('health-isolation-probe',['tests/unit/m3_health_isolation_probe.cpp','collector/src/health/snapshot.cpp'])
@@ -365,7 +367,7 @@ def temporary_binary(source,target):
 def guest(args):
     check(sys.platform=='linux' and os.getuid()==0,'guest requires root')
     _,source=dev.verify(ROOT,args.expected_manifest)
-    run=Run(args.output,'ubuntu_'+args.tier,source);error=None;baseline=None;config=None
+    run=Run(args.output,'ubuntu_'+args.tier+'_'+args.experiment,source);error=None;baseline=None;config=None
     # Serialize all lab work sharing installed services and state.
     lock=Path('/run/lock/hids-m3-workflow.lock')
     fd=os.open(lock,os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
@@ -377,11 +379,35 @@ def guest(args):
         baseline=policy();private_json(run.path/'baseline.json',dict(policy=baseline,config=settings,activation_count=count))
         run.report['preflight']=dict(activation_count=count,lab_activation_budget=budget,live_audit=args.live_audit)
         offline(run,args.tier,args.headers.resolve())
-        directory=build(run,Path(args.output).absolute()/'builds',args.headers.resolve(),environment)
-        settings['max_activations']=budget
-        atomic_bytes(config,dev.json_bytes(settings),stat.S_IMODE(info.st_mode));os.chown(config,info.st_uid,info.st_gid)
-        deploy(run,directory)
-        installed_tests(run,args,directory)
+        cache=args.cache_root or Path(args.output).absolute()/'builds'
+        run.report['cache_root']=str(cache)
+        directory=build(run,cache,args.headers.resolve(),environment)
+        if args.experiment=='performance':
+            check(args.baseline_root is not None and args.baseline_manifest,'verified baseline snapshot required')
+            _,before_sha=dev.verify(args.baseline_root,args.baseline_manifest)
+            run.report['baseline_source_sha256']=before_sha
+            after_build=run.report['build'];current_root=ROOT
+            globals()['ROOT']=args.baseline_root.resolve()
+            try:
+                before_env=dependency_info(args.headers.resolve())
+                before=build(run,cache,args.headers.resolve(),before_env,'build_before')
+                run.report['baseline_build']=run.report['build']
+            finally:globals()['ROOT']=current_root;run.report['build']=after_build
+            run.phase('performance',[sys.executable,'-B','tests/integration/m3_performance_ubuntu.py',
+                '--before',str(args.baseline_root),'--before-plugin',str(before/'hids-audit-plugin'),
+                '--after',str(ROOT),'--after-plugin',str(directory/'hids-audit-plugin'),
+                '--events',str(args.events),'--history-files',str(args.history_files),'--output',str(run.path/'performance.json')],timeout=900)
+            dev.verify(args.baseline_root,args.baseline_manifest)
+        else:
+            settings['max_activations']=budget
+            atomic_bytes(config,dev.json_bytes(settings),stat.S_IMODE(info.st_mode));os.chown(config,info.st_uid,info.st_gid)
+            deploy(run,directory)
+            if args.experiment=='soak':
+                run.phase('long_load',[sys.executable,'-B','tests/integration/m3_load_ubuntu.py',FIXTURE,
+                    '--events',str(args.events),'--duration-seconds',str(args.duration_seconds),'--varied',
+                    '--progress',str(run.path/'load-progress.json')],
+                    timeout=args.duration_seconds+180)
+            else:installed_tests(run,args,directory)
     except Exception as exc:error=str(exc)
     finally:
         if baseline is not None:
@@ -423,13 +449,40 @@ def ssh_options(args,tty=False):
         '-o','StrictHostKeyChecking=yes','-o','UserKnownHostsFile='+str(args.known_hosts.resolve()),args.host]
 
 
+def baseline_snapshot(ref,state):
+    commit=subprocess.check_output(['git','rev-parse','--verify','--end-of-options',ref+'^{commit}'],cwd=ROOT,text=True).strip()
+    check(re.fullmatch('[0-9a-f]{40}',commit) is not None,'invalid baseline commit')
+    exports=dev.private_dir(state/'exports');directory=exports/dev.unique('baseline');directory.mkdir(mode=0o700)
+    archive=directory/'source.tar'
+    with archive.open('xb') as out:
+        subprocess.run(['git','archive','--format=tar',commit],cwd=ROOT,stdout=out,check=True)
+    source=directory/'source';source.mkdir(mode=0o700)
+    with tarfile.open(archive) as stream:
+        for member in stream:
+            rel=Path(member.name)
+            check(not rel.is_absolute() and '..' not in rel.parts and (member.isdir() or member.isfile()),'unsafe baseline archive')
+            target=source/rel
+            if member.isdir():dev.private_dir(target)
+            else:
+                check(member.size<=32*1024*1024,'baseline file too large')
+                dev.private_dir(target.parent)
+                with stream.extractfile(member) as incoming,target.open('xb') as output:shutil.copyfileobj(incoming,output)
+    path,sha,_=dev.create_snapshot(source,state)
+    return path,sha,commit
+
+
 def remote(args):
     check(os.getuid()!=0,'host workflow runs as an ordinary user')
     state=dev.private_dir(args.state_dir.absolute())
     start=time.monotonic()
     snapshot,manifest,count=dev.create_snapshot(ROOT,state)
-    run=Run(state/'runs','host_orchestration',manifest);error=None
+    run=Run(state/'runs','host_orchestration',manifest);error=None;dispatched=False
     try:
+        before=None
+        if args.experiment=='performance':
+            check(args.baseline_ref is not None,'--baseline-ref required for a controlled performance run')
+            before,before_sha,commit=baseline_snapshot(args.baseline_ref,state)
+            run.report['baseline_commit']=commit
         ssh=ssh_options(args)
         destination=subprocess.check_output([*ssh,shlex.join(['python3','-c',
             'import tempfile;print(tempfile.mkdtemp(prefix="hids-m3-source."))'])],text=True).strip()
@@ -437,23 +490,74 @@ def remote(args):
         archive=run.path/'source.tar'
         with tarfile.open(archive,'x',format=tarfile.PAX_FORMAT) as stream:
             stream.add(snapshot,arcname=snapshot.name,filter=archive_metadata)
+            if before:stream.add(before,arcname=before.name,filter=archive_metadata)
         os.chmod(archive,0o600)
         with archive.open('rb') as stream:
             subprocess.run([*ssh,shlex.join(['tar','xf','-','-C',destination])],stdin=stream,check=True)
         guest_root=destination+'/'+snapshot.name
         argv=['python3','-B',guest_root+'/scripts/m3_workflow.py','guest','--expected-manifest',manifest,
-            '--output',args.guest_output,'--headers',args.headers,'--tier',args.tier]
+            '--output',args.guest_output,'--cache-root',args.guest_output+'/builds','--headers',args.headers,'--tier',args.tier,
+            '--experiment',args.experiment,'--events',str(args.events),'--duration-seconds',str(args.duration_seconds),
+            '--history-files',str(args.history_files)]
+        if before:argv+=['--baseline-root',destination+'/'+before.name,'--baseline-manifest',before_sha]
         if args.live_audit:argv.append('--live-audit')
         if args.lab_activation_budget:argv+=['--lab-activation-budget',str(args.lab_activation_budget)]
         # Authentication is interactive terminal IO, never stored in scripts/logs.
-        result=subprocess.run([*ssh_options(args,True),
-            'cd '+shlex.quote(guest_root)+' && '+shlex.join(['sudo','-p','HIDS-SUDO:',*argv])])
-        check(result.returncode==0,'guest workflow failed; see printed private guest report')
+        if args.detach:
+            job='hids-m3-lab-'+uuid_token()
+            job_output=args.guest_output+'/jobs/'+job
+            argv[argv.index('--output')+1]=job_output
+            limit=(args.duration_seconds if args.experiment=='soak' else 900)+1200
+            start_command=['systemd-run','--quiet','--unit',job,'--property=UMask=0077',
+                '--property=WorkingDirectory='+guest_root,'--property=RuntimeMaxSec='+str(limit),
+                '--property=TimeoutStopSec=30','--property=KillMode=control-group']
+            payload='exec '+shlex.join(start_command)+' --setenv=SUDO_UID="$SUDO_UID" -- '+shlex.join(argv)
+            result=subprocess.run([*ssh_options(args,True),shlex.join(['sudo','-p','HIDS-SUDO:','sh','-c',payload])])
+            check(result.returncode==0,'VM job dispatch failed')
+            dispatched=True;run.report.update(job=job,guest_output=job_output)
+            print(json.dumps(dict(status='dispatched',job=job,guest_output=job_output)),flush=True)
+        else:
+            result=subprocess.run([*ssh_options(args,True),
+                'cd '+shlex.quote(guest_root)+' && '+shlex.join(['sudo','-p','HIDS-SUDO:',*argv])])
+            check(result.returncode==0,'guest workflow failed; see printed private guest report')
         run.report.update(snapshot_files=count,guest_source=guest_root)
     except Exception as exc:error=str(exc)
     run.report['wall_seconds']=round(time.monotonic()-start,3)
-    run.finish(error)
+    run.finish(error,dispatched=dispatched)
     return 1 if error else 0
+
+
+def uuid_token():
+    import uuid
+    return uuid.uuid4().hex[:12]
+
+
+def vm_status(args):
+    check(re.fullmatch('hids-m3-lab-[0-9a-f]{12}',args.job) is not None,'invalid lab job name')
+    code='''import json,pathlib,subprocess,sys
+p=pathlib.Path(sys.argv[1]);job=sys.argv[2]
+c=subprocess.run(['systemctl','show',job,'-p','ActiveState','-p','Result','-p','ExecMainStatus'],capture_output=True,text=True)
+u=dict(line.split('=',1) for line in c.stdout.splitlines() if '=' in line)
+files=sorted(p.glob('run-*/report.json'))
+r=json.loads(files[-1].read_text()) if files else None
+progress=sorted(p.glob('run-*/load-progress.json'))
+heartbeat=json.loads(progress[-1].read_text()) if progress else None
+state='running' if u.get('ActiveState') in ('active','activating') else 'incomplete'
+if r and u.get('ActiveState') not in ('active','activating'):state='passed' if r['status']=='passed' and u.get('ActiveState')!='failed' and u.get('ExecMainStatus','0')=='0' else 'failed'
+payload=dict(job=job,status=state,unit=u,report=str(files[-1]) if files else None,error=r.get('error') if r else None,progress=heartbeat)
+'''
+    if args.compact:
+        code+='''if heartbeat and state=='running':
+ s=heartbeat['sample'];payload=dict(status=state,events=s['events'],elapsed_seconds=s['elapsed_seconds'],backend_rss_kib=s['backend']['VmRSS'],collector_rss_kib=s['collector']['VmRSS'],storage=s['storage']['state'])
+'''
+    code+='print(json.dumps(payload,sort_keys=True),flush=True)\n'
+    if args.watch_seconds:
+        check(1<=args.watch_seconds<=18000,'watch duration out of range')
+        code=('import time\nwatch_end=time.monotonic()+'+str(args.watch_seconds)+'\nwhile True:\n'+
+              textwrap.indent(code,'    ')+
+              "    if state != 'running' or time.monotonic()>=watch_end:break\n    time.sleep(60)\n")
+    target=args.guest_output+'/jobs/'+args.job
+    return subprocess.run([*ssh_options(args,True),shlex.join(['sudo','-p','HIDS-SUDO:','python3','-B','-c',code,target,args.job])]).returncode
 
 
 def main(argv=None):
@@ -463,16 +567,27 @@ def main(argv=None):
     summary=sub.add_parser('summary');summary.add_argument('reports',type=Path,nargs='+')
     local=sub.add_parser('local');local.add_argument('--tier',choices=('focused','component'),default='focused')
     local.add_argument('--output',type=Path,default=Path(tempfile.gettempdir()).resolve()/'hids-m3-workflow-local')
-    vm=sub.add_parser('vm');vm.add_argument('--host',required=True);vm.add_argument('--known-hosts',type=Path,required=True)
+    status=sub.add_parser('vm-status');status.add_argument('--host',required=True)
+    status.add_argument('--known-hosts',type=Path,required=True);status.add_argument('--job',required=True)
+    status.add_argument('--guest-output',default='/var/tmp/hids-m3-workflow')
+    status.add_argument('--watch-seconds',type=int,default=0);status.add_argument('--compact',action='store_true')
+    vm=sub.add_parser('vm');vm.add_argument('--detach',action='store_true');vm.add_argument('--host',required=True);vm.add_argument('--known-hosts',type=Path,required=True)
     vm.add_argument('--state-dir',type=Path,required=True);vm.add_argument('--guest-output',default='/var/tmp/hids-m3-workflow')
+    vm.add_argument('--baseline-ref')
     vm.add_argument('--headers',required=True,help='Existing absolute guest Audit header directory')
     guest_parser=sub.add_parser('guest');guest_parser.add_argument('--expected-manifest',required=True)
     guest_parser.add_argument('--output',type=Path,default=Path('/var/tmp/hids-m3-workflow'))
     guest_parser.add_argument('--headers',type=Path,required=True)
+    guest_parser.add_argument('--cache-root',type=Path)
+    guest_parser.add_argument('--baseline-root',type=Path);guest_parser.add_argument('--baseline-manifest')
     for part in (vm,guest_parser):
         part.add_argument('--tier',choices=('component','checkpoint'),default='component')
         part.add_argument('--live-audit',action='store_true',help='Explicit lab scope: temporary Audit rule/plugin/report tests, restored afterward')
         part.add_argument('--lab-activation-budget',type=int)
+        part.add_argument('--experiment',choices=('acceptance','performance','soak'),default='acceptance')
+        part.add_argument('--events',type=int,default=4096)
+        part.add_argument('--duration-seconds',type=int,default=7200)
+        part.add_argument('--history-files',type=int,default=0)
     args=parser.parse_args(argv)
     try:
         if args.command=='plan':
@@ -484,10 +599,11 @@ def main(argv=None):
         if args.command=='summary':
             for path in args.reports:
                 report=dev.read_json(path)
-                check(report.get('report_version')==1 and report.get('status') in ('passed','failed'),'invalid report')
+                check(report.get('report_version')==1 and report.get('status') in ('passed','failed','dispatched'),'invalid report')
                 print(json.dumps({key:report.get(key) for key in ('scope','status','source_sha256','wall_seconds',
                     'phase_seconds','build_commands','retained_log_bytes','phase_console_bytes','cleanup','error')},sort_keys=True))
             return 0
+        if args.command=='vm-status':return vm_status(args)
         if args.command=='vm':return remote(args)
         if args.command=='guest':return guest(args)
         run=Run(args.output,'local_'+args.tier,source_digest());error=None

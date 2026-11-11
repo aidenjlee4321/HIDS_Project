@@ -49,6 +49,11 @@ class M3WorkflowTests(unittest.TestCase):
             self.assertEqual(report['phases'][0]['exit_code'],code)
             self.assertEqual(os.stat(run.path/'fixture.stdout').st_mode&0o777,0o600)
 
+    def test_dispatch_report_does_not_claim_acceptance_pass(self):
+        run=workflow.Run(self.root/'results','host_orchestration','source')
+        run.finish(dispatched=True)
+        self.assertEqual(dev.read_json(run.path/'report.json')['status'],'dispatched')
+
     def test_zero_test_suite_is_not_a_pass(self):
         run=workflow.Run(self.root/'results','test','source')
         with self.assertRaises(dev.WorkflowError):
@@ -125,6 +130,72 @@ class M3WorkflowTests(unittest.TestCase):
                 with workflow.temporary_binary(binary,target):self.assertEqual(target.read_bytes(),b'new')
             self.assertEqual(target.read_bytes(),b'previous')
             self.assertEqual(target.stat().st_mode&0o777,0o700)
+
+    def test_baseline_export_keeps_managed_state_private_and_verified(self):
+        import tarfile
+        def archive(*args,**kwargs):
+            with tarfile.open(fileobj=kwargs['stdout'],mode='w') as stream:
+                for name in ('collector/example.cpp','packaging/systemd/hids-m3-health.timer'):
+                    value=b'synthetic';entry=tarfile.TarInfo(name);entry.size=len(value)
+                    stream.addfile(entry,io.BytesIO(value))
+        state=self.root/'baseline-state';state.mkdir(mode=0o700)
+        with patch.object(workflow.subprocess,'check_output',return_value='a'*40+'\n'), \
+             patch.object(workflow.subprocess,'run',side_effect=archive):
+            snapshot,sha,commit=workflow.baseline_snapshot('reviewed-ref',state)
+        self.assertEqual(commit,'a'*40)
+        dev.verify(snapshot,sha);dev.private_state(state)
+
+    def test_detached_driver_finishes_with_dispatched_report(self):
+        repo=self.root/'driver-repo';(repo/'collector').mkdir(parents=True)
+        (repo/'collector/example.cpp').write_text('synthetic')
+        known=self.root/'known';known.write_text('pinned')
+        args=type('Args',(),dict(state_dir=self.root/'driver-state',experiment='soak',
+            host='ivy@192.168.64.7',known_hosts=known,headers='/existing/headers',tier='component',
+            guest_output='/var/tmp/hids-test',live_audit=False,lab_activation_budget=None,
+            duration_seconds=10,events=512,history_files=0,detach=True))()
+        result=type('Completed',(),dict(returncode=0))()
+        commands=[]
+        def capture(command,**kwargs):
+            commands.append(command);return result
+        with patch.object(workflow,'ROOT',repo), \
+             patch.object(workflow.subprocess,'check_output',return_value='/tmp/hids-m3-source.fixture\n'), \
+             patch.object(workflow.subprocess,'run',side_effect=capture):
+            self.assertEqual(workflow.remote(args),0)
+        reports=list((args.state_dir/'runs').glob('*/report.json'));self.assertEqual(len(reports),1)
+        report=dev.read_json(reports[0]);self.assertEqual(report['status'],'dispatched')
+        self.assertTrue(report['job'].startswith('hids-m3-lab-'))
+        self.assertIn('--cache-root /var/tmp/hids-test/builds',commands[-1][-1])
+
+    def test_compact_watcher_generates_valid_read_only_python(self):
+        import ast,shlex
+        known=self.root/'watch-known';known.write_text('pinned')
+        args=type('Args',(),dict(host='ivy@192.168.64.7',known_hosts=known,
+            job='hids-m3-lab-012345abcdef',guest_output='/var/tmp/hids-test',compact=True,watch_seconds=60))()
+        def run(command):
+            remote=shlex.split(command[-1]);ast.parse(remote[6])
+            self.assertIn('while True:',remote[6]);self.assertNotIn('systemctl stop',remote[6])
+            return type('Completed',(),dict(returncode=0))()
+        with patch.object(workflow.subprocess,'run',side_effect=run):
+            self.assertEqual(workflow.vm_status(args),0)
+
+    def test_status_waits_for_job_exit_even_when_success_report_exists(self):
+        import shlex
+        known=self.root/'status-known';known.write_text('pinned')
+        args=type('Args',(),dict(host='ivy@192.168.64.7',known_hosts=known,
+            job='hids-m3-lab-012345abcdef',guest_output=str(self.root/'status'),compact=False,watch_seconds=0))()
+        report=Path(args.guest_output)/'jobs'/args.job/'run-one'/'report.json'
+        report.parent.mkdir(parents=True);report.write_text(json.dumps(dict(status='passed',error=None)))
+        for unit_state,expected in (('active','running'),('inactive','passed'),('failed','failed')):
+            output=io.StringIO()
+            def run(command,**kwargs):
+                if command[0]=='systemctl':
+                    return type('Completed',(),dict(stdout=f'ActiveState={unit_state}\nResult=success\nExecMainStatus=0\n'))()
+                remote=shlex.split(command[-1])
+                with patch.object(sys,'argv',['-c',remote[7],remote[8]]),contextlib.redirect_stdout(output):
+                    exec(compile(remote[6],'<generated-status>','exec'),{})
+                return type('Completed',(),dict(returncode=0))()
+            with patch.object(workflow.subprocess,'run',side_effect=run):self.assertEqual(workflow.vm_status(args),0)
+            self.assertEqual(json.loads(output.getvalue())['status'],expected)
 
     def test_cleanup_resets_only_loaded_failed_hids_units(self):
         calls=[]

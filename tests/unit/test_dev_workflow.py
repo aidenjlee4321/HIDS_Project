@@ -40,7 +40,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(dev.private_state(self.state),self.state)
 
     def test_incorrect_existing_state_is_not_repaired(self):
-        self.state.mkdir(mode=0o755)
+        self.state.mkdir(mode=0o755);self.state.chmod(0o755)
         marker=self.state/'keep';marker.write_text('unchanged')
         before=(self.state.stat().st_mode,self.state.stat().st_mtime_ns,marker.read_bytes())
         self.assertEqual(dev.main(['test','--repo',str(self.repo),'--state-dir',str(self.state)]),1)
@@ -66,7 +66,7 @@ class WorkflowTests(unittest.TestCase):
             with self.assertRaises(OSError):dev.private_dir(self.state/'nested'/'runs')
         dev.private_dir(self.state/'nested'/'runs')
         self.assertEqual((self.state/'nested').stat().st_mode & 0o777,0o700)
-        bad=self.state/'bad';bad.mkdir(mode=0o755)
+        bad=self.state/'bad';bad.mkdir(mode=0o755);bad.chmod(0o755)
         with self.assertRaises(dev.WorkflowError):dev.private_state(self.state)
         self.assertEqual(bad.stat().st_mode & 0o777,0o755)
 

@@ -1488,3 +1488,17 @@ binary reuse. Two full live checkpoint runs passed with the same 17 non-build
 phases and final policy/state/installation checks. Scoped measurements and retained
 pilot failures are in [workflow acceptance](../../docs/validation/m3-workflow-validation.md).
 This tooling result does not close the broader M3 release gates above.
+
+
+## Controlled performance and two-hour varied workload
+
+The follow-up measured the combined safeguard/metadata cost, optimized repeated
+retained-file accounting without changing inspections/thresholds, and passed a
+7200.018-second, 4096-event installed varied workload. All metadata/positions/frontier
+checks and full live checkpoint regression passed. The standard workflow now supports
+verified historical comparisons, disconnect-independent transient VM jobs, compact
+private progress and shared cross-job native caching. See
+[the complete measured record](../../docs/validation/m3-performance-validation.md)
+for baseline selection, exact conditions, failures/fixes, CPU/RSS/disk measurements,
+cache verification and remaining gates. These fixture results do not approve release
+thresholds or close broader native/rotation/source-preservation coverage.

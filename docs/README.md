@@ -19,6 +19,7 @@ Historical validation records are retained.
 | File | Purpose |
 |---|---|
 | [current-state.md](current-state.md) | Compact current checkpoint, standing approvals, VM prerequisites and next work; start here when resuming |
+| [validation/m3-performance-validation.md](validation/m3-performance-validation.md) | Controlled safeguard cost, measured accounting optimization and longer-workload status |
 | [validation/m3-workflow-validation.md](validation/m3-workflow-validation.md) | Executed local/VM workflow acceptance, safe failures, cache measurements and limits |
 | [m3-workflow.md](m3-workflow.md) | M3 test tiers, verified SSH transfer, matched VM build/deploy, private reports and cleanup |
 | [development-workflow.md](development-workflow.md) | Standard-library local tests, immutable source snapshots, verified UTM transfer and offline Ubuntu reports; no deployment/live collection |

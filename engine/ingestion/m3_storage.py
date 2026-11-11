@@ -51,6 +51,8 @@ class Guard:
         self.clock=clock
         self.space=space or self._available
         self.files={}
+        self.total_bytes=0
+        self.wal_files={}
         self.last_scan=None
         self.scan_ok=False
         self.recovery_depth=0
@@ -76,16 +78,23 @@ class Guard:
                 for entry in self.directory.iterdir():
                     size=self._file(entry)
                     if size is not None:files[entry]=size
-                self.files=files;self.last_scan=now;self.scan_ok=True
+                self.files=files;self.total_bytes=sum(files.values())
+                self.wal_files={p:n for p,n in files.items() if p.name.endswith("-wal")}
+                self.last_scan=now;self.scan_ok=True
             if path is not None:
                 for suffix in ('','-wal','-shm','-journal'):
                     item=Path(str(path)+suffix);size=self._file(item)
-                    if size is None:self.files.pop(item,None)
-                    else:self.files[item]=size
+                    previous=self.files.get(item,0)
+                    self.total_bytes+=(0 if size is None else size)-previous
+                    if size is None:
+                        self.files.pop(item,None);self.wal_files.pop(item,None)
+                    else:
+                        self.files[item]=size
+                        if item.name.endswith("-wal"):self.wal_files[item]=size
             available=self.space()
             if type(available) is not int or available<0:raise OSError('invalid available storage')
-            state_bytes=sum(self.files.values())
-            wal=max((size for file,size in self.files.items() if file.name.endswith('-wal')),default=0)
+            state_bytes=self.total_bytes
+            wal=max(self.wal_files.values(),default=0)
             p=self.options;r=self.reserve
             state='normal';reason=None
             if available<=p['minimum_free_bytes']:state='exhausted';reason='filesystem_reserve'
@@ -127,7 +136,7 @@ class Guard:
     def checkpoint(self,connection,path):
         now=self.clock()
         if connection.in_transaction:return
-        cached_wal=max((size for file,size in self.files.items() if file.name.endswith('-wal')),default=0)
+        cached_wal=max(self.wal_files.values(),default=0)
         urgent=cached_wal+self.reserve>=self.options['max_wal_bytes']*3//4
         if not urgent and now-self.last_checkpoint.get(path,-1e30)<1:return
         self.last_checkpoint[path]=now
