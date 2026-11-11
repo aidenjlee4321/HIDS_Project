@@ -8,12 +8,12 @@ import uuid
 from engine.database.m1_store import check_sidecars, connect, profile
 from engine.ingestion.m1_contract import utc_now, uuid_valid
 from engine.ingestion.m1_security import private_directory, private_file
-from engine.ingestion.m3_progress import CapacityError, Progress, ProgressError
+from engine.ingestion.m3_progress import CapacityError, Progress, ProgressError, event_health as read_event_health
 from engine.ingestion import m3_health
 
 ACTIVE = ('ready', 'streaming')
 SOURCE_GAPS = frozenset(('collector_input_failure', 'assembly_timeout', 'collector_capacity',
-                         'incomplete_shutdown', 'current_tail_unavailable'))
+                         'incomplete_shutdown', 'current_tail_unavailable', 'collector_delivery_failure'))
 CODES = frozenset(('backend_restart', 'stream_disconnected', 'partial_frame',
                    'protocol_failure', 'deadline', 'storage_failure', 'revoked',
                    'service_shutdown', 'progress_capacity')) | SOURCE_GAPS
@@ -208,9 +208,7 @@ class Runtime:
                     if history.execute('SELECT activation,generation FROM m3_cursor').fetchone() != (
                             current['activation'], current['generation']):
                         raise ProgressError('event health scope mismatch')
-                    event_health = {
-                        'timeouts': history.execute('SELECT COUNT(*) FROM m3_timeouts').fetchone()[0],
-                        'late_records': history.execute('SELECT COUNT(*) FROM m3_late_positions').fetchone()[0]}
+                    event_health = read_event_health(history)
                 finally:
                     history.close()
         except (OSError, sqlite3.Error, ProgressError):
@@ -225,7 +223,7 @@ class Runtime:
                 'event_health': event_health,
                 'possible_gap': bool(evidence_unavailable or (upstream and (any(upstream['summary']['incidents'].values()) or upstream['freshness'] == 'stale')) or
                                      (current and current['code'] not in (None, 'revoked')) or
-                                     (event_health and event_health['timeouts']))}
+                                     (event_health and (event_health['timeouts'] or event_health['resource_incidents'])))}
 
     def close(self):
         if self.progress is not None:

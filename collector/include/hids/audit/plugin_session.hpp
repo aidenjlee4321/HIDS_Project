@@ -19,8 +19,12 @@ public:
     using Validate = std::function<ExecutionResult(const Event&)>;
     using Clock = std::function<std::uint64_t()>;
     using Timeout = std::function<bool(const Event&)>;
+    using Resource = Reconstructor::Resource;
 
-    PluginSession(Register admit, Finalize finalize, Validate validate, Clock clock = {}, Timeout timeout = {});
+    PluginSession(Register admit, Finalize finalize, Validate validate, Clock clock = {}, Timeout timeout = {},
+                  Resource resource = {}, std::optional<Limits> limits = {});
+    PluginSession(const PluginSession&) = delete;
+    PluginSession(PluginSession&&) = delete;
     bool consume(std::string_view chunk, std::uint64_t monotonic_ms);
     bool tick(std::uint64_t monotonic_ms);
     bool finish();
@@ -34,6 +38,7 @@ private:
     Validate validate_;
     Clock clock_;
     Timeout timeout_;
+    Resource resource_;
     std::string_view error_;
     bool stopped_ = false;
     bool pause();

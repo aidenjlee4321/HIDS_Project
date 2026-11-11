@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -41,6 +42,16 @@ struct TimeoutEvidence {
     std::uint64_t first_active_ms, last_active_ms, observed_active_ms;
     std::uint64_t observed_monotonic_ms, paused_ms, inactivity_limit_ms, lifetime_limit_ms;
 };
+struct ResourceEvidence {
+    std::string_view reason;
+    std::uint64_t event_bytes_before, event_records_before;
+    std::uint64_t trigger_begin, trigger_end;
+    bool incoming_for_event;
+    std::uint64_t group_limit, group_record_limit, aggregate_limit;
+    std::uint64_t retained_accounted_bytes, retained_records, retained_record_limit;
+    std::uint64_t requested_accounted_bytes;
+    std::uint64_t observed_active_ms, observed_monotonic_ms, paused_ms;
+};
 struct Event {
     std::uint64_t token = 0;
     Key key;
@@ -51,6 +62,7 @@ struct Event {
     bool proctitle_seen = false, eoe_seen = false;
     std::size_t path_records = 0, duplicate_content_records = 0;
     std::optional<TimeoutEvidence> timeout;
+    std::optional<ResourceEvidence> resource;
     // SYSCALL classification, field validation and normalized output are deferred
     // to an approved native payload parser. Never infer successful exec here.
 };
@@ -67,6 +79,7 @@ struct Limits {
     std::uint64_t inactivity_timeout_ms = 0;
     RecordProfile profile = RecordProfile::fixture;
     bool proctitle_terminal = false; // Explicit fixture/profile opt-in only.
+    bool resource_recovery = false; // Requires non-replay mode and a durable incident gate.
     bool retain_history = true; // Offline replay checks; live suppression is Python-owned.
 };
 enum class FeedResult { accepted, duplicate, failed };
@@ -75,7 +88,8 @@ enum class FeedResult { accepted, duplicate, failed };
 // need not be the activation boundary. All intervals are [begin,end).
 class Reconstructor {
 public:
-    explicit Reconstructor(std::uint64_t boundary = 0, Limits limits = {});
+    using Resource = std::function<bool(const Key&, const ResourceEvidence&)>;
+    explicit Reconstructor(std::uint64_t boundary = 0, Limits limits = {}, Resource resource = {});
     FeedResult feed(std::uint64_t offset, std::string_view complete_line,
                     std::uint64_t monotonic_ms);
     bool expire(std::uint64_t monotonic_ms);
@@ -95,11 +109,13 @@ private:
     struct Group {
         Event event;
         std::size_t bytes = 0;
+        std::uint64_t seen_bytes = 0, seen_records = 0, first_offset = 0, last_end = 0;
         std::uint64_t first_seen = 0, last_seen = 0;
         bool finalized = false, acknowledged = false;
     };
     struct Span { std::uint64_t end, token; };
     Limits limits_;
+    Resource resource_;
     std::uint64_t frontier_, next_, clock_ = 0, token_ = 0;
     std::uint64_t active_clock_ = 0;
     std::size_t pause_depth_ = 0;
@@ -115,5 +131,8 @@ private:
     bool tick(std::uint64_t now);
     bool finalize(const std::shared_ptr<Group>&, Basis);
     void advance();
+    void release_payload(const std::shared_ptr<Group>&);
+    void append_span(std::uint64_t end, std::uint64_t token);
+    bool pressure(const Record&);
 };
 } // namespace hids::audit

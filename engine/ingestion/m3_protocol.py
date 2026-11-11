@@ -48,6 +48,8 @@ def dispatch_request(request, ledger, *, require_boundary=False):
         raise ProgressError("invalid request identity")
     if op == "register" and request.keys() == common | {"begin", "end", "eoe"}:
         return ledger.register(identity, request["begin"], request["end"], eoe=request["eoe"])
+    if op == 'resource' and request.keys() == common | {'evidence'}:
+        return ledger.resource(identity, request['evidence'])
     if op == "accept" and request.keys() == common | {"execution"}:
         return ledger.accept(identity, request["execution"])
     if op == "reject" and request.keys() == common:

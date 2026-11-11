@@ -11,15 +11,24 @@ Limits plugin_limits() {
     // reload queue defect is not fixed by increasing this deadline. Inactivity
     // currently follows this same ceiling; the clocks remain independently tunable.
     limits.timeout_ms = 10000;
+    limits.group_bytes = 16*1024*1024;
+    limits.total_bytes = 32*1024*1024;
+    limits.records_per_group = 4096;
+    limits.resource_recovery = true;
     limits.retain_history = false;
     return limits;
 }
 }
 
-PluginSession::PluginSession(Register admit, Finalize finalize, Validate validate, Clock clock, Timeout timeout)
-    : reader_(0, plugin_limits()), admit_(std::move(admit)),
+PluginSession::PluginSession(Register admit, Finalize finalize, Validate validate, Clock clock, Timeout timeout,
+                             Resource resource, std::optional<Limits> limits)
+    : reader_(0, limits ? *limits : plugin_limits(), [this](const Key& key, const ResourceEvidence& evidence) {
+          if (!resource_ || !pause()) return false;
+          const bool confirmed = resource_(key, evidence);
+          return resume() && confirmed;
+      }), admit_(std::move(admit)),
       finalize_(std::move(finalize)), validate_(std::move(validate)), clock_(std::move(clock)),
-      timeout_(std::move(timeout)) {}
+      timeout_(std::move(timeout)), resource_(std::move(resource)) {}
 
 bool PluginSession::pause() { return !clock_ || reader_.pause(clock_()); }
 bool PluginSession::resume() { return !clock_ || reader_.resume(clock_()); }
@@ -64,7 +73,7 @@ bool PluginSession::drain_ready() {
     while (const auto event = reader_.take_ready()) {
         const bool timed = event->basis == Basis::timeout;
         if (timed && !timeout_) { error_ = "assembly_timeout"; stopped_ = true; return false; }
-        const auto result = timed ? ExecutionResult{} : validate_(*event);
+        const auto result = timed || event->resource ? ExecutionResult{} : validate_(*event);
         if ((!timed && event->basis != Basis::eoe) || !pause()) {
             error_ = "finalization_unconfirmed"; stopped_ = true; return false;
         }

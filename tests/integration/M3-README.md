@@ -950,3 +950,189 @@ be compared with the current clock epoch; it is never silently converted into a
 fresh zero-age report. The reboot-related status regression passed. Final cleanup
 verified the original Audit configuration, no test rules/plugins, private retained
 state, and inactive M3/checker units. No Git commits or pushes were made.
+
+
+## Installed resource-pressure acceptance
+
+The checkpoint `e002b79` was pushed to `HIDS_Project/main`. The following resource
+continuation was implemented and tested afterward and is not part of that checkpoint.
+
+Live assembly now enforces the provisional 16 MiB native-record bytes per event and
+32 MiB total assembly accounting before appending a record. Total accounting reserves
+2,048 bytes for each configured open/finalized group slot and 64 bytes per tracked
+range slot up front (1 MiB with the production limits), then charges each retained
+record's wire bytes plus 1,024 bytes. Production also bounds retained records and
+event records at 4,096. These are conservative policy charges, not an allocator or
+whole-process RSS guarantee; parser, transport and caller-owned immutable outputs
+have separate bounded lifetimes.
+
+An individual limit starts payload discard for that identity. Aggregate pressure
+first enters the paused durable-reporting path. Complete work has already been
+ACKed; remaining payload holders require unread records/EOE, so waiting cannot free
+them. The implementation selects the oldest payload-holding open event, durably
+records the resource cause through Python, and only then releases its payload.
+There is no arbitrary wait on frozen event clocks. It preserves identity, positions,
+counts, deadline state and suppression. EOE or an eligible timeout finalizes rejection;
+interruption retains the resource cause. Independent events can continue. Exhausted
+metadata stops the source without tombstone eviction or larger retry limits.
+
+The new `m3_resources` table stores a closed, sanitized incident document, not native
+payload. Python verifies the trigger against the admitted global tail, event byte/
+record counts against registered positions, and the claimed threshold/accounting.
+The incident commits before ACK. A resource-tagged identity cannot later be accepted.
+Status exposes `resource_incidents` and current `discarding`; historical ledgers that
+predate the table report these counters as unknown rather than zero.
+
+Live ACK retirement now releases completed event ownership even behind an earlier
+unresolved event, coalescing resolved ranges while retaining the blocked contiguous
+frontier. Offline physical-replay history keeps its existing conservative behavior.
+Delivered event objects remain immutable.
+
+On Linux 2, `m3_resource_ubuntu.py` passed the actual production limits using sanitized
+stdin, without changing Audit configuration or rules:
+
+- 2,040 records exceeded 16 MiB; the incident committed, unrelated B committed,
+  A stayed discarding until EOE, then a later A delimiter was suppressed. The phase
+  took 2.140 seconds; sampled collector RSS/high-water was 22,940 KiB.
+- Two 1,908-record groups triggered aggregate pressure. The oldest A was selected
+  at 33,553,704 accounted bytes before a requested 9,266-byte charge, below the
+  33,554,432-byte ceiling until admission was refused. An independent execution
+  stayed committed and the frontier resolved after delimiters. The phase took
+  3.537 seconds; sampled collector RSS/high-water was 34,968 KiB.
+- An injected SQLite incident-insert failure stopped the reader, exposed storage
+  failure/possible gap, retained the independent execution, and recovered A as
+  interrupted without inventing a persisted resource incident.
+
+Run from the provisioned Ubuntu checkout with the matched installed binary/modules:
+
+```sh
+sudo python3 -B tests/integration/m3_resource_ubuntu.py
+```
+
+The harness temporarily raises only HIDS page/position budgets and restores them.
+All prior history is retained. The VM test activation-file budget was raised from
+64 to 128 to retain past and new acceptance evidence; this is a lab setting, not a
+release threshold. Normal page/position budgets remain 512/1,024. Current local
+Python coverage is 52 passing tests; the linked Ubuntu native ASan/UBSan suite has
+24 passing groups, including metadata exhaustion, failed incident ACK, paused
+clocks and 2,000 independent completions behind an unresolved blocker.
+
+
+Post-change installed-runtime regression also passed unauthorized no-read behavior,
+actual peer/privilege checks, current-tail exclusion, revocation, backend kill and
+interrupted recovery, storage contention, collector input failure, timeout/late
+suppression and independent continuation. Its 64-execution burst took 0.605 seconds.
+The separate load rerun committed all 4,096 executions in 20.450 seconds (200.29/s),
+with exact identities and resolved frontier, zero timeout/late/resource incidents,
+and collector RSS/high-water steady at 4,740 KiB. Backend samples ranged from
+20,568 to 24,668 KiB and the database used 884 4-KiB pages. Thirty-two 0.4-second
+writer locks spanned 17.487 seconds while incomplete A survived and independent B
+executions committed. These sanitized fixture measurements do not establish mixed
+real-host or release performance thresholds. All 52 Python tests also passed on
+Ubuntu after the historical-counter regression was added.
+
+Final checks found Audit active, its configuration byte-identical to the saved
+pre-health-test original, ENRICHED format, report_interval=0, no Audit rules and no
+active test plugins. Retained HIDS files were owned by hids-ingest with mode 0600
+under its 0700 state directory. All M3 and checker units were stopped.
+
+
+## Deterministic process-crash acceptance
+
+`m3_crash_matrix.py` passed 55 deterministic real SIGKILL cases locally and on
+Ubuntu. It installs SQLite trace callbacks only inside test subprocesses, blocks
+at a selected boundary, and lets the parent kill that actual writer. No production
+fault hooks, Audit changes or VM services are involved. Each case retains a private
+database and verifies SQLite integrity, exact pre-recovery disposition, row counts
+and cursor, then recovery and suppression. A committed independent B execution is
+preserved throughout the event-ledger cases.
+
+The 39 event-ledger cuts cover registration (including EOE), acceptance, rejection,
+timeout, resource cause, late-position suppression and recovery. Cuts include before
+BEGIN, between writes, immediately before COMMIT, and after the operation returned
+but before its result could be ACKed. Uncommitted changes vanish atomically; lost-ACK
+commits survive; identical accepted retries deduplicate and conflicting retries fail.
+Registered unfinished identities become interrupted and cannot be reconstructed into
+acceptance. Pre-registration input remains new. Resource causes survive interruption.
+
+The 16 runtime cuts cover activation ledger creation, control insertion, reader
+claim, interruption, revocation and repeated startup reconciliation across the
+separate control/event databases. Crashes before control authorization retain bounded
+orphan files without silently reusing them. Restart refuses the old authorization,
+retains committed B and known resource evidence, interrupts A and permits only a
+new explicit activation with independent scope. Recovery is idempotent when it is
+itself killed between event reconciliation and the control update.
+
+```sh
+python3 -B tests/integration/m3_crash_matrix.py
+```
+
+The final Ubuntu evidence directory was `/tmp/hids-m3-crash-matrix.3tf9uk_k`,
+created 0700 with private evidence files. The harness reports its new directory on
+each run. These are process-death tests against real SQLite WAL/FULL durability,
+not simulated power cuts, filesystem/device corruption or universal fault coverage.
+The existing native fixture transport tests separately cover producer/backend death
+before and after execution commit; this harness does not claim native parser
+instruction-level injection or real-source rotation coverage.
+
+
+## Reboot provisioning and recovery
+
+The real-reboot test exposed a lab provisioning omission: the tmpfiles artifact
+had only been run from the checkout, not installed in the boot configuration.
+After `/run` was cleared by reboot, the backend failed before Python startup with
+`226/NAMESPACE` because `/run/hids/m3/health` was missing. The event databases were
+preserved. The existing approved artifact was installed persistently as
+`/usr/lib/tmpfiles.d/hids-m3.conf`, applied, and recovery passed. No service isolation
+was relaxed and no Audit policy changed.
+
+For a provisioned Ubuntu host with the approved service identities, install this
+artifact as part of application setup, rather than running it only once:
+
+```sh
+sudo install -m 644 packaging/systemd/hids-m3.tmpfiles.conf /usr/lib/tmpfiles.d/hids-m3.conf
+sudo systemd-tmpfiles --create /usr/lib/tmpfiles.d/hids-m3.conf
+```
+
+`m3_reboot_ubuntu.py` has explicit prepare/verify phases. Prepare creates sanitized
+incomplete A and committed B, waits for real kernel health metadata, saves a private
+persistent manifest under `/root`, kills only the HIDS backend, and confirms A is
+still durably open. The operator then reboots the VM and unlocks its encrypted disk
+using its existing credentials. Verify requires a genuinely different kernel boot
+UUID, unchanged Audit configuration/plugin hashes and rules, and runtime directories
+already present before starting the control socket. It checks restart interruption,
+B preservation, no automatic source authorization, historical health with unknown
+cross-epoch age, and a new explicit activation with fresh generation/lease. The
+new reader commits C and the checker observes the new kernel boot; old evidence is
+unchanged. Verify stops the HIDS/checker units while retaining all history.
+
+```sh
+sudo python3 -B tests/integration/m3_reboot_ubuntu.py prepare
+# Reboot and unlock the VM; use the exact manifest path printed by prepare.
+sudo python3 -B tests/integration/m3_reboot_ubuntu.py verify /root/hids-m3-reboot.EXAMPLE/manifest.json
+```
+
+This test changes HIDS authorization and service state only. It does not enable
+collection at boot, change disk encryption, install a guest agent, or configure
+Audit rules/plugins/reports. Abrupt power loss remains outside this reboot test.
+
+
+The second real reboot passed with no manual directory creation: both runtime
+directories already had the correct hids-ingest:hids-ipc ownership and 0750 mode
+before the control socket started. The backend preserved B, interrupted A and
+required fresh authorization; C then committed with a new generation/lease and
+fresh health from the new kernel boot. Persistent manifests/results are retained
+at `/root/hids-m3-reboot.o40qgd3d` (first recovered run) and
+`/root/hids-m3-reboot.xbahp1tb` (automatic-provisioning rerun).
+
+The reboot review also found that positive monotonic subtraction cannot prove
+clock continuity for an ended interval: a later boot may have a longer uptime.
+Historical health now always leaves `age_ns` unknown, while preserving the recorded
+receipt time, original observation and incident summary. Current authorized intervals
+still use their current-epoch freshness calculation; startup always ends prior
+active intervals before admitting input. A regression first reproduced the false
+positive historical age, then passed with the conservative projection. All 53 Python
+M3 tests passed locally and on Ubuntu. The installed health failure/lifecycle test
+also passed again: an unavailable checker endpoint did not stop event collection
+or root control, backend SIGKILL stopped its timer/helper, and recovery retained
+committed evidence without automatic collection authorization.

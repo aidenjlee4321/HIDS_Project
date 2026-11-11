@@ -88,7 +88,7 @@ class RuntimeTests(unittest.TestCase):
         self.runtime.close()
         self.runtime = self.open_runtime()
         status = self.runtime.status()
-        self.assertEqual(status['event_health'], {'timeouts': 1, 'late_records': 0})
+        self.assertEqual(status['event_health'], {'timeouts': 1, 'late_records': 0, 'resource_incidents': 0, 'discarding': 0})
         self.assertTrue(status['possible_gap'])
         self.assertFalse(status['source_ready'])
         self.assertEqual(status['interval']['state'], 'revoked')

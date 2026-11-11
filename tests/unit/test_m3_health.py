@@ -73,6 +73,18 @@ class HealthTests(unittest.TestCase):
         self.assertEqual(status['kernel'], 'unknown')
         m3_health.validate_status(status)
 
+    def test_historical_age_is_unknown_when_clock_epochs_can_overlap(self):
+        self.record(self.observation())
+        self.runtime.revoke(self.activation)
+        # A later boot may have a larger uptime than the saved sample. Positive
+        # subtraction alone cannot establish that monotonic epochs match.
+        self.now += 100
+        status = self.status()
+        self.assertEqual(status['freshness'], 'historical')
+        self.assertIsNone(status['age_ns'])
+        self.assertEqual(status['kernel'], 'unknown')
+        m3_health.validate_status(status)
+
     def test_counter_changes_are_sticky_and_never_attributed_to_hids_counts(self):
         self.record(self.observation(kernel={'lost': 7}))
         self.assertTrue(self.status()['summary']['preexisting_kernel_loss'])

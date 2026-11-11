@@ -130,6 +130,7 @@ class Progress:
                     identity TEXT PRIMARY KEY, first_offset INTEGER NOT NULL UNIQUE,
                     payload TEXT NOT NULL
                 )""")
+                self.db.execute('CREATE TABLE IF NOT EXISTS m3_resources (identity TEXT PRIMARY KEY, evidence TEXT NOT NULL)')
                 self.db.execute('CREATE TABLE IF NOT EXISTS m3_timeouts (identity TEXT PRIMARY KEY, evidence TEXT NOT NULL)')
                 self.db.execute('CREATE TABLE IF NOT EXISTS m3_late_positions (begin INTEGER PRIMARY KEY, eoe INTEGER NOT NULL CHECK(eoe IN (0,1)), final_state TEXT NOT NULL)')
                 scope = (activation, generation, boundary)
@@ -228,8 +229,34 @@ class Progress:
             return 'timed_out'
 
     def event_health(self):
-        return {'timeouts': self.db.execute('SELECT COUNT(*) FROM m3_timeouts').fetchone()[0],
-                'late_records': self.db.execute('SELECT COUNT(*) FROM m3_late_positions').fetchone()[0]}
+        return event_health(self.db)
+
+    def resource(self, identity, evidence):
+        from engine.ingestion.m3_resource import validate
+        payload = validate(evidence)
+        with self._transaction():
+            existing = self.db.execute('SELECT evidence FROM m3_resources WHERE identity=?', (identity,)).fetchone()
+            if existing is not None:
+                if existing != (payload,):
+                    raise ProgressError('conflicting resource incident')
+                return 'resource_recorded'
+            if self._state(identity) != 'open':
+                raise ProgressError('identity is not eligible for resource discard')
+            trigger = self.db.execute('SELECT end,identity FROM m3_positions WHERE begin=?', (evidence['trigger_begin'],)).fetchone()
+            if trigger is None or trigger[0] != evidence['trigger_end'] or self.positions()[0] != trigger[0]:
+                raise ProgressError('resource trigger is not the admitted tail')
+            same = trigger[1] == identity
+            if evidence['incoming_for_event'] != same:
+                raise ProgressError('resource trigger owner mismatch')
+            length = evidence['trigger_end']-evidence['trigger_begin']
+            count, size = self.db.execute('SELECT COUNT(*),SUM(end-begin) FROM m3_positions WHERE identity=?', (identity,)).fetchone()
+            if (count != evidence['event_records_before']+int(same) or
+                    size != evidence['event_bytes_before']+(length if same else 0)):
+                raise ProgressError('resource event ownership accounting mismatch')
+            self.db.execute('INSERT INTO m3_resources VALUES (?,?)', (identity,payload))
+            # Incident durability does not resolve an incomplete event. Its known
+            # positions continue blocking until EOE, timeout or interruption.
+            return 'resource_recorded'
 
     def _state(self, identity):
         row = self.db.execute(
@@ -250,6 +277,8 @@ class Progress:
                 if existing != (payload,):
                     raise ProgressError("conflicting execution retry")
                 return "duplicate"
+            if self.db.execute("SELECT 1 FROM m3_resources WHERE identity=?", (identity,)).fetchone():
+                raise ProgressError("discarded identity cannot be accepted")
             if self._state(identity) != "open" or not self.db.execute(
                 "SELECT 1 FROM m3_eoe WHERE identity=?", (identity,)
             ).fetchone():
@@ -267,6 +296,9 @@ class Progress:
         with self._transaction():
             state = self._state(identity)
             if state == "open":
+                if self.db.execute('SELECT 1 FROM m3_resources WHERE identity=?', (identity,)).fetchone() and not self.db.execute(
+                        'SELECT 1 FROM m3_eoe WHERE identity=?', (identity,)).fetchone():
+                    raise ProgressError('resource discard requires EOE or timeout')
                 self.db.execute(
                     "UPDATE m3_disposition SET state='rejected' WHERE identity=?", (identity,)
                 )
@@ -293,3 +325,11 @@ class Progress:
 
     def close(self):
         self.db.close()
+
+
+def event_health(db):
+    resources = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='m3_resources'").fetchone()
+    return {'timeouts': db.execute('SELECT COUNT(*) FROM m3_timeouts').fetchone()[0],
+            'late_records': db.execute('SELECT COUNT(*) FROM m3_late_positions').fetchone()[0],
+            'resource_incidents': db.execute('SELECT COUNT(*) FROM m3_resources').fetchone()[0] if resources else None,
+            'discarding': db.execute("SELECT COUNT(*) FROM m3_resources r JOIN m3_disposition d USING(identity) WHERE d.state='open'").fetchone()[0] if resources else None}

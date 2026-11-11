@@ -61,7 +61,7 @@ class ProgressTests(unittest.TestCase):
         self.ledger.close()
         self.ledger = self.open_ledger()
         self.ledger.recover()
-        self.assertEqual(self.ledger.event_health(), {'timeouts': 1, 'late_records': 1})
+        self.assertEqual(self.ledger.event_health(), {'timeouts': 1, 'late_records': 1, 'resource_incidents': 0, 'discarding': 0})
         self.assertEqual(self.ledger.positions(), (140, 140))
         self.assertEqual(self.ledger.db.execute('SELECT identity FROM m3_execution').fetchall(), [(self.B,)])
         with self.assertRaises(ProgressError):

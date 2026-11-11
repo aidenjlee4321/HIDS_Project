@@ -88,6 +88,19 @@ PluginSession make_plugin_session(pilot::Channel& channel, PluginScope scope,
                     {"observed_monotonic_ms", t.observed_monotonic_ms}, {"paused_ms", t.paused_ms},
                     {"inactivity_limit_ms", t.inactivity_limit_ms}, {"lifetime_limit_ms", t.lifetime_limit_ms}
                 }}}, "timed_out");
+        },
+        [&channel, scope](const Key& key, const ResourceEvidence& e) {
+            return exchange(channel, scope,
+                {{"op", "resource"}, {"identity", identity(key)}, {"evidence", {
+                    {"policy", 1}, {"reason", std::string(e.reason)},
+                    {"event_bytes_before", e.event_bytes_before}, {"event_records_before", e.event_records_before},
+                    {"trigger_begin", e.trigger_begin}, {"trigger_end", e.trigger_end}, {"incoming_for_event", e.incoming_for_event},
+                    {"group_limit", e.group_limit}, {"group_record_limit", e.group_record_limit}, {"aggregate_limit", e.aggregate_limit},
+                    {"retained_accounted_bytes", e.retained_accounted_bytes}, {"retained_records", e.retained_records},
+                    {"retained_record_limit", e.retained_record_limit}, {"requested_accounted_bytes", e.requested_accounted_bytes},
+                    {"observed_active_ms", e.observed_active_ms}, {"observed_monotonic_ms", e.observed_monotonic_ms},
+                    {"paused_ms", e.paused_ms}
+                }}}, "resource_recorded");
         });
 }
 }

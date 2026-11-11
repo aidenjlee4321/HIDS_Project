@@ -301,6 +301,89 @@ void retired_payloads_and_suppressed_positions() {
     assert(late.record && r.skip(*late.record, 0));
     assert(r.volatile_frontier() == r.next_offset() && r.retained_bytes() == 0);
 }
+void resource_discard_and_live_retirement() {
+    Limits limits;
+    limits.retain_history = false; limits.resource_recovery = true;
+    limits.group_bytes = 200; limits.total_bytes = 32768;
+    limits.open_groups = 2; limits.finalized_groups = 2; limits.tracked_records = 64;
+    limits.records_per_group = 64;
+    unsigned incidents=0;
+    Reconstructor r(0,limits,[&](const Key& key,const ResourceEvidence& e) {
+        assert(key.serial == "1" && e.reason == "event_bytes" && e.event_records_before == 1);
+        assert(e.incoming_for_event && e.trigger_end > e.trigger_begin);
+        ++incidents;
+        return true;
+    });
+    const auto baseline=r.retained_bytes();
+    const auto large=line("PATH",1,"x="+std::string(100,'a'));
+    append(r,large); assert(r.retained_bytes()>baseline);
+    append(r,large); assert(incidents==1 && r.retained_bytes()==baseline && !r.take_ready());
+    append(r,line("PATH",2)); append(r,line("EOE",2,""));
+    auto independent=r.take_ready();
+    assert(independent && !independent->resource && r.acknowledge(independent->token));
+    assert(independent->records.size()==2 && r.retained_bytes()==baseline && r.volatile_frontier()==0);
+    for(unsigned i=0;i<100;++i) append(r,large);
+    assert(incidents==1 && r.retained_bytes()==baseline);
+    append(r,line("EOE",1,"")); auto discarded=r.take_ready();
+    assert(discarded && discarded->resource && discarded->records.empty() && discarded->eoe_seen);
+    assert(r.acknowledge(discarded->token) && r.volatile_frontier()==r.next_offset());
+    assert(r.retained_bytes()==baseline);
+
+    Limits live;live.retain_history=false;live.tracked_records=4;live.finalized_groups=1;
+    Reconstructor stable(0,live);
+    append(stable,line("PATH",1)); const auto held=stable.retained_bytes();
+    for(unsigned id=2;id<2002;++id) {
+        append(stable,line("PATH",id));append(stable,line("EOE",id,""));
+        auto event=stable.take_ready();assert(event && stable.acknowledge(event->token));
+        assert(event->records.size()==2 && stable.retained_bytes()==held && stable.volatile_frontier()==0);
+    }
+    append(stable,line("EOE",1,""));auto first=stable.take_ready();assert(first && stable.acknowledge(first->token));
+    assert(stable.volatile_frontier()==stable.next_offset() && stable.retained_bytes()==0);
+}
+void resource_aggregate_gate_and_metadata_exhaustion() {
+    Limits limits;limits.retain_history=false;limits.resource_recovery=true;
+    limits.group_bytes=15000;limits.total_bytes=32768;limits.records_per_group=64;
+    limits.open_groups=2;limits.finalized_groups=2;limits.tracked_records=64;
+    unsigned incidents=0;
+    Reconstructor r(0,limits,[&](const Key& key,const ResourceEvidence& e) {
+        assert(key.serial=="1" && e.reason=="aggregate_bytes" && !e.incoming_for_event);
+        assert(e.retained_accounted_bytes<=e.aggregate_limit && e.retained_accounted_bytes+e.requested_accounted_bytes>e.aggregate_limit);
+        ++incidents;return true;
+    });
+    const auto baseline=r.retained_bytes();
+    append(r,line("PATH",1,"x="+std::string(9000,'a')));
+    append(r,line("PATH",2,"x="+std::string(9000,'b')));
+    append(r,line("PATH",2));assert(incidents==1 && r.retained_bytes()<limits.total_bytes);
+    append(r,line("EOE",2,""));auto b=r.take_ready();assert(b && !b->resource && r.acknowledge(b->token));
+    assert(r.retained_bytes()==baseline && r.volatile_frontier()==0);
+    append(r,line("EOE",1,""));auto a=r.take_ready();assert(a && a->resource && r.acknowledge(a->token));
+    assert(r.volatile_frontier()==r.next_offset());
+
+    Reconstructor unconfirmed(0,limits,[](const Key&,const ResourceEvidence&) { return false; });
+    append(unconfirmed,line("PATH",1,"x="+std::string(9000,'a')));
+    append(unconfirmed,line("PATH",2,"x="+std::string(9000,'b')));
+    const auto retained=unconfirmed.retained_bytes();
+    assert(unconfirmed.feed(unconfirmed.next_offset(),line("PATH",2),0)==FeedResult::failed);
+    assert(unconfirmed.error()=="resource_report_unconfirmed" && unconfirmed.retained_bytes()==retained);
+
+    limits.tracked_records=2;
+    Reconstructor bounded(0,limits,[](const Key&,const ResourceEvidence& e) { return e.reason=="aggregate_records"; });
+    append(bounded,line("PATH",1));append(bounded,line("PATH",2));append(bounded,line("PATH",2));
+    assert(bounded.retained_bytes()<limits.total_bytes);
+    assert(bounded.feed(bounded.next_offset(),line("PATH",1),0)==FeedResult::failed);
+    assert(bounded.error()=="assembly_metadata_capacity");
+}
+void resource_record_limit_and_timeout() {
+    Limits limits;limits.retain_history=false;limits.resource_recovery=true;
+    limits.group_bytes=8192;limits.total_bytes=32768;limits.open_groups=2;limits.finalized_groups=2;
+    limits.tracked_records=64;limits.records_per_group=1;
+    unsigned incidents=0;
+    Reconstructor r(0,limits,[&](const Key&,const ResourceEvidence& e) { ++incidents;return e.reason=="event_records"; });
+    append(r,line("PATH",1));append(r,line("PATH",1));assert(incidents==1);
+    assert(r.expire(2000));auto expired=r.take_ready();
+    assert(expired && expired->resource && expired->timeout && !expired->eoe_seen && expired->records.empty());
+    assert(r.acknowledge(expired->token) && r.volatile_frontier()==r.next_offset());
+}
 void parsing() {
     auto p = parse_record(line("EXECVE", 1, "argc=2 a0=\"msg=audit(bogus)\""), 42);
     assert(p.record && p.record->begin == 42 && p.record->key.fraction == "123");
@@ -553,7 +636,8 @@ void determinism() {
 }
 }
 int main() {
+    resource_discard_and_live_retirement(); resource_aggregate_gate_and_metadata_exhaustion(); resource_record_limit_and_timeout();
     current_tail(); fixture(); execve_validation(); plugin_input(); plugin_session(); plugin_backpressure(); individual_timeout_and_late_suppression(); retired_payloads_and_suppressed_positions(); parsing(); eoe_payload_validation(); frontier(); partial_frontier(); duplicates_and_late();
     ordering_and_missing(); timeout(); independent_paused_deadlines(); proctitle(); capacities(); recovery(); crossing_frontier_and_fail_closed(); determinism();
-    std::cout << "PASS: 21 offline Audit reconstruction, per-event timeouts, paused deadlines, current-tail, plugin framing, and validation test groups\n";
+    std::cout << "PASS: 24 offline Audit reconstruction, per-event timeouts, paused deadlines, current-tail, plugin framing, and validation test groups\n";
 }

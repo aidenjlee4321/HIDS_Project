@@ -1231,6 +1231,16 @@ warning/critical/exhausted storage states; thresholds are **Evidence-dependent**
 M3 source/database failure must not unnecessarily terminate core or M1/M2. Do not
 claim complete coverage while M3 is degraded, interrupted, paused or unavailable.
 
+Implementation evidence (November 11, 2026): the live plugin now uses a bounded
+oldest-open-payload fallback after draining complete ACKed work, with durable
+incident-before-release and EOE/eligible-timeout rejection. Accounting reserves
+bounded bookkeeping up front and charges retained wire bytes plus per-record
+overhead; it is not a whole-process RSS ceiling. No frozen-clock stall can release
+an event requiring unread EOE. Actual 16/32 MiB cases and incident-write failure
+passed on Ubuntu; see [resource acceptance](../../tests/integration/M3-README.md#installed-resource-pressure-acceptance).
+These operational choices remain reversible/provisional; release tuning and the
+broader acceptance matrix remain open.
+
 ### 12.9 Crash and reconciliation matrix
 
 | Failure boundary | Required recovery |
@@ -1265,7 +1275,11 @@ behavior under separate authorization. Future archive tests must reject corrupt 
 incomplete archives and failed handoffs; see the
 [implementation acceptance plan](v0.1-implementation-plan.md#m3-state-machine-acceptance-plan--future-tests-only).
 
-These are future tests, not executed results:
+This table records required coverage, not a claim that every case has passed.
+Executed resource, timeout, health, installed-runtime and process-crash evidence is
+tracked in [M3 verification](../../tests/integration/M3-README.md). The deterministic
+crash harness now covers 55 ledger/control boundaries; native instruction-level,
+power-loss, rotation and broader workload cases remain separate.
 
 | Area | Required tests |
 |---|---|

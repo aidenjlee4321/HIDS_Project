@@ -116,7 +116,7 @@ def main():
         assert query(activation, 'SELECT COUNT(*) FROM m3_positions') == [(len(lines)*args.events,)]
         scanned, frontier = query(activation, 'SELECT scanned,frontier FROM m3_cursor')[0]
         assert scanned == frontier
-        assert control('status')['event_health'] == {'timeouts': 0, 'late_records': 0}
+        assert control('status')['event_health'] == {'timeouts': 0, 'late_records': 0, 'resource_incidents': 0, 'discarding': 0}
         page_count = query(activation, 'PRAGMA page_count')[0][0]
         page_size = query(activation, 'PRAGMA page_size')[0][0]
         report.update(seconds=round(elapsed, 3), events_per_second=round(args.events/elapsed, 2),

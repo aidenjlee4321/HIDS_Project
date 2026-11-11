@@ -135,7 +135,11 @@ def status(db, current, *, now_ns=None):
                       'preexisting_kernel_loss': summary['preexisting_kernel_loss'],
                       'unavailable_seen': summary.get('unavailable_seen', {'kernel': False, 'dispatcher': False}),
                       'incidents': summary['incidents']}
-    return {'freshness': freshness, 'age_ns': age if age >= 0 else None, 'received_at': row[4],
+    # Ended intervals may predate a reboot. Even a positive monotonic difference
+    # cannot establish a shared clock epoch; retain receipt time and observation
+    # without inventing a historical sample age. Active intervals never resume
+    # across backend startup, so their current-epoch freshness remains meaningful.
+    return {'freshness': freshness, 'age_ns': age if active and age >= 0 else None, 'received_at': row[4],
             'kernel': kernel_state, 'dispatcher': dispatcher_state,
             'observation': observation, 'summary': public_summary}
 

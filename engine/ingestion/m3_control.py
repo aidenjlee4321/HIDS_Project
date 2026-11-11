@@ -98,8 +98,10 @@ def main():
                                                            for key in ('kernel', 'dispatcher')):
                 raise ValueError('control_health_availability_mismatch')
             if result['event_health'] is not None:
-                keys(result['event_health'], 'timeouts late_records')
-                if any(type(value) is not int or value < 0 for value in result['event_health'].values()):
+                keys(result['event_health'], 'timeouts late_records resource_incidents discarding')
+                if any((value is None and key not in ('resource_incidents', 'discarding')) or
+                       (value is not None and (type(value) is not int or value < 0))
+                       for key, value in result['event_health'].items()):
                     raise ValueError('control_event_evidence')
             if args.command != 'status' or result['source'] != config['source_id']:
                 raise ValueError('control_status_scope')
