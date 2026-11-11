@@ -6,23 +6,26 @@ This summary does not override the owner, AGENTS.md or accepted decisions.
 
 ## Current checkpoint
 
-- Latest pushed product checkpoint: `ff9049801ed536d0c9f276e2ef87c137442d55c9`
-  on `main`, GitHub `aidenjlee4321/HIDS_Project`.
-- Latest pushed workflow checkpoint: `febf25fa810c342c2c4f08ac2a76ca8f16a6f9b0` on `main`.
-- Completed checkpoint approved for commit/push to `main`: controlled M3 performance
-  review, accounting optimization and longer-workload acceptance.
-  The owner requests the new workflow whenever applicable going forward.
-  A guarded accounting optimization passed component and paired performance tests;
-  the two-hour varied load and full live checkpoint passed.
-  Two independent detached jobs verified shared-cache reuse; final restoration
-  and installed-file checks passed. Focused suites: 71 M3 + 39 workflow tests.
-  Do not treat dispatch/running as a pass or deploy other work over an active test.
-  [Current evidence](validation/m3-performance-validation.md) records completed
-  comparisons, the 7200.018-second workload and remaining release gates.
-  Check Git history/remote for the approved checkpoint identifier and publication status.
-  Next project work: rotation/source-preservation testing under existing approvals.
-  Mac work remains limited to authorized project edits and private temporary outputs;
-  ask before Mac system/settings/software/credential changes and specific Git publication.
+- Latest pushed checkpoint: `fc77ca5e56326a4b9411e8a85c27e1fbee06ccba`
+  on `main`, GitHub `aidenjlee4321/HIDS_Project`: controlled performance,
+  cached storage accounting, two-hour varied workload and workflow improvements.
+- Owner-approved checkpoint for commit/push: explicit plugin-stream rotation/source-preservation
+  acceptance and documentation. Two real rotations passed with source inode/byte
+  preservation, unchanged reader/generation and three known EOE-backed executions,
+  including one with a short writer stall. Full live checkpoint passed all 17
+  phases with exact cleanup. Focused suites after cleanup hardening: 79 M3 + 40
+  workflow tests. [Rotation evidence](validation/m3-rotation-validation.md) records
+  exact reports, limits and pending gates. Owner approved committing/pushing this checkpoint to `main`; verify Git for publication status.
+- The current plugin source decision supersedes file-tail generations/replay and
+  associated retirement mechanics. Do not implement older unchecked backlog items
+  as missing plugin behavior. Original Audit logs remain host-administered;
+  indefinite preservation under external finite rotation is not guaranteed.
+- Next work: reconcile remaining native forms/representative workload evidence,
+  release resource thresholds and packaging/distribution/license gates. Do not
+  claim M3 release readiness or start M4 solely from these passing tests.
+- Use the verified workflow whenever applicable. Mac work remains limited to
+  authorized project edits/private temporary outputs; ask before system/settings,
+  software/credential changes and specific Git publication.
 - Canonical repository: `/Users/aidenlee/Downloads/hids`; the chat workspace is a
   different directory. Verify branch, working tree and remote before Git mutations.
 - M3 implements root-authorized current-tail Audit execution, separate native
@@ -71,15 +74,15 @@ M3 authority: [specification/register](implementation/m3-linux-audit-spec.md).
   creates a new complete source snapshot/staging directory for each VM invocation.
 - Installed application `/usr/lib/hids`, state `/var/lib/hids/m3`, configuration
   `/etc/hids/m3.json`; resolve service accounts through NSS, not hardcoded IDs.
-- Before tooling acceptance, 127 SQLite files including control were retained.
-  The VM-only lab activation budget was deliberately raised from 128 to 256; the
-  original is protected at `/root/hids-workflow-budget.8035odje/config.json`.
-  After the performance/soak checkpoint, 244 SQLite files including control are retained.
-  A full checkpoint reserves 30 new intervals: choose a deliberate larger VM-only
-  lab activation budget for future full runs, preserving all retained history.
-  The runner restores that new 256-budget baseline after each run. Check interval capacity
-  before additional runs. Preserve all history; increasing a lab budget is a
-  deliberate VM setting, not automatic deletion or silent capacity repair.
+- The persistent VM-only lab activation budget was deliberately raised from
+  256 to 512 for continuing acceptance, preserving all prior history. Exact old
+  configuration: `/root/hids-workflow-budget.9sdud64k/config.json` (root-only).
+  After rotation/full/component acceptance, 275 SQLite files including control
+  remain. The workflow restores the 512 baseline after each run. Check remaining capacity
+  before further runs; never delete history to make room.
+- Two source rotations left four Audit log files, highest suffix `.3`, under the
+  original five-file ROTATE policy. Repeating the two-rotation experiment now
+  correctly fails safe preflight. Do not weaken that guard or remove old logs.
 - VM workflow requires M3/checker units already inactive and Audit already active.
   It never takes over an active collection session or reboots automatically.
 

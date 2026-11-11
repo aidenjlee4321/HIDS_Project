@@ -1502,3 +1502,15 @@ private progress and shared cross-job native caching. See
 for baseline selection, exact conditions, failures/fixes, CPU/RSS/disk measurements,
 cache verification and remaining gates. These fixture results do not approve release
 thresholds or close broader native/rotation/source-preservation coverage.
+
+
+## Plugin stream across administrative source rotation
+
+Two explicit Ubuntu Audit rotations preserved the same reader and stream generation,
+three known EOE-backed executions (including a short writer stall), and every
+original source inode/byte prefix. The separate opt-in workflow scope refuses
+unsafe repeats at finite retention boundaries; it never deletes logs or changes
+host retention. [Rotation evidence](../../docs/validation/m3-rotation-validation.md)
+records protected reports, exact conditions, honest rejection counters and the
+remaining host-retention limitations. This covers the plugin architecture, not
+the superseded file-tail replay or future archival design.

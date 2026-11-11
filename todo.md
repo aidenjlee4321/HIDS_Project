@@ -70,6 +70,11 @@ current documentation-only task.
 
 ## M3 offline build and production decisions
 
+Some entries below preserve pre-plugin design decisions and earlier acceptance
+gates. The current plugin source amendment and scoped executed evidence take
+precedence: file-generation replay/retirement mechanics are superseded, while
+broader native coverage and external source-retention guarantees remain open.
+
 - [x] Build and test offline reconstruction, provisional RAW lexical checks, and EOE-closed EXECVE completeness. See [M3 build and verification](tests/integration/M3-README.md).
 - [x] Verify the original offline reconstruction build on Ubuntu AArch64, with and without sanitizers.
 - [x] Validate the synthetic execution fixture end to end and produce a sanitized internal event on macOS.
@@ -79,7 +84,7 @@ current documentation-only task.
 - [x] Commit sanitized fixture executions atomically with their checkpoint and verify lost-ACK retry after reopen.
 - [x] Exercise the linked C++ libauparse adapter with synthetic fixtures on Ubuntu AArch64.
 - [x] Connect the C++ fixture producer to Python over private pipes and kill the producer before and after final commit.
-- [ ] Implement the production Unix socket protocol, bounded progress tracking, lease and generation checks. Exercise actual backend termination, rotation, and live reader acceptance.
+- [x] Implement the production Unix socket protocol, bounded progress tracking, lease and stream-generation checks. Exercise actual backend termination/live reader acceptance and scoped administrative rotation; see the M3 verification and rotation records for exact limits.
 - [x] Observe a scoped native Ubuntu execution with fragmented EXECVE and restore the VM Audit configuration.
 - [x] Resolve the live source/completion conflict. The owner approved an outbound auditd plugin and retained EOE-only completion.
 - [x] Add bounded framing for auditd string-mode plugin input and test split/coalesced reads and incomplete input.
@@ -110,8 +115,9 @@ current documentation-only task.
 - [ ] **Future goal:** incomplete EXECVE, separate failed-execution representation, PROCTITLE completion, validated-discard unknown fields, compressed archives and a separately reviewed fallback M3 worker if justified.
 - [ ] **Future goal:** exe/comm encryption/key management and independent category retention/collection controls. Exact toggle policy and later archival remain deferred; initial privacy/no-automatic-deletion rules continue.
 - [x] Record **Owner-approved** original Audit source preservation and no automatic source deletion/cleanup/overwrite; durable full-generation coverage and ranges/frontiers establish processing, never deletion permission. See [source preservation](docs/implementation/m3-linux-audit-spec.md#64-original-source-evidence-and-retirement-eligibility).
-- [ ] **Evidence-dependent:** verify owner-observed finite Auditd ROTATE retention and external cleanup, safest supported preservation configuration, terminal-boundary/full-generation coverage without backfill, and source/database capacity and suspension thresholds. No configuration changes authorized.
-- [ ] After separate test authorization, verify multi-rotation lag/unprocessed preservation, interruption blocking retirement until durable resolution, restart identity, missing-generation gaps and exhaustion without deletion.
+- [ ] **Evidence-dependent:** verify owner-observed finite Auditd ROTATE retention and external cleanup, safest supported preservation configuration, terminal-boundary/full-generation coverage without backfill, and source/database capacity and suspension thresholds. No production logging-policy changes authorized; separately approved lab tests restore their exact baseline. Historical terminal-boundary/full-file coverage mechanics are superseded by the plugin decision.
+- [x] Verify two real administrative rotations under the approved plugin architecture: reader/stream continuity, three known EOE-backed executions, a short writer stall and retention of original source inodes/byte prefixes; restore exact host policy. See [rotation evidence](docs/validation/m3-rotation-validation.md).
+- Historical file-tail generation retirement/replay/missing-file gates are superseded by the plugin source decision; do not implement them as unresolved plugin requirements. External finite retention and any future archival/preservation guarantee remain separately unresolved.
 - [ ] **Future goal:** verified original-generation archival handoff with complete coverage, integrity/provenance, durable retrieval and recoverable state; failed/incomplete/corrupt archives cannot qualify. Exact archive/privacy and any later cleanup policy need separate review/approval.
 
 ## Open design decisions — require explicit resolution
@@ -233,7 +239,8 @@ Do not infer product-release sign-off from completion of these tooling tasks.
 - [x] Finish two-hour installed varied fixture workload: all 4096 executions/metadata,
   24,576 positions, checkpoint and policy/data/cleanup checks passed.
 - [x] Re-run full live checkpoint acceptance for the guard and workload changes.
-- [ ] Separately close remaining rotation/source-preservation, representative workload,
+- [x] Complete scoped plugin-stream rotation/source-preservation acceptance; preserve its explicit finite-retention limits.
+- [ ] Separately close remaining representative workload,
   release-threshold and packaging/distribution gates before claiming M3/release readiness.
 
 Current results and pending scope: [performance record](docs/validation/m3-performance-validation.md).

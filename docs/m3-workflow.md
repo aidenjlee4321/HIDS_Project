@@ -73,6 +73,18 @@ will correctly refuse activation until an administrator deliberately raises it.
 For repeated lab runs, set an adequate persistent **VM-only** budget first and
 record that setting. This is never evidence-deletion permission.
 
+## Explicit source-preserving rotation experiment
+
+Use the same VM command with `--tier component --experiment rotation --live-audit`.
+This runs the offline/native checks, matched deployment and the separate two-rotation
+lab harness. Both host and guest require live opt-in. It is never included in the
+default checkpoint. Preflight reserves an additional unused source-retention slot
+and checks existing inode/byte prefixes after each rotation; it refuses an unsafe
+repeat rather than deleting history or changing host retention. The current VM has
+already consumed this experiment's safe headroom. See [rotation evidence](validation/m3-rotation-validation.md)
+for exact scope, repeat constraints and the distinction between plugin streams and
+the superseded file-tail/archival design.
+
 ## Build, deployment and cleanup
 
 The native cache key covers native source/header/test inputs, build recipe/artifact inventory,

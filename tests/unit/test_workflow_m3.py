@@ -21,6 +21,12 @@ class M3WorkflowTests(unittest.TestCase):
         self.redirect=contextlib.redirect_stdout(self.out);self.redirect.__enter__()
         self.addCleanup(self.redirect.__exit__,None,None,None)
 
+    def test_rotation_requires_explicit_live_scope_before_host_work(self):
+        from types import SimpleNamespace
+        args=SimpleNamespace(experiment='rotation',live_audit=False)
+        with patch.object(workflow.os,'getuid',return_value=501),self.assertRaisesRegex(dev.WorkflowError,'live-audit'):
+            workflow.remote(args)
+
     def test_snapshot_includes_timer_and_only_explicit_sanitized_log(self):
         repo=self.root/'repo';repo.mkdir()
         for name in ('packaging/systemd/hids-m3-health.timer','packaging/hids-audit-launcher',

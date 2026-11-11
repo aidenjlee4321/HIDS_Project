@@ -366,6 +366,7 @@ def temporary_binary(source,target):
 
 def guest(args):
     check(sys.platform=='linux' and os.getuid()==0,'guest requires root')
+    check(args.experiment!='rotation' or args.live_audit,'rotation requires explicit --live-audit lab scope')
     _,source=dev.verify(ROOT,args.expected_manifest)
     run=Run(args.output,'ubuntu_'+args.tier+'_'+args.experiment,source);error=None;baseline=None;config=None
     # Serialize all lab work sharing installed services and state.
@@ -407,6 +408,8 @@ def guest(args):
                     '--events',str(args.events),'--duration-seconds',str(args.duration_seconds),'--varied',
                     '--progress',str(run.path/'load-progress.json')],
                     timeout=args.duration_seconds+180)
+            elif args.experiment=='rotation':
+                run.phase('rotation',[sys.executable,'-B','tests/integration/m3_rotation_ubuntu.py','--live-audit'],timeout=180)
             else:installed_tests(run,args,directory)
     except Exception as exc:error=str(exc)
     finally:
@@ -473,6 +476,7 @@ def baseline_snapshot(ref,state):
 
 def remote(args):
     check(os.getuid()!=0,'host workflow runs as an ordinary user')
+    check(args.experiment!='rotation' or args.live_audit,'rotation requires explicit --live-audit lab scope')
     state=dev.private_dir(args.state_dir.absolute())
     start=time.monotonic()
     snapshot,manifest,count=dev.create_snapshot(ROOT,state)
@@ -584,7 +588,7 @@ def main(argv=None):
         part.add_argument('--tier',choices=('component','checkpoint'),default='component')
         part.add_argument('--live-audit',action='store_true',help='Explicit lab scope: temporary Audit rule/plugin/report tests, restored afterward')
         part.add_argument('--lab-activation-budget',type=int)
-        part.add_argument('--experiment',choices=('acceptance','performance','soak'),default='acceptance')
+        part.add_argument('--experiment',choices=('acceptance','performance','soak','rotation'),default='acceptance')
         part.add_argument('--events',type=int,default=4096)
         part.add_argument('--duration-seconds',type=int,default=7200)
         part.add_argument('--history-files',type=int,default=0)

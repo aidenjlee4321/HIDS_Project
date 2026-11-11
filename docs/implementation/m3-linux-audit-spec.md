@@ -46,6 +46,16 @@ The 35 Python tests, 21 native sanitizer groups, installed runtime acceptance an
 4,096-event load/controlled storage-pressure tests passed. See the
 [latest evidence](../../tests/integration/M3-README.md#per-event-timeouts-and-sustained-workloads).
 
+### Administrative rotation evidence under the plugin decision
+
+Two real Ubuntu Audit file rotations passed while the same reader/plugin-stream
+generation remained active, including a short SQLite writer stall. Known EOE-backed
+executions reached durable storage and all original source inodes/byte prefixes
+were retained; exact host policy was restored. See [scoped rotation acceptance](../validation/m3-rotation-validation.md).
+This does not revive the historical file-generation machinery below or guarantee
+indefinite retention against host-managed ROTATE/external cleanup. No production
+logging-policy change, source deletion or archival mechanism is authorized by this test.
+
 ### Owner-approved health checker and source-health evidence
 
 The owner explicitly approved the separate privileged health checker in this
