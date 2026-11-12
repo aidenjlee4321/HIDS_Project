@@ -120,6 +120,13 @@ broader native coverage and external source-retention guarantees remain open.
 - Historical file-tail generation retirement/replay/missing-file gates are superseded by the plugin source decision; do not implement them as unresolved plugin requirements. External finite retention and any future archival/preservation guarantee remain separately unresolved.
 - [ ] **Future goal:** verified original-generation archival handoff with complete coverage, integrity/provenance, durable retrieval and recoverable state; failed/incomplete/corrupt archives cannot qualify. Exact archive/privacy and any later cleanup policy need separate review/approval.
 
+- [x] Exercise real single/empty/encoded/fragmented arguments, byte-path/script,
+  descriptor execveat and non-root native executions; durably reject failed exec
+  without EXECVE. Correct quoted native PROCTITLE and unrelated shared-stream
+  record grammar while preserving strict execution semantics and private metadata.
+  See [native workload evidence](docs/validation/m3-native-workload-validation.md).
+  This does not close all native grammar/workload or release gates.
+
 ## Open design decisions — require explicit resolution
 
 - [ ] Select root-only authentication; decide whether sudo-authorized administrators qualify.

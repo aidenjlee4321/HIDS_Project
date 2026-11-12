@@ -1514,3 +1514,15 @@ host retention. [Rotation evidence](../../docs/validation/m3-rotation-validation
 records protected reports, exact conditions, honest rejection counters and the
 remaining host-retention limitations. This covers the plugin architecture, not
 the superseded file-tail replay or future archival design.
+
+
+## Native execution forms and background Audit traffic
+
+The explicit native matrix now exercises eight real successful execution variants
+and one failed attempt, with known EOE-backed identities and independent backend
+validation. It found and corrected native quoted PROCTITLE handling and unrelated
+Audit-family framing that could interrupt the shared plugin stream. Deliberate
+USER-message/health-service traffic, strict execution-field validation, mixed-family
+rejection and original source/policy restoration passed. See [native workload evidence](../../docs/validation/m3-native-workload-validation.md)
+for exact forms, source semantics, retained intermediate failures and remaining
+coverage limits. No arguments/context contents are added to normalized storage.

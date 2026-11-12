@@ -148,7 +148,7 @@ ExecutionResult validate_execution(const Event& event) try {
             auto& seen = cwd ? execution.cwd_present : execution.proctitle_present;
             const auto value = input->find(cwd ? "cwd" : "proctitle");
             if (seen || input->size() != 1 || value == input->end() ||
-                (!cwd && value->second.starts_with('"')) ||
+                (!cwd && !native && value->second.starts_with('"')) ||
                 !audit_bytes(value->second, 65536, !cwd)) return {{}, "invalid_context_record"};
             seen = true;
         } else if (record->type == "PATH") {

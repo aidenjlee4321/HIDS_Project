@@ -85,6 +85,15 @@ already consumed this experiment's safe headroom. See [rotation evidence](valida
 for exact scope, repeat constraints and the distinction between plugin streams and
 the superseded file-tail/archival design.
 
+## Explicit native execution matrix
+
+Use `--tier component --experiment native --live-audit` with the existing VM
+parameters. This runs offline/native regressions, matched deployment and the real
+nine-case execution matrix, independently of the default checkpoint. Both host
+and guest require explicit live opt-in. It makes no source rotations and restores
+its exact temporary PID rule, plugin and RAW-format changes. The protected report
+records dispositions and metadata, never raw arguments. See [native form evidence](validation/m3-native-workload-validation.md).
+
 ## Build, deployment and cleanup
 
 The native cache key covers native source/header/test inputs, build recipe/artifact inventory,

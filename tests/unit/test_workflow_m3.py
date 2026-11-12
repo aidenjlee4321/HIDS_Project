@@ -21,11 +21,15 @@ class M3WorkflowTests(unittest.TestCase):
         self.redirect=contextlib.redirect_stdout(self.out);self.redirect.__enter__()
         self.addCleanup(self.redirect.__exit__,None,None,None)
 
-    def test_rotation_requires_explicit_live_scope_before_host_work(self):
+    def test_source_experiments_require_live_scope_before_host_or_guest_work(self):
         from types import SimpleNamespace
-        args=SimpleNamespace(experiment='rotation',live_audit=False)
-        with patch.object(workflow.os,'getuid',return_value=501),self.assertRaisesRegex(dev.WorkflowError,'live-audit'):
-            workflow.remote(args)
+        for experiment in ('rotation','native'):
+            args=SimpleNamespace(experiment=experiment,live_audit=False)
+            with self.subTest(experiment=experiment):
+                with patch.object(workflow.os,'getuid',return_value=501),self.assertRaisesRegex(dev.WorkflowError,'live-audit'):
+                    workflow.remote(args)
+                with patch.object(workflow.os,'getuid',return_value=0),patch.object(workflow.sys,'platform','linux'):
+                    with self.assertRaisesRegex(dev.WorkflowError,'live-audit'):workflow.guest(args)
 
     def test_snapshot_includes_timer_and_only_explicit_sanitized_log(self):
         repo=self.root/'repo';repo.mkdir()

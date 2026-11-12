@@ -117,7 +117,14 @@ int main(int argc, char** argv) {
     add("comm_space_quoted","SYSCALL","comm","\"a b\"",false);
     add("cwd_nul","CWD","cwd","410042",false);
     add("proctitle_nul","PROCTITLE","proctitle","41004200",true,[](const Execution& e){assert(e.proctitle_present);});
-    add("proctitle_quoted","PROCTITLE","proctitle","\"private\"",false);
+    // Real native single-argument execs use a printable quoted PROCTITLE.
+    // Validate its encoding without retaining its contents in Execution.
+    add("proctitle_quoted","PROCTITLE","proctitle","\"private\"",true,
+        [](const Execution& e){assert(e.proctitle_present);});
+    add("proctitle_quoted_space","PROCTITLE","proctitle","\"a b\"",false);
+    add("proctitle_quoted_suffix","PROCTITLE","proctitle","\"a\"suffix",false);
+    add("proctitle_odd_hex","PROCTITLE","proctitle","414",false);
+    add("proctitle_lower_hex","PROCTITLE","proctitle","4a",false);
     add("path_count_mismatch","SYSCALL","items","2",false);
     add("path_index_gap","PATH","item","1",false);
     add("path_parent_unsupported","PATH","nametype","PARENT",false);

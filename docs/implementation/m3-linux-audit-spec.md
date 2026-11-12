@@ -46,6 +46,19 @@ The 35 Python tests, 21 native sanitizer groups, installed runtime acceptance an
 4,096-event load/controlled storage-pressure tests passed. See the
 [latest evidence](../../tests/integration/M3-README.md#per-event-timeouts-and-sustained-workloads).
 
+### Native form and shared-dispatcher evidence
+
+Real single-argument native executions can carry quoted printable PROCTITLE; it
+is now validated transiently in the native profile and only its presence is
+retained. Native non-execution families (BPF/USER/SERVICE) have different field-name
+and quoted-message grammar and share this input stream. Their bounded framing is
+validated separately; execution-family lexing/semantic checks remain strict, and
+an unsupported family mixed into an execution group rejects that group. This adds
+no authentication normalization, unknown execution-field acceptance or new completion
+marker. Eight successful native execution variants and one rejected failed attempt
+passed with explicit background traffic. [Native workload evidence](../validation/m3-native-workload-validation.md)
+records exact scope, failures/corrections and remaining native coverage limits.
+
 ### Administrative rotation evidence under the plugin decision
 
 Two real Ubuntu Audit file rotations passed while the same reader/plugin-stream

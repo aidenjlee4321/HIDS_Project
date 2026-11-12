@@ -6,16 +6,25 @@ This summary does not override the owner, AGENTS.md or accepted decisions.
 
 ## Current checkpoint
 
-- Latest pushed checkpoint: `fc77ca5e56326a4b9411e8a85c27e1fbee06ccba`
-  on `main`, GitHub `aidenjlee4321/HIDS_Project`: controlled performance,
-  cached storage accounting, two-hour varied workload and workflow improvements.
-- Owner-approved checkpoint for commit/push: explicit plugin-stream rotation/source-preservation
-  acceptance and documentation. Two real rotations passed with source inode/byte
+- Latest pushed checkpoint: `19e2bb10cc0d1e6359dd637c07a3e5d98ce2d166`
+  on `main`, GitHub `aidenjlee4321/HIDS_Project`: plugin-stream rotation and
+  source preservation. Publication was owner-approved and remote main verified.
+  Earlier `fc77ca5` includes storage accounting/performance and the two-hour load.
+- Owner-approved checkpoint for commit/push: real-native execution acceptance and two parser
+  corrections: quoted native PROCTITLE and separate non-execution Audit-family
+  framing. Eight successful native variants and one failed attempt passed with
+  explicit USER/health background traffic; execution semantic checks and EOE-only
+  completion remain strict. Full live checkpoint passed all 17 phases. Current
+  counts: 79 M3 + 40 workflow tests, 26 native groups, 128 native contract cases,
+  124 allocation cuts, 11 API faults and 58 actual SIGKILL boundaries. Exact cleanup,
+  source prefix integrity and 29 installed hashes independently verified. See
+  [native form evidence](validation/m3-native-workload-validation.md) for retained
+  failures/fixes, final reports and remaining limits. The owner approved committing/pushing this checkpoint to `main`; verify Git
+  for publication status.
+- Rotation acceptance already passed both real signals, source inode/byte
   preservation, unchanged reader/generation and three known EOE-backed executions,
-  including one with a short writer stall. Full live checkpoint passed all 17
-  phases with exact cleanup. Focused suites after cleanup hardening: 79 M3 + 40
-  workflow tests. [Rotation evidence](validation/m3-rotation-validation.md) records
-  exact reports, limits and pending gates. Owner approved committing/pushing this checkpoint to `main`; verify Git for publication status.
+  including a writer stall. Full live checkpoint passed 17 phases; final component
+  checks passed 79 M3 + 40 workflow tests. [Rotation evidence](validation/m3-rotation-validation.md).
 - The current plugin source decision supersedes file-tail generations/replay and
   associated retirement mechanics. Do not implement older unchecked backlog items
   as missing plugin behavior. Original Audit logs remain host-administered;
@@ -77,7 +86,7 @@ M3 authority: [specification/register](implementation/m3-linux-audit-spec.md).
 - The persistent VM-only lab activation budget was deliberately raised from
   256 to 512 for continuing acceptance, preserving all prior history. Exact old
   configuration: `/root/hids-workflow-budget.9sdud64k/config.json` (root-only).
-  After rotation/full/component acceptance, 275 SQLite files including control
+  After native-form/full-checkpoint acceptance, 305 SQLite files including control
   remain. The workflow restores the 512 baseline after each run. Check remaining capacity
   before further runs; never delete history to make room.
 - Two source rotations left four Audit log files, highest suffix `.3`, under the

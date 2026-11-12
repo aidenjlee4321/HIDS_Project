@@ -407,6 +407,48 @@ void resource_record_limit_and_timeout() {
     assert(expired && expired->resource && expired->timeout && !expired->eoe_seen && expired->records.empty());
     assert(r.acknowledge(expired->token) && r.volatile_frontier()==r.next_offset());
 }
+void other_native_families() {
+    for (const auto& raw : {line("BPF", 90, "prog-id=42 op=LOAD"),
+                           line("USER_AUTH", 91, R"(pid=42 uid=0 msg='op=PAM:authentication acct="fixture user" res=success')")}) {
+        assert(parse_record(raw, 0, 65536, RecordProfile::auditd_string).record);
+        assert(!parse_record(raw, 0).record);
+    }
+    for (const auto* body : {"prog-id=", "prog-id=42  op=LOAD", "msg='unterminated", "msg='a'junk", "bad.name=1"}) {
+        assert(!parse_record(line("BPF", 90, body), 0, 65536, RecordProfile::auditd_string).record);
+    }
+    // The broader non-execution grammar never relaxes SYSCALL/EXECVE fields.
+    assert(!parse_record(line("SYSCALL", 90, "prog-id=42"), 0, 65536, RecordProfile::auditd_string).record);
+    unsigned accepted=0,rejected=0;
+    PluginSession session([](const Record&) { return PluginSession::Admission::admitted; },
+        [&](const Event&, const ExecutionResult& result) {
+            if (result.execution) ++accepted; else ++rejected;
+            return true;
+        }, validate_execution);
+    auto eoe=line("EOE",90,"");eoe.insert(eoe.size()-1," ");
+    assert(session.consume(line("BPF",90,"prog-id=42 op=LOAD")+eoe,0));
+    std::ifstream stream("tests/fixtures/audit/structural-exec.log");assert(stream);
+    std::string fixture;
+    for (std::string raw;std::getline(stream,raw);) {
+        if (raw.starts_with("type=EOE ")) raw += ' ';
+        fixture += raw+'\n';
+    }
+    assert(session.consume(fixture,0));
+    assert(rejected==1 && accepted==1);
+    // An unsupported native family mixed into an execution group cannot be
+    // silently discarded to manufacture a valid execution.
+    std::string mixed;
+    stream.clear();stream.seekg(0);
+    for (std::string raw;std::getline(stream,raw);) {
+        const auto identity=raw.find(":100)");assert(identity!=std::string::npos);
+        raw.replace(identity,5,":101)");
+        if (raw.starts_with("type=EOE ")) {
+            mixed += line("BPF",101,"prog-id=42 op=LOAD");raw += ' ';
+        }
+        mixed += raw+'\n';
+    }
+    assert(session.consume(mixed,0));
+    assert(rejected==2 && accepted==1);
+}
 void parsing() {
     auto p = parse_record(line("EXECVE", 1, "argc=2 a0=\"msg=audit(bogus)\""), 42);
     assert(p.record && p.record->begin == 42 && p.record->key.fraction == "123");
@@ -660,7 +702,7 @@ void determinism() {
 }
 int main() {
     resource_discard_and_live_retirement(); resource_aggregate_gate_and_metadata_exhaustion(); resource_record_limit_and_timeout();
-    observation_clocks(); current_tail(); fixture(); execve_validation(); plugin_input(); plugin_session(); plugin_backpressure(); individual_timeout_and_late_suppression(); retired_payloads_and_suppressed_positions(); parsing(); eoe_payload_validation(); frontier(); partial_frontier(); duplicates_and_late();
+    other_native_families(); observation_clocks(); current_tail(); fixture(); execve_validation(); plugin_input(); plugin_session(); plugin_backpressure(); individual_timeout_and_late_suppression(); retired_payloads_and_suppressed_positions(); parsing(); eoe_payload_validation(); frontier(); partial_frontier(); duplicates_and_late();
     ordering_and_missing(); timeout(); independent_paused_deadlines(); proctitle(); capacities(); recovery(); crossing_frontier_and_fail_closed(); determinism();
-    std::cout << "PASS: 25 offline Audit reconstruction, per-event timeouts, paused deadlines, current-tail, plugin framing, and validation test groups\n";
+    std::cout << "PASS: 26 offline Audit reconstruction, per-event timeouts, paused deadlines, current-tail, plugin framing, and validation test groups\n";
 }

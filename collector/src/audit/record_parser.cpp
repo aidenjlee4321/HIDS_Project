@@ -37,6 +37,42 @@ bool valid_field(std::string_view token) {
     });
 }
 
+// Other native Audit record families have different field-name and quoted-message
+// grammars (for example BPF prog-id and USER_AUTH msg='... ...'). They remain
+// semantically ineligible for execution; validate framing without applying the
+// narrower execution-field grammar to the whole shared dispatcher stream.
+bool valid_other_native_payload(std::string_view payload) {
+    while (!payload.empty()) {
+        if (payload.front() != ' ') return false;
+        payload.remove_prefix(1);
+        const auto equal = payload.find('=');
+        if (equal == payload.npos || equal == 0) return false;
+        const auto name = payload.substr(0, equal);
+        if (!std::all_of(name.begin(), name.end(), [](unsigned char c) {
+            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                   (c >= '0' && c <= '9') || c == '_' || c == '-';
+        })) return false;
+        payload.remove_prefix(equal + 1);
+        if (payload.empty()) return false;
+        std::size_t end;
+        if (payload.front() == '\'' || payload.front() == '"') {
+            const char quote = payload.front();
+            end = payload.find(quote, 1);
+            if (end == payload.npos) return false;
+            ++end;
+        } else {
+            end = payload.find(' ');
+            if (end == payload.npos) end = payload.size();
+            if (!end) return false;
+        }
+        if (!std::all_of(payload.begin(), payload.begin() + end, [](unsigned char c) {
+            return c >= 0x20 && c <= 0x7e;
+        })) return false;
+        payload.remove_prefix(end);
+    }
+    return true;
+}
+
 bool valid_payload(std::string_view payload) {
     // Provisional offline profile: exactly one ASCII space before each field.
     while (!payload.empty()) {
@@ -96,7 +132,11 @@ ParseResult parse_record(std::string_view line, std::uint64_t offset, std::size_
     // Preserve it in the raw record and byte positions.
     if (profile == RecordProfile::auditd_string && type == "EXECVE" &&
         lexical_payload.starts_with("  a")) lexical_payload.remove_prefix(1);
-    if (type != "EOE" && !valid_payload(lexical_payload)) return {{}, "invalid_payload_syntax"};
+    const bool execution_type = type == "SYSCALL" || type == "EXECVE" || type == "CWD" ||
+                                type == "PATH" || type == "PROCTITLE" || type == "EOE";
+    const bool valid = profile == RecordProfile::auditd_string && !execution_type
+        ? valid_other_native_payload(lexical_payload) : valid_payload(lexical_payload);
+    if (type != "EOE" && !valid) return {{}, "invalid_payload_syntax"};
     Record record{{std::string(seconds), std::string(fraction), std::string(serial)},
                   std::string(type), std::string(line), offset, offset+size, profile};
     return {std::move(record), {}};

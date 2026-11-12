@@ -17,6 +17,10 @@ class StorageTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.directory=Path(self.temp.name).resolve()
+        # Unit WAL/recovery expectations must not depend on host disk pressure.
+        # Explicit space-level tests override this; installed VM tests use statvfs.
+        available=mock.patch.object(m3_storage.Guard,'_available',return_value=2*1024*m3_storage.MIB)
+        available.start();self.addCleanup(available.stop)
 
     def runtime(self,**kw):
         return Runtime(self.directory,SOURCE,max_activations=2,max_pages=64,position_limit=32,**kw)
