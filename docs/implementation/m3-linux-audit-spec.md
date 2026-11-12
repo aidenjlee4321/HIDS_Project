@@ -46,6 +46,16 @@ The 35 Python tests, 21 native sanitizer groups, installed runtime acceptance an
 4,096-event load/controlled storage-pressure tests passed. See the
 [latest evidence](../../tests/integration/M3-README.md#per-event-timeouts-and-sustained-workloads).
 
+### Read-only storage status
+
+Known read-only state now blocks admission with an explicit filesystem reason and
+retains exclusive writer ownership. Root metadata control remains available;
+readable history honours WAL, while unavailable SQLite control/history remains
+unknown rather than using immutable access or inventing an interval. Remounting
+writable does not reauthorize collection: explicit restart and later root activation
+remain required. See [scoped read-only acceptance](../validation/m3-readonly-status-validation.md).
+Existing budgets, privacy and no-deletion/source-policy constraints are unchanged.
+
 ### Native form and shared-dispatcher evidence
 
 Real single-argument native executions can carry quoted printable PROCTITLE; it

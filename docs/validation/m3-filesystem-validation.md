@@ -1,5 +1,9 @@
 # M3 real filesystem capacity and read-only acceptance
 
+The later [read-only root-status implementation](m3-readonly-status-validation.md)
+supersedes this checkpoint's cold-start status limitation. The observations below
+remain the exact historical test results for `bfb4592`.
+
 ## Scope and isolation
 
 The explicit VM workflow `--tier component --experiment filesystem` exercises the

@@ -102,10 +102,13 @@ on a new 64 MiB ext4 image in a private mount namespace. It requires the VM's
 existing mount/unshare/loop/ext4 tools; no Mac setup or Audit-policy opt-in is
 needed. It never fills the main filesystem or uses original HIDS databases.
 The test checks real reserve pressure, an external fill after admission causing
-SQLITE_FULL, actual read-only startup rejection, explicit recovery and suppression.
+SQLITE_FULL, root-only status on a read-only mount, collection denial, explicit
+recovery and suppression.
 Protected images/reports remain; mounts and associated loop devices are removed.
 See [filesystem evidence](validation/m3-filesystem-validation.md), including the
-cold read-only startup/status limitation. This is separate from default checkpoint
+WAL-dependent history availability and restart requirements. See the later
+[read-only control evidence](validation/m3-readonly-status-validation.md). This is
+separate from default checkpoint
 and does not claim hard user/project-quota or installed-transport acceptance.
 
 ## Build, deployment and cleanup

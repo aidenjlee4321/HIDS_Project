@@ -58,18 +58,23 @@ class Runtime:
         self.path = self.directory / 'control.sqlite'
         fresh = not self.path.exists() and not self.path.is_symlink()
         try:
+            observed = self.storage.observe(force=True)
+            filesystem_read_only = observed['reason'] == 'filesystem_read_only'
+            if filesystem_read_only and fresh:
+                raise m3_storage.StoragePressure('read-only filesystem has no existing state')
             lock_path = self.directory / 'writer.lock'
-            self.lock = os.open(lock_path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+            flags = os.O_RDONLY if filesystem_read_only else os.O_CREAT | os.O_RDWR
+            self.lock = os.open(lock_path, flags | os.O_NOFOLLOW, 0o600)
             private_file(lock_path, writable=True)
             fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            pressure = self.storage.observe(force=True)['state'] not in ('normal','warning')
+            pressure = observed['state'] not in ('normal','warning')
             if pressure and not fresh:
                 # Keep root status available without admitting any SQL data writes.
                 # No previous active authorization is usable in this mode.
                 private_file(self.path,writable=True)
                 check_sidecars(self.path)
                 self.read_only = True
-                self.db = m3_storage.connect(self.path,self.storage)
+                self.db = m3_storage.connect(self.path,self.storage,reader=filesystem_read_only)
                 self.db.data_read_only = True
             else:
                 self.storage.before(self.path)
@@ -107,6 +112,14 @@ class Runtime:
                     "SELECT activation,generation FROM m3_intervals WHERE state IN ('ready','streaming')").fetchall()):
                 self.progress = self.open_progress(activation, generation)
                 self.interrupt('backend_restart')
+        except sqlite3.OperationalError as error:
+            if not (self.read_only and filesystem_read_only and
+                    getattr(error,'sqlite_errorcode',0)&255 == getattr(sqlite3,'SQLITE_CANTOPEN',14)):
+                self.close()
+                raise
+            # Missing read-only WAL auxiliaries can fail at open or first query.
+            # Keep known metadata, never bypass WAL or invent a current interval.
+            if self.db is not None:self.db.close();self.db=None
         except BaseException:
             self.close()
             raise
@@ -117,6 +130,7 @@ class Runtime:
         self.storage.before(self.path)
 
     def current(self):
+        if self.db is None:return None  # durable control history unavailable
         row = self.db.execute('SELECT activation,generation,lease,state,code,authorized_at,updated_at FROM m3_intervals ORDER BY rowid DESC LIMIT 1').fetchone()
         fields = ('activation', 'generation', 'lease', 'state', 'code', 'authorized_at', 'updated_at')
         return dict(zip(fields, row)) if row else None

@@ -8,11 +8,13 @@ from pathlib import Path
 import pwd
 import select
 import signal
+import socket
 import sqlite3
 import stat
 import subprocess
 import sys
 import tempfile
+import traceback
 import uuid
 
 MIB=1024*1024
@@ -56,14 +58,16 @@ def fill(fd,mount,target,host_device):
     return available(mount)
 
 
-def writer(state,incoming,outgoing):
+def writer(state,incoming,outgoing,listeners):
     # Installed files are matched by the outer workflow; no root source/log reads.
     sys.path.insert(0,'/usr/lib/hids')
     from engine.ingestion.m3_runtime import Runtime
     from engine.ingestion import m3_storage
+    from engine.ingestion.m3_service import Service
+    from engine.ingestion.m2_receiver import PeerPolicy
     policy=m3_storage.defaults(64,4)
     policy.update(warning_free_bytes=4*MIB,critical_free_bytes=2*MIB,minimum_free_bytes=MIB)
-    source=str(uuid.uuid4());activation=str(uuid.uuid4());runtime=None
+    source=str(uuid.uuid4());activation=str(uuid.uuid4());runtime=None;service=None
     execution=dict(syscall=221,pid=42,ppid=1,uid=1000,euid=1000,suid=1000,fsuid=1000,
         auid=None,session=7,path_count=1,success=True,cwd_present=True,proctitle_present=True,
         result=0,exe_base64='L2Jpbi94',comm_base64='eA==')
@@ -120,49 +124,76 @@ def writer(state,incoming,outgoing):
         runtime.close();runtime=None
         send(outgoing,dict(stage='closed_for_readonly'))
         assert receive(incoming)['command']=='readonly'
-        error=None
-        try:runtime=open_runtime()
-        except OSError as exc:
-            assert exc.errno==errno.EROFS;error={'errno':exc.errno}
-        except sqlite3.Error as exc:
-            assert exc.sqlite_errorcode&255 in (sqlite3.SQLITE_READONLY,sqlite3.SQLITE_CANTOPEN)
-            error={'sqlite_errorcode':exc.sqlite_errorcode}
-        assert error is not None,'read-only filesystem unexpectedly admitted a writer'
-        # Private, quiescent, kernel-read-only image: immutable avoids creating WAL
-        # sidecars for this inspection. This is not a production recovery shortcut.
-        with closing(sqlite3.connect((state/(activation+'.sqlite')).as_uri()+'?mode=ro&immutable=1',uri=True)) as history:
-            assert history.execute('SELECT identity FROM m3_execution').fetchall()==[('1.001:1',)]
-            assert history.execute("SELECT state FROM m3_disposition WHERE identity='1.001:2'").fetchone()==('interrupted',)
-        send(outgoing,dict(stage='readonly_blocked',error=error,accepted=1,interrupted=1))
-        assert receive(incoming)['command']=='restart_writable'
-        runtime=open_runtime();assert not runtime.status()['source_ready']
+        runtime=open_runtime();assert runtime.read_only
+        status=runtime.status()
+        assert status['storage']['reason']=='filesystem_read_only' and not status['source_ready']
+        assert status['possible_gap']
+        audit=pwd.getpwnam('hids-audit')
+        def serve_until(expected):
+            while not select.select([incoming],[],[],0)[0]:service.run_once()
+            assert receive(incoming)['command']==expected
+        service=Service(runtime,*listeners,PeerPolicy(audit.pw_uid,audit.pw_gid))
+        send(outgoing,dict(stage='readonly_status_ready',source=source,history_available=runtime.db is not None))
+        serve_until('writable_latched')
+        assert runtime.status()['storage']['state']=='normal' and runtime.read_only
+        send(outgoing,dict(stage='writable_latched_ready'))
+        serve_until('restart_writable')
+        service.close();service=None;runtime.close();runtime=open_runtime()
+        assert not runtime.status()['source_ready']
         history=runtime.open_progress(activation,runtime.current()['generation'])
-        try:assert history.db.execute('PRAGMA integrity_check').fetchone()==('ok',)
+        try:
+            assert history.db.execute('PRAGMA integrity_check').fetchone()==('ok',)
+            assert history.db.execute('SELECT identity FROM m3_execution').fetchall()==[('1.001:1',)]
+            assert history._state('1.001:2')=='interrupted'
         finally:history.close()
+        service=Service(runtime,*listeners,PeerPolicy(audit.pw_uid,audit.pw_gid))
         send(outgoing,dict(stage='readonly_recovered',integrity='ok',source_ready=False))
+        serve_until('done')
     finally:
+        if service:service.close()
         if runtime:runtime.close()
+
+
+def control_request(path,request):
+    # Use the real root client's ownership, peer-credential and framing checks.
+    # Redirect only this test process to its private root-created endpoints.
+    sys.path.insert(0,'/usr/lib/hids')
+    from engine.ingestion import m3_control,m3_storage,m3_event
+    previous=m3_control.ENDPOINT
+    try:
+        m3_control.ENDPOINT=path
+        result=m3_control.request(request)
+    finally:m3_control.ENDPOINT=previous
+    if result.get('result')=='status':m3_storage.validate_status(result['storage'])
+    if result.get('result')=='diagnostics':
+        m3_event.validate_diagnostics({key:result[key] for key in ('available','items','truncated')})
+    return result
 
 
 def namespace(workspace,mount,parent_namespace):
     assert os.getuid()==0 and os.readlink('/proc/self/ns/mnt')!=parent_namespace
     image=workspace/'filesystem.ext4';account=pwd.getpwnam('hids-ingest')
     command('mount','-o','loop,nodev,nosuid,noexec',str(image),str(mount))
-    child=None;filler=None
+    child=None;filler=None;listeners=[];control_directory=None
     try:
         os.chown(mount,0,account.pw_gid);mount.chmod(0o710)
         state=mount/'state';state.mkdir(mode=0o700);os.chown(state,account.pw_uid,account.pw_gid)
         filler=os.open(mount/'filler',os.O_CREAT|os.O_EXCL|os.O_RDWR|os.O_NOFOLLOW,0o600)
+        control_directory=Path(tempfile.mkdtemp(prefix='hids-m3-ro-control.',dir='/run'));control_directory.chmod(0o700)
+        for name in ('data.sock','control.sock'):
+            listener=socket.socket(socket.AF_UNIX);listeners.append(listener)
+            listener.bind(str(control_directory/name));(control_directory/name).chmod(0o600);listener.listen(4)
         read_parent,write_child=os.pipe();read_child,write_parent=os.pipe()
         child=os.fork()
         if child==0:
             os.close(filler);os.close(read_parent);os.close(write_parent)
             os.setgroups([]);os.setgid(account.pw_gid);os.setuid(account.pw_uid)
-            try:
-                with os.fdopen(read_child) as incoming,os.fdopen(write_child,'w') as outgoing:
-                    writer(state,incoming,outgoing)
-            except BaseException:
-                import traceback;traceback.print_exc();os._exit(1)
+            with os.fdopen(read_child) as incoming,os.fdopen(write_child,'w') as outgoing:
+                try:writer(state,incoming,outgoing,listeners)
+                except BaseException:
+                    # Flush the originating exception before closing the pipe;
+                    # otherwise parent cleanup can reap us before diagnostics land.
+                    traceback.print_exc();sys.stderr.flush();os._exit(1)
             os._exit(0)
         os.close(read_child);os.close(write_child);evidence=[]
         with os.fdopen(read_parent) as incoming,os.fdopen(write_parent,'w') as outgoing:
@@ -182,20 +213,46 @@ def namespace(workspace,mount,parent_namespace):
             item=receive(incoming);assert item['stage']=='closed_for_readonly';evidence.append(item)
             os.close(filler);filler=None  # no open writable inode during remount
             command('mount','-o','remount,ro',str(mount));send(outgoing,dict(command='readonly'))
-            item=receive(incoming);assert item['stage']=='readonly_blocked';evidence.append(item)
-            command('mount','-o','remount,rw',str(mount));send(outgoing,dict(command='restart_writable'))
+            item=receive(incoming);assert item['stage']=='readonly_status_ready';source=item['source'];history_available=item['history_available'];evidence.append({'stage':item['stage'],'history_available':history_available})
+            def verify_control(read_only,latched):
+                status=control_request(control_directory/'control.sock',dict(version=3,command='status'))
+                assert status['result']=='status' and not status['source_ready'] and not status['reader_connected']
+                assert status['failure']==('storage_pressure' if latched else None)
+                assert status['storage']['reason']==('filesystem_read_only' if read_only else None)
+                if latched:
+                    assert status['possible_gap']
+                    response=control_request(control_directory/'control.sock',dict(version=3,command='activate',source=source,activation=str(uuid.uuid4())))
+                    assert response['result']=='rejected'
+                diagnostics=control_request(control_directory/'control.sock',dict(version=3,command='diagnostics'))
+                assert diagnostics['available']==(history_available if latched else True)
+                assert control_request(control_directory/'control.sock',dict(version=3,command='lease'))['result']=='rejected'
+                return dict(storage=status['storage'],failure=status['failure'],source_ready=status['source_ready'],
+                    diagnostics_available=diagnostics['available'],lease_rejected=True,activation_rejected=True if latched else None)
+            evidence.append(dict(stage='readonly_control_status',**verify_control(True,True)))
+            command('mount','-o','remount,rw',str(mount));send(outgoing,dict(command='writable_latched'))
+            item=receive(incoming);assert item['stage']=='writable_latched_ready';evidence.append(item)
+            evidence.append(dict(stage='writable_still_blocked',**verify_control(False,True)))
+            send(outgoing,dict(command='restart_writable'))
             item=receive(incoming);assert item['stage']=='readonly_recovered';evidence.append(item)
+            evidence.append(dict(stage='restarted_control_status',**verify_control(False,False)))
+            send(outgoing,dict(command='done'))
         _,status=os.waitpid(child,0);child=None;assert status==0
         result={'result':'passed','scope':'private_ext4_capacity_sqlite_full_and_readonly','image_bytes':SIZE,
                 'mount_namespace_private':True,'writer_uid':account.pw_uid,'stages':evidence}
         target=workspace/'report.json';target.write_text(json.dumps(result,sort_keys=True)+'\n');target.chmod(0o600)
-        print('PASS: actual filesystem reserve blocks writes; real SQLITE_FULL rolls back atomically; committed B survives and interrupted A cannot resurrect; read-only startup fails closed and recovers without reauthorization',flush=True)
+        print('PASS: actual filesystem reserve blocks writes; real SQLITE_FULL rolls back atomically; committed B survives and interrupted A cannot resurrect; read-only startup serves root status/diagnostics without writes or leases and needs explicit restart',flush=True)
     finally:
         if filler is not None:os.close(filler)
         if child:
             try:os.kill(child,signal.SIGKILL)
             except ProcessLookupError:pass
             os.waitpid(child,0)
+        for listener in listeners:listener.close()
+        if control_directory is not None:
+            for name in ('data.sock','control.sock'):
+                endpoint=control_directory/name
+                if endpoint.exists():endpoint.unlink()
+            control_directory.rmdir()
         command('umount',str(mount))
 
 

@@ -1539,3 +1539,14 @@ retained harness failure, cleanup and limitations. This is storage-core evidence
 it does not claim root control availability on a read-only mount or replace
 installed transport, hard-quota/device-fault or full release acceptance. Production
 code and all original HIDS/source history remain unchanged.
+
+
+## Root metadata status with read-only state
+
+The later read-only implementation preserves exclusive writer ownership and serves
+root control status while refusing activation, leases, recovery/checkpoint writes
+and automatic resumption. It reads committed WAL when SQLite can do so; otherwise
+history/intervals remain unavailable and known storage metadata is still served.
+Actual private Service/root-client IPC passed under a real read-only mount. See
+[read-only status evidence](../../docs/validation/m3-readonly-status-validation.md)
+for exact scope, matching client validation, failures and recovery limits.

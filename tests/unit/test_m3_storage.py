@@ -147,6 +147,92 @@ class StorageTests(unittest.TestCase):
             self.assertEqual(runtime.storage.observe()['state'],'normal')
         finally:runtime.close()
 
+    def test_readonly_observation_blocks_recovery_and_checkpoint(self):
+        guard=m3_storage.Guard(self.directory,64,2,
+            space=mock.Mock(side_effect=m3_storage.ReadOnlyFilesystem(2*1024*m3_storage.MIB)))
+        status=guard.observe();self.assertEqual(status['state'],'exhausted')
+        self.assertEqual(status['reason'],'filesystem_read_only')
+        self.assertEqual(status['available_bytes'],2*1024*m3_storage.MIB)
+        m3_storage.validate_status(status)
+        with guard.recovery(),self.assertRaises(m3_storage.StoragePressure):guard.before(self.directory/'a.sqlite')
+        connection=mock.Mock(in_transaction=False,data_read_only=True)
+        guard.checkpoint(connection,self.directory/'a.sqlite');connection.execute.assert_not_called()
+
+    def test_readonly_startup_keeps_history_locked_and_needs_restart(self):
+        runtime=self.runtime();activation=str(uuid.uuid4());runtime.activate(activation);runtime.claim()
+        runtime.progress.register('1.001:1',0,10);runtime.close()
+        with mock.patch.object(m3_storage.Guard,'_available',side_effect=m3_storage.ReadOnlyFilesystem(2*1024*m3_storage.MIB)) as available:
+            runtime=self.runtime()
+            try:
+                self.assertTrue(runtime.read_only)
+                status=runtime.status();self.assertFalse(status['source_ready']);self.assertTrue(status['possible_gap'])
+                self.assertEqual(status['storage']['reason'],'filesystem_read_only')
+                with self.assertRaises(BlockingIOError):self.runtime()
+                with self.assertRaises(m3_storage.StoragePressure):runtime.claim()
+                # The SQLite connection itself is read-only even if wrapper guards
+                # are bypassed and the test's actual filesystem is writable.
+                with self.assertRaises(sqlite3.OperationalError):
+                    sqlite3.Connection.execute(runtime.db,"UPDATE m3_intervals SET state='ready'")
+                available.side_effect=None;available.return_value=2*1024*m3_storage.MIB
+                self.assertEqual(runtime.status()['storage']['state'],'normal')
+                with self.assertRaises(m3_storage.StoragePressure):runtime.activate(str(uuid.uuid4()))
+            finally:runtime.close()
+        runtime=self.runtime()
+        try:
+            self.assertEqual(runtime.current()['code'],'backend_restart')
+            self.assertEqual(runtime.current()['state'],'interrupted')
+            self.assertFalse(runtime.status()['source_ready'])
+        finally:runtime.close()
+
+    def test_fresh_readonly_state_does_not_create_lock_or_databases(self):
+        with mock.patch.object(m3_storage.Guard,'_available',side_effect=m3_storage.ReadOnlyFilesystem(2*1024*m3_storage.MIB)):
+            with self.assertRaises(m3_storage.StoragePressure):self.runtime()
+        self.assertEqual(list(self.directory.iterdir()),[])
+
+    def test_readonly_history_honors_committed_uncheckpointed_wal(self):
+        runtime=self.runtime();reader=None;readonly=None
+        try:
+            runtime.db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+            reader=sqlite3.connect(runtime.path.as_uri()+'?mode=ro',uri=True,isolation_level=None)
+            reader.execute('BEGIN')
+            self.assertEqual(reader.execute('SELECT activation FROM m3_intervals').fetchall(),[])
+            activation=str(uuid.uuid4());runtime.activate(activation);runtime.claim();runtime.close()
+            self.assertGreater(Path(str(runtime.path)+'-wal').stat().st_size,0)
+            with mock.patch.object(m3_storage.Guard,'_available',side_effect=m3_storage.ReadOnlyFilesystem(2*1024*m3_storage.MIB)):
+                readonly=self.runtime()
+                self.assertEqual(readonly.current()['activation'],activation)
+                self.assertEqual(readonly.current()['state'],'streaming')  # durable history, not readiness
+                self.assertFalse(readonly.status()['source_ready'])
+                # The older pinned reader still has its earlier snapshot: the new
+                # Runtime must have read the WAL, not an immutable main-file view.
+                self.assertEqual(reader.execute('SELECT activation FROM m3_intervals').fetchall(),[])
+                readonly.close();readonly=None
+        finally:
+            if readonly:readonly.close()
+            if reader:reader.close()
+            runtime.close()
+
+    def test_readonly_cantopen_keeps_metadata_status_but_does_not_hide_corruption(self):
+        original=self.runtime();original.activate(str(uuid.uuid4()));original.close()
+        for code,at_open in ((14,False),(14,True),(11,False),(11,True)):  # CANTOPEN / CORRUPT
+            error=sqlite3.OperationalError('fixture');error.sqlite_errorcode=code
+            connection=mock.Mock();connection.execute.side_effect=error
+            with self.subTest(code=code,at_open=at_open),mock.patch.object(m3_storage.Guard,'_available',side_effect=m3_storage.ReadOnlyFilesystem(2*1024*m3_storage.MIB)),mock.patch.object(m3_storage,'connect',return_value=connection,side_effect=error if at_open else None):
+                if code==14:
+                    runtime=self.runtime()
+                    try:
+                        self.assertIsNone(runtime.db);self.assertIsNone(runtime.current())
+                        status=runtime.status()
+                        self.assertFalse(status['source_ready']);self.assertTrue(status['possible_gap'])
+                        self.assertIsNone(status['interval']);self.assertIsNone(status['event_health'])
+                        self.assertFalse(runtime.diagnostics()['available'])
+                        runtime.storage.checkpoint(None,runtime.path)
+                        with self.assertRaises(m3_storage.StoragePressure):runtime.claim()
+                    finally:runtime.close()
+                else:
+                    with self.assertRaises(sqlite3.OperationalError):self.runtime()
+            self.assertEqual(connection.close.call_count,0 if at_open else 1)
+
     def test_directory_budget_and_unsafe_files_block_without_deletion(self):
         guard=m3_storage.Guard(self.directory,64,2)
         file=self.directory/'retained.sqlite';file.write_bytes(b'x');file.chmod(0o600)

@@ -6,17 +6,19 @@ This summary does not override the owner, AGENTS.md or accepted decisions.
 
 ## Current checkpoint
 
-- Latest pushed checkpoint: `2c7607060ac989571e6eb0c43840e4fb28702d1b`
-  on `main`, GitHub `aidenjlee4321/HIDS_Project`: native execution forms and
-  background Audit grammar corrections; publication was owner-approved and remote
-  main verified. Prior rotation checkpoint `19e2bb1`, performance/soak `fc77ca5`.
-- Owner-approved checkpoint for commit/push: real filesystem-capacity, SQLite FULL race,
-  read-only mount rejection and recovery tests on a bounded private VM image.
-  All seven scoped VM phases passed, including 82 M3 + 40 workflow tests and
-  fresh native/parser/crash checks. Production code/thresholds and original host
-  state/source policy are unchanged. See [filesystem evidence](validation/m3-filesystem-validation.md)
-  for exact measurements, retained intermediate failure, mount cleanup and limits.
-  Owner approved commit/push to `main`; verify Git for publication status.
+- Latest pushed checkpoint: `bfb4592eaa48763a8fde87504a1c70266e450030`
+  on `main`, GitHub `aidenjlee4321/HIDS_Project`: real filesystem capacity,
+  SQLite FULL and read-only recovery tests. Publication was approved and verified.
+  Prior native checkpoint `2c76070`, rotation `19e2bb1`, performance/soak `fc77ca5`.
+- Owner-approved checkpoint for commit/push: read-only startup root status. Existing private state keeps its
+  exclusive writer lock; collection/writes remain blocked. Readable SQLite history
+  uses mode=ro and honours WAL. If read-only WAL auxiliaries are unavailable,
+  root gets known metadata with interval/history explicitly unavailable, never
+  immutable journal bypass. Real private Service/root-client IPC passed read-only
+  status, activation/lease rejection, writable latching and explicit restart.
+  Focused: 87 M3 + 40 workflow tests. Full live regression passed all 17 phases.
+  [Read-only evidence](validation/m3-readonly-status-validation.md) records limits
+  and exact jobs. Owner approved commit/push to `main`; verify Git for publication status.
 - Published native checkpoint: eight successful variants and a rejected failed
   attempt with explicit USER/health background traffic; strict execution validation
   and EOE-only completion. Full live checkpoint passed all 17 phases, 79 M3 + 40
@@ -87,7 +89,7 @@ M3 authority: [specification/register](implementation/m3-linux-audit-spec.md).
 - The persistent VM-only lab activation budget was deliberately raised from
   256 to 512 for continuing acceptance, preserving all prior history. Exact old
   configuration: `/root/hids-workflow-budget.9sdud64k/config.json` (root-only).
-  After native-form/full-checkpoint acceptance, 305 SQLite files including control
+  After read-only/full-checkpoint acceptance, 355 SQLite files including control
   remain. The workflow restores the 512 baseline after each run. Check remaining capacity
   before further runs; never delete history to make room.
 - Two source rotations left four Audit log files, highest suffix `.3`, under the

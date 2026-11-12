@@ -134,6 +134,14 @@ broader native coverage and external source-retention guarantees remain open.
   status on read-only startup, installed transport under all VFS errors, hard
   quotas/device faults and release storage thresholds remain separate gates.
 
+- [x] Keep root metadata control available on known read-only state with existing
+  private history; hold writer ownership, honour readable WAL, report unavailable
+  history honestly, reject activation/leases and require writable restart. Actual
+  private Service/root-client IPC and WAL/ownership/fallback regressions passed.
+  See [read-only status evidence](docs/validation/m3-readonly-status-validation.md).
+  This supersedes the earlier cold read-only startup/status limitation within the
+  tested scope; arbitrary corrupted storage and installed systemd VFS faults remain open.
+
 ## Open design decisions — require explicit resolution
 
 - [ ] Select root-only authentication; decide whether sudo-authorized administrators qualify.

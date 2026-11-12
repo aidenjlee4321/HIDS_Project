@@ -14,11 +14,18 @@ from contextlib import contextmanager
 MIB=1024*1024
 FIELDS={'max_wal_bytes','max_state_bytes','warning_free_bytes','critical_free_bytes','minimum_free_bytes'}
 STATES={'normal','warning','critical','exhausted','unknown'}
-REASONS={None,'wal_budget','state_budget','filesystem_reserve','inspection_unavailable'}
+REASONS={None,'wal_budget','state_budget','filesystem_reserve','inspection_unavailable','filesystem_read_only'}
 
 
 class StoragePressure(RuntimeError):
     pass
+
+
+class ReadOnlyFilesystem(OSError):
+    """A successful statvfs observation with a known read-only mount flag."""
+    def __init__(self,available):
+        super().__init__('filesystem is read-only')
+        self.available=available
 
 
 def defaults(max_pages,max_activations):
@@ -60,7 +67,9 @@ class Guard:
 
     def _available(self):
         value=os.statvfs(self.directory)
-        return value.f_bavail*value.f_frsize
+        available=value.f_bavail*value.f_frsize
+        if value.f_flag & os.ST_RDONLY:raise ReadOnlyFilesystem(available)
+        return available
 
     def _file(self,path):
         try: info=path.lstat()
@@ -91,13 +100,16 @@ class Guard:
                     else:
                         self.files[item]=size
                         if item.name.endswith("-wal"):self.wal_files[item]=size
-            available=self.space()
+            read_only=False
+            try:available=self.space()
+            except ReadOnlyFilesystem as exc:available=exc.available;read_only=True
             if type(available) is not int or available<0:raise OSError('invalid available storage')
             state_bytes=self.total_bytes
             wal=max(self.wal_files.values(),default=0)
             p=self.options;r=self.reserve
             state='normal';reason=None
-            if available<=p['minimum_free_bytes']:state='exhausted';reason='filesystem_reserve'
+            if read_only:state='exhausted';reason='filesystem_read_only'
+            elif available<=p['minimum_free_bytes']:state='exhausted';reason='filesystem_reserve'
             elif state_bytes>=p['max_state_bytes']:state='exhausted';reason='state_budget'
             elif wal>=p['max_wal_bytes']:state='exhausted';reason='wal_budget'
             elif available-2*r<=p['critical_free_bytes']:state='critical';reason='filesystem_reserve'
@@ -123,7 +135,7 @@ class Guard:
         value=self.observe(path)
         if self.recovery_depth:
             p=self.options;r=self.reserve
-            safe=(value['state']!='unknown' and value['available_bytes']-2*r>p['minimum_free_bytes'] and
+            safe=(value['state']!='unknown' and value['reason']!='filesystem_read_only' and value['available_bytes']-2*r>p['minimum_free_bytes'] and
                   value['state_bytes']+2*r<p['max_state_bytes'] and value['wal_bytes']+r<p['max_wal_bytes'])
         else:safe=value['state'] in ('normal','warning')
         if not safe:raise StoragePressure('M3 storage admission blocked')
@@ -135,13 +147,13 @@ class Guard:
 
     def checkpoint(self,connection,path):
         now=self.clock()
-        if connection.in_transaction:return
+        if connection is None or connection.in_transaction or getattr(connection,'data_read_only',False):return
         cached_wal=max(self.wal_files.values(),default=0)
         urgent=cached_wal+self.reserve>=self.options['max_wal_bytes']*3//4
         if not urgent and now-self.last_checkpoint.get(path,-1e30)<1:return
         self.last_checkpoint[path]=now
         value=self.observe(path)
-        if value['state']=='unknown' or value['available_bytes']<=self.options['minimum_free_bytes']+self.reserve:return
+        if value['state']=='unknown' or value['reason']=='filesystem_read_only' or value['available_bytes']<=self.options['minimum_free_bytes']+self.reserve:return
         if value['wal_bytes']<self.options['max_wal_bytes']//2:return
         try:
             sqlite3.Connection.execute(connection,'PRAGMA busy_timeout=0')
@@ -173,10 +185,12 @@ class Connection(sqlite3.Connection):
         return result
 
 
-def connect(path,guard):
+def connect(path,guard,*,reader=False):
     options=dict(isolation_level=None,timeout=1,factory=Connection)
     if hasattr(sqlite3,'LEGACY_TRANSACTION_CONTROL'):options['autocommit']=sqlite3.LEGACY_TRANSACTION_CONTROL
-    connection=sqlite3.connect(path,**options)
+    if reader:options['uri']=True
+    connection=sqlite3.connect(path.as_uri()+'?mode=ro' if reader else path,**options)
+    connection.data_read_only=reader
     connection.guard=guard;connection.storage_path=Path(path)
     # Guard sizing is pinned to this actual SQLite page size.
     if connection.execute('PRAGMA page_size').fetchone()!=(4096,):
