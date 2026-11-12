@@ -6,21 +6,22 @@ This summary does not override the owner, AGENTS.md or accepted decisions.
 
 ## Current checkpoint
 
-- Latest pushed checkpoint: `19e2bb10cc0d1e6359dd637c07a3e5d98ce2d166`
-  on `main`, GitHub `aidenjlee4321/HIDS_Project`: plugin-stream rotation and
-  source preservation. Publication was owner-approved and remote main verified.
-  Earlier `fc77ca5` includes storage accounting/performance and the two-hour load.
-- Owner-approved checkpoint for commit/push: real-native execution acceptance and two parser
-  corrections: quoted native PROCTITLE and separate non-execution Audit-family
-  framing. Eight successful native variants and one failed attempt passed with
-  explicit USER/health background traffic; execution semantic checks and EOE-only
-  completion remain strict. Full live checkpoint passed all 17 phases. Current
-  counts: 79 M3 + 40 workflow tests, 26 native groups, 128 native contract cases,
-  124 allocation cuts, 11 API faults and 58 actual SIGKILL boundaries. Exact cleanup,
-  source prefix integrity and 29 installed hashes independently verified. See
-  [native form evidence](validation/m3-native-workload-validation.md) for retained
-  failures/fixes, final reports and remaining limits. The owner approved committing/pushing this checkpoint to `main`; verify Git
-  for publication status.
+- Latest pushed checkpoint: `2c7607060ac989571e6eb0c43840e4fb28702d1b`
+  on `main`, GitHub `aidenjlee4321/HIDS_Project`: native execution forms and
+  background Audit grammar corrections; publication was owner-approved and remote
+  main verified. Prior rotation checkpoint `19e2bb1`, performance/soak `fc77ca5`.
+- Owner-approved checkpoint for commit/push: real filesystem-capacity, SQLite FULL race,
+  read-only mount rejection and recovery tests on a bounded private VM image.
+  All seven scoped VM phases passed, including 82 M3 + 40 workflow tests and
+  fresh native/parser/crash checks. Production code/thresholds and original host
+  state/source policy are unchanged. See [filesystem evidence](validation/m3-filesystem-validation.md)
+  for exact measurements, retained intermediate failure, mount cleanup and limits.
+  Owner approved commit/push to `main`; verify Git for publication status.
+- Published native checkpoint: eight successful variants and a rejected failed
+  attempt with explicit USER/health background traffic; strict execution validation
+  and EOE-only completion. Full live checkpoint passed all 17 phases, 79 M3 + 40
+  workflow tests, 26 native groups, 128 native contract cases, 124 allocation cuts,
+  11 API faults and 58 actual SIGKILL boundaries. [Native form evidence](validation/m3-native-workload-validation.md).
 - Rotation acceptance already passed both real signals, source inode/byte
   preservation, unchanged reader/generation and three known EOE-backed executions,
   including a writer stall. Full live checkpoint passed 17 phases; final component

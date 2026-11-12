@@ -1526,3 +1526,16 @@ USER-message/health-service traffic, strict execution-field validation, mixed-fa
 rejection and original source/policy restoration passed. See [native workload evidence](../../docs/validation/m3-native-workload-validation.md)
 for exact forms, source semantics, retained intermediate failures and remaining
 coverage limits. No arguments/context contents are added to normalized storage.
+
+
+## Real bounded filesystem failures
+
+An explicit private-mount VM experiment now verifies actual filesystem reserve
+pressure, a real SQLITE_FULL race after admission, atomic rollback/preserved B,
+interruption and late suppression for A, read-only startup rejection and explicit
+writable recovery. [Filesystem evidence](../../docs/validation/m3-filesystem-validation.md)
+records the 64 MiB image isolation, unprivileged writer, seven passing phases,
+retained harness failure, cleanup and limitations. This is storage-core evidence;
+it does not claim root control availability on a read-only mount or replace
+installed transport, hard-quota/device-fault or full release acceptance. Production
+code and all original HIDS/source history remain unchanged.

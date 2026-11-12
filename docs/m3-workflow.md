@@ -94,6 +94,20 @@ and guest require explicit live opt-in. It makes no source rotations and restore
 its exact temporary PID rule, plugin and RAW-format changes. The protected report
 records dispositions and metadata, never raw arguments. See [native form evidence](validation/m3-native-workload-validation.md).
 
+## Explicit bounded-filesystem experiment
+
+Use `--tier component --experiment filesystem` with the existing VM parameters.
+This runs offline/native checks, matched deployment and storage-core acceptance
+on a new 64 MiB ext4 image in a private mount namespace. It requires the VM's
+existing mount/unshare/loop/ext4 tools; no Mac setup or Audit-policy opt-in is
+needed. It never fills the main filesystem or uses original HIDS databases.
+The test checks real reserve pressure, an external fill after admission causing
+SQLITE_FULL, actual read-only startup rejection, explicit recovery and suppression.
+Protected images/reports remain; mounts and associated loop devices are removed.
+See [filesystem evidence](validation/m3-filesystem-validation.md), including the
+cold read-only startup/status limitation. This is separate from default checkpoint
+and does not claim hard user/project-quota or installed-transport acceptance.
+
 ## Build, deployment and cleanup
 
 The native cache key covers native source/header/test inputs, build recipe/artifact inventory,

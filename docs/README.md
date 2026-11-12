@@ -19,6 +19,7 @@ Historical validation records are retained.
 | File | Purpose |
 |---|---|
 | [current-state.md](current-state.md) | Compact current checkpoint, standing approvals, VM prerequisites and next work; start here when resuming |
+| [validation/m3-filesystem-validation.md](validation/m3-filesystem-validation.md) | Private bounded ext4: real reserve pressure, SQLITE_FULL rollback, read-only rejection, recovery and limits |
 | [validation/m3-native-workload-validation.md](validation/m3-native-workload-validation.md) | Real execution forms, quoted PROCTITLE and shared-stream native framing corrections, retained failures and scoped acceptance |
 | [validation/m3-rotation-validation.md](validation/m3-rotation-validation.md) | Real plugin-stream rotation, original source preservation, full regression and finite-retention limits |
 | [validation/m3-performance-validation.md](validation/m3-performance-validation.md) | Controlled safeguard cost, measured accounting optimization and longer-workload status |

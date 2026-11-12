@@ -412,6 +412,8 @@ def guest(args):
                 run.phase('rotation',[sys.executable,'-B','tests/integration/m3_rotation_ubuntu.py','--live-audit'],timeout=180)
             elif args.experiment=='native':
                 run.phase('native_workload',[sys.executable,'-B','tests/integration/m3_native_workload_ubuntu.py','--live-audit'],timeout=180)
+            elif args.experiment=='filesystem':
+                run.phase('filesystem',[sys.executable,'-B','tests/integration/m3_filesystem_ubuntu.py'],timeout=180)
             else:installed_tests(run,args,directory)
     except Exception as exc:error=str(exc)
     finally:
@@ -590,7 +592,7 @@ def main(argv=None):
         part.add_argument('--tier',choices=('component','checkpoint'),default='component')
         part.add_argument('--live-audit',action='store_true',help='Explicit lab scope: temporary Audit rule/plugin/report tests, restored afterward')
         part.add_argument('--lab-activation-budget',type=int)
-        part.add_argument('--experiment',choices=('acceptance','performance','soak','rotation','native'),default='acceptance')
+        part.add_argument('--experiment',choices=('acceptance','performance','soak','rotation','native','filesystem'),default='acceptance')
         part.add_argument('--events',type=int,default=4096)
         part.add_argument('--duration-seconds',type=int,default=7200)
         part.add_argument('--history-files',type=int,default=0)

@@ -127,6 +127,13 @@ broader native coverage and external source-retention guarantees remain open.
   See [native workload evidence](docs/validation/m3-native-workload-validation.md).
   This does not close all native grammar/workload or release gates.
 
+- [x] Exercise real bounded private-ext4 capacity and SQLite FULL after admission;
+  retain committed B, roll back A atomically, suppress A after explicit restart,
+  reject cold startup on a read-only mount and recover without auto-authorization.
+  See [filesystem evidence](docs/validation/m3-filesystem-validation.md). Root
+  status on read-only startup, installed transport under all VFS errors, hard
+  quotas/device faults and release storage thresholds remain separate gates.
+
 ## Open design decisions — require explicit resolution
 
 - [ ] Select root-only authentication; decide whether sudo-authorized administrators qualify.
