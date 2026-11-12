@@ -1550,3 +1550,15 @@ history/intervals remain unavailable and known storage metadata is still served.
 Actual private Service/root-client IPC passed under a real read-only mount. See
 [read-only status evidence](../../docs/validation/m3-readonly-status-validation.md)
 for exact scope, matching client validation, failures and recovery limits.
+
+
+## Actual per-user hard-quota denial
+
+The explicit quota scope now verifies actual EDQUOT and SQLite IOERR_WRITE while
+statvfs reports ample free space, atomic rollback/preserved B, interruption and
+late suppression for A after explicit quota release/restart. A root-only helper
+is fenced to one private loop image and five unsafe variants are refused with
+unchanged quota. See [quota evidence](../../docs/validation/m3-quota-validation.md)
+for precise ABI/helper/report identities, counts and limits. This is storage-core
+quota evidence; production code, installed service privileges, host quotas and all
+original HIDS/source history remain unchanged.

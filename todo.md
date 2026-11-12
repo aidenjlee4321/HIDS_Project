@@ -142,6 +142,13 @@ broader native coverage and external source-retention guarantees remain open.
   This supersedes the earlier cold read-only startup/status limitation within the
   tested scope; arbitrary corrupted storage and installed systemd VFS faults remain open.
 
+- [x] Verify real ext4 per-user EDQUOT and SQLite write failure with ample global
+  free space: preserve B, roll back A, explicit release/restart, interruption and
+  late suppression. Fence the root-only test helper to its private image and
+  reject unsafe devices/mounts/images/limits/backing inodes. [Quota evidence](docs/validation/m3-quota-validation.md).
+  Project/inode/grace-time quota variants, quota-aware proactive admission,
+  installed transport under this quota and broader VFS faults remain separate.
+
 ## Open design decisions — require explicit resolution
 
 - [ ] Select root-only authentication; decide whether sudo-authorized administrators qualify.

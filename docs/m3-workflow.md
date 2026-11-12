@@ -111,6 +111,19 @@ WAL-dependent history availability and restart requirements. See the later
 separate from default checkpoint
 and does not claim hard user/project-quota or installed-transport acceptance.
 
+## Explicit per-user hard-quota experiment
+
+Use `--tier component --experiment quota`. It runs offline/native checks, matched
+existing deployment, a fresh root-only quota-helper compile and actual UID quota
+failure/recovery on a new private 64 MiB ext4 image. It uses existing compiler,
+Linux quota ABI and loop/mount tools; no setquota package or Mac setup is needed.
+The helper fences the loop device to the exact private image and refuses five
+unsafe variants before testing EDQUOT. No host account-wide quota or source policy
+changes. No live Audit opt-in is required. Images/reports remain protected and
+mount/loop cleanup is verified. [Quota evidence](validation/m3-quota-validation.md)
+distinguishes real SQLite write errors from global free-space sampling, core
+storage acceptance from installed transport, and remaining quota variants.
+
 ## Build, deployment and cleanup
 
 The native cache key covers native source/header/test inputs, build recipe/artifact inventory,

@@ -19,6 +19,7 @@ Historical validation records are retained.
 | File | Purpose |
 |---|---|
 | [current-state.md](current-state.md) | Compact current checkpoint, standing approvals, VM prerequisites and next work; start here when resuming |
+| [validation/m3-quota-validation.md](validation/m3-quota-validation.md) | Real private-image UID quota denial, SQLite write rollback/recovery, privileged-helper fences and limits |
 | [validation/m3-readonly-status-validation.md](validation/m3-readonly-status-validation.md) | Root metadata status under read-only state, WAL availability, collection denial and explicit restart |
 | [validation/m3-filesystem-validation.md](validation/m3-filesystem-validation.md) | Private bounded ext4: real reserve pressure, SQLITE_FULL rollback, read-only rejection, recovery and limits |
 | [validation/m3-native-workload-validation.md](validation/m3-native-workload-validation.md) | Real execution forms, quoted PROCTITLE and shared-stream native framing corrections, retained failures and scoped acceptance |

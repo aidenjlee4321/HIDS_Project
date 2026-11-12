@@ -6,19 +6,23 @@ This summary does not override the owner, AGENTS.md or accepted decisions.
 
 ## Current checkpoint
 
-- Latest pushed checkpoint: `bfb4592eaa48763a8fde87504a1c70266e450030`
-  on `main`, GitHub `aidenjlee4321/HIDS_Project`: real filesystem capacity,
-  SQLite FULL and read-only recovery tests. Publication was approved and verified.
-  Prior native checkpoint `2c76070`, rotation `19e2bb1`, performance/soak `fc77ca5`.
-- Owner-approved checkpoint for commit/push: read-only startup root status. Existing private state keeps its
-  exclusive writer lock; collection/writes remain blocked. Readable SQLite history
-  uses mode=ro and honours WAL. If read-only WAL auxiliaries are unavailable,
-  root gets known metadata with interval/history explicitly unavailable, never
-  immutable journal bypass. Real private Service/root-client IPC passed read-only
-  status, activation/lease rejection, writable latching and explicit restart.
-  Focused: 87 M3 + 40 workflow tests. Full live regression passed all 17 phases.
-  [Read-only evidence](validation/m3-readonly-status-validation.md) records limits
-  and exact jobs. Owner approved commit/push to `main`; verify Git for publication status.
+- Latest pushed checkpoint: `f6c025995240cf7fdcb02c6fa7fdcdf79d92f29d`
+  on `main`, GitHub `aidenjlee4321/HIDS_Project`: read-only root metadata status,
+  WAL availability, blocked collection and explicit restart; publication approved
+  and remote main verified. Prior filesystem `bfb4592`, native `2c76070`, rotation
+  `19e2bb1`, performance/soak `fc77ca5`.
+- Owner-approved checkpoint for commit/push: genuine per-user hard quota on a fenced private ext4
+  image. Actual EDQUOT and SQLite write error preserve B, roll back pending A and
+  recover with interruption/late suppression. Five privileged-helper safety refusals
+  passed with unchanged quota. Eight scoped phases passed including 87 M3 + 40
+  workflow tests and fresh native/parser/crash checks. Production code is unchanged.
+  See [quota evidence](validation/m3-quota-validation.md) for exact jobs and limits;
+  final exact-error and independent policy/source/history/installation/cleanup
+  checks passed. All 355 original databases remain; owner approved commit/push to `main`.
+  Verify Git for publication status.
+- Published read-only checkpoint: readable history honours WAL; unavailable history
+  is not fabricated or opened immutable. Real private Service/root-client IPC and
+  all 17 installed live phases passed. [Read-only evidence](validation/m3-readonly-status-validation.md).
 - Published native checkpoint: eight successful variants and a rejected failed
   attempt with explicit USER/health background traffic; strict execution validation
   and EOE-only completion. Full live checkpoint passed all 17 phases, 79 M3 + 40
