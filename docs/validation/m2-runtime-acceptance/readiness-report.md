@@ -1,5 +1,11 @@
 # M2 runtime acceptance readiness gate
 
+Historical preparation/component record: the pending/unauthorized statements
+below describe that checkpoint. Later [owner-reported Ubuntu runtime acceptance](ubuntu-runtime-acceptance.md)
+supersedes its pending-execution status within that report's explicit limits.
+Preserve the original evidence; later live negative-control authorization remains
+unverified rather than being inferred from the runbook.
+
 This records preparation and offline validation only. No Ubuntu runtime acceptance,
 service startup, live journal access or new snapshot transfer was performed.
 The runtime exercise is **not yet cleared**: the Linux archival gate and owner

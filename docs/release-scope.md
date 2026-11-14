@@ -10,9 +10,11 @@
 
 Deliver a usable local HIDS by completing a small collection-to-dashboard pipeline
 before building complex analysis. Prior architecture and research provide the
-foundation; they do not establish implemented product coverage. A native C++
-process-source adapter and offline tests exist. Normalization/IPC integration,
-Python receipt, storage, detection and dashboard remain pending.
+foundation; they do not establish implemented product coverage. The repository now has scoped M1/M2 evidence, an implemented M3 plugin pipeline
+with accepted bounded integration closeout, and a tested synthetic M4 rule/alert/
+read-only-handoff path. The approved bounded M4 real import also passed; ongoing monitoring, supported security rules, complete product
+orchestration, dashboard and distribution remain unfinished. See
+[current state](current-state.md) for exact implementation/evidence boundaries.
 
 This document defines release boundaries and acceptance criteria. It does not
 implement features, authorize further code changes, promise release dates or
@@ -60,8 +62,10 @@ Missing sources are visibility limitations, not proof of absent activity. Do not
 require installation of auditd, new Audit rules, changed logging levels or PAM
 changes to satisfy this release. Keep per-adapter permissions justified; root-only
 human access does not mean a root browser or an all-root application. Authentication
-mechanism and sudo-administrator eligibility remain unresolved and must be decided
-before dashboard implementation; do not broaden access by assumption.
+mechanism and sudo-administrator eligibility are now accepted for the bounded
+D-12a/b/c implementation: explicit root/sudo sessions, unprivileged backend/browser
+and protected selected history. Production origin/certificate lifecycle and broader
+API scopes remain open; do not broaden access by assumption.
 
 ### First-run boundary
 

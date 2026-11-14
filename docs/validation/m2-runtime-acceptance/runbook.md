@@ -1,5 +1,11 @@
 # M2 temporary runtime acceptance — definitive console runbook
 
+Historical preparation/component record: the pending/unauthorized statements
+below describe that checkpoint. Later [owner-reported Ubuntu runtime acceptance](ubuntu-runtime-acceptance.md)
+supersedes its pending-execution status within that report's explicit limits.
+Preserve the original evidence; later live negative-control authorization remains
+unverified rather than being inferred from the runbook.
+
 **Prepared from repository inspection; not executed on Ubuntu.** This is a new
 runbook, not a recovered earlier artifact. Owner reports offline acceptance of
 `hids-src-20261108T012355Z-e520e3a020ed`: three phases, zero skips. Live acceptance

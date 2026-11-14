@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "synthetic": true,
+  "profile": "linux.audit.aarch64.string/1",
+  "source": "00000000-0000-4000-8000-000000000001",
+  "activation": "00000000-0000-4000-8000-000000000002",
+  "generation": "00000000-0000-4000-8000-000000000003",
+  "identity": "1.001:1",
+  "execution": {
+    "syscall": 221, "pid": 42, "ppid": 1,
+    "uid": 1000, "euid": 1000, "suid": 1000, "fsuid": 1000,
+    "auid": null, "session": null, "path_count": 1,
+    "success": true, "cwd_present": true, "proctitle_present": true,
+    "result": 0, "exe_base64": "L29wdC9oaWRzLWZpeHR1cmUvcHJvYmU=",
+    "comm_base64": "cHJvYmU="
+  }
+}

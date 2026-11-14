@@ -20,11 +20,11 @@ MANIFEST = 'SOURCE_MANIFEST.json'
 DIGEST = 'SOURCE_MANIFEST.sha256'
 METADATA = {MANIFEST, DIGEST}
 ROOTS = ('collector', 'engine', 'shared', 'tests', 'scripts', 'packaging', 'docs', 'rules', 'api', 'frontend')
-SUFFIXES = {'.cpp', '.hpp', '.h', '.py', '.sh', '.md', '.json', '.service', '.socket', '.timer', '.conf', '.MIT'}
-PACKAGING_ARTIFACTS = {'packaging/hids-audit-launcher'}
+SUFFIXES = {'.cpp', '.hpp', '.h', '.py', '.sh', '.md', '.json', '.service', '.socket', '.timer', '.conf', '.MIT', '.tsx', '.ts', '.css', '.html', '.txt', '.in'}
+PACKAGING_ARTIFACTS = {'packaging/hids-audit-launcher', 'packaging/hids-dashboard-access', 'packaging/hids-dashboard', 'packaging/hids-sources', 'packaging/hids-browser-prepare'}
 SANITIZED_FIXTURES = {'tests/fixtures/audit/structural-exec.log'}
 ROOT_FILES = {'AGENTS.md', 'todo.md', 'README.md', 'LICENSE', 'LICENSE.MIT'}
-EXCLUDED_DIRS = {'.git', '.venv', 'venv', 'node_modules', '__pycache__', 'build', 'dist'}
+EXCLUDED_DIRS = {'.git', '.venv', 'venv', 'node_modules', '__pycache__', 'build', 'dist', 'dist-history', 'dist-setup', 'dist-dashboard'}
 HEX = re.compile('[0-9a-f]{64}')
 NAME = re.compile('[A-Za-z0-9][A-Za-z0-9._-]{0,95}')
 

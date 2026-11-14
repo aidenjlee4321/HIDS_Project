@@ -123,8 +123,11 @@ def namespace(workspace,mount,parent_namespace,helper):
             send(outgoing,dict(command='quota_released'))
             stage=receive(incoming);assert stage['stage']=='recovered';evidence.append(stage)
         _,status=os.waitpid(child,0);child=None;assert status==0
+        os.close(filler);filler=None
+        from m3_quota_service_ubuntu import run_case
+        service_result=run_case(mount,image,device,helper)
         result=dict(result='passed',scope='private_ext4_actual_user_quota',image_bytes=SIZE,
-            writer_uid=account.pw_uid,helper_refusals=refusals,initial_quota=initial,limited_quota=limited,released_quota=released,stages=evidence)
+            service=service_result,writer_uid=account.pw_uid,helper_refusals=refusals,initial_quota=initial,limited_quota=limited,released_quota=released,stages=evidence)
         output=workspace/'report.json';output.write_text(json.dumps(result,sort_keys=True)+'\n');output.chmod(0o600)
         print('PASS: actual UID quota returns EDQUOT with free space; SQLite failure rolls back; B survives; A is interrupted/suppressed after explicit recovery',flush=True)
     finally:

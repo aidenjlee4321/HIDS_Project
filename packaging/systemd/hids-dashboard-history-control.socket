@@ -1,0 +1,12 @@
+[Unit]
+Description=HIDS history trial root authorization listener
+[Socket]
+ListenStream=/run/hids-dashboard-history/control.sock
+SocketUser=root
+SocketGroup=root
+SocketMode=0600
+DirectoryMode=0700
+FileDescriptorName=control
+Service=hids-dashboard-history.service
+Backlog=8
+RemoveOnStop=yes

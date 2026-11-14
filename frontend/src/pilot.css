@@ -1,0 +1,3 @@
+:root{font-family:system-ui,sans-serif;color:#e5e7eb;background:#101827;color-scheme:dark}body{margin:0}main{max-width:44rem;margin:10vh auto;padding:2rem}h1{font-size:2.2rem;font-weight:650}.eyebrow{color:#86b8f5;letter-spacing:.04em}.note{margin-top:3rem;color:#a4b1c5;font-size:.9rem}p{line-height:1.65;overflow-wrap:anywhere}button{font:inherit;background:#98c6ff;color:#102037;border:0;border-radius:.4rem;padding:.7rem 1.2rem;cursor:pointer}[role=status]{font-weight:700}
+
+.history-detail { white-space: pre-wrap; overflow-wrap: anywhere; }

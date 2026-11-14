@@ -17,8 +17,18 @@ Root-only human dashboard and security-data access remain required. First-run
 results, configuration, source diagnostics and history are security data protected
 by backend authorization. An ordinary browser need not run as root; Python stays
 unprivileged and C++ source permissions remain individually justified. Root-only
-authentication and sudo-administrator eligibility still need explicit design;
-localhost alone is not authentication.
+authorization now includes an explicit UID-0 HIDS action per new session,
+including OS-authorized sudo (owner D-12a, November 12, 2026). Group membership
+alone grants nothing. The [session mechanism](implementation/dashboard-session-mechanism-review.md)
+is accepted for a synthetic-only pilot, with
+[bounded acceptance](validation/dashboard-session-pilot.md). D-12c subsequently
+accepted the [bounded protected stored-history view](validation/m4-history-view-acceptance.md).
+Setup/control scopes and production origin/lifecycle remain separate gates;
+localhost alone is not authentication. [D-14a](implementation/first-run-control-review.md)
+is now accepted: remember choices, fresh root activation after collection-runtime
+restart, browser-staged drafts/root CLI control and stop before held-choice edits.
+[Bounded implementation acceptance](validation/first-run-acceptance.md) passed;
+that trial does not complete every source or the whole first-run product.
 
 The accepted [release scope](release-scope.md) and
 [ADR-007](decisions/007-initial-release-scope.md) remain in force: v0.1 has simple

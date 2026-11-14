@@ -79,12 +79,15 @@ class Guard:
             raise OSError('untrusted storage file')
         return max(info.st_size,info.st_blocks*512)
 
+    def _inventory(self):
+        return self.directory.iterdir()
+
     def observe(self,path=None,*,force=False):
         try:
             now=self.clock()
             if force or not self.scan_ok or self.last_scan is None or now-self.last_scan>=1:
                 files={}
-                for entry in self.directory.iterdir():
+                for entry in self._inventory():
                     size=self._file(entry)
                     if size is not None:files[entry]=size
                 self.files=files;self.total_bytes=sum(files.values())

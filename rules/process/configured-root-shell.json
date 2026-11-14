@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "id": "linux.audit.configured-root-shell",
+  "revision": "1",
+  "profile": "linux.audit.aarch64.string/1",
+  "demo": false,
+  "severity": "informational",
+  "required": ["exe_base64", "euid", "success"],
+  "all_of": [
+    {"field": "exe_base64", "eq": "L3Vzci9iaW4vZGFzaA=="},
+    {"field": "euid", "eq": 0},
+    {"field": "success", "eq": true}
+  ],
+  "explanation": "The configured shell executable was recorded with effective UID 0 and a successful execution result. Authorized administration and scripts can match."
+}

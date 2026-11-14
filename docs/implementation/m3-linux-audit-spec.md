@@ -1,6 +1,11 @@
 # M3 — Linux Audit execution monitoring decisions
 
-**Status:** Owner-approved plugin source and EOE-only completion. Implementation and acceptance are in progress.
+**Status:** Owner-approved plugin source and EOE-only completion; bounded M3 integration closeout accepted. Broader release acceptance remains open.
+
+See [finite closeout](m3-closeout.md) and [current state](../current-state.md) for
+latest scope. Historical file-tail decisions below remain superseded as specified
+in the current-source amendment; M4 is now implemented/tested with synthetic input
+only, with production storage/live activation still gated.
 
 **Prepared:** November 8, 2026\
 **Consolidated:** November 9, 2026 (master decisions and evidence/state-machine addendum; documentation only)

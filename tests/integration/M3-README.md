@@ -1562,3 +1562,23 @@ unchanged quota. See [quota evidence](../../docs/validation/m3-quota-validation.
 for precise ABI/helper/report identities, counts and limits. This is storage-core
 quota evidence; production code, installed service privileges, host quotas and all
 original HIDS/source history remain unchanged.
+
+
+## Finite closeout and Service quota transport
+
+The later quota extension also passed actual private Service/root-client and
+reader/backend IPC under the real account identities: no success ACK for the
+quota-denied acceptance, latched failure after quota release, denied new work and
+B-preserving/A-interrupting explicit restart. Final job `hids-m3-lab-5571cb8a78dc`
+passed eight scoped phases; independent source/policy/history/artifact/cleanup
+checks passed. See [the appended quota record](../../docs/validation/m3-quota-validation.md#service-ipc-extension-and-final-closeout-run).
+This extends the earlier direct-storage scope; it does not claim native parsing or
+all installed-systemd storage variants under quota.
+
+[The finite M3 closeout](../../docs/implementation/m3-closeout.md) proposes a bounded
+integration stopping point, preserving distribution/resource/release gates.
+[The M4 fixture contract](../../docs/implementation/m4-pilot-contract.md) was later
+accepted after the owner walkthrough; its isolated synthetic demo now passes
+[separate acceptance](../../docs/validation/m4-pilot-validation.md). Live detection
+is not enabled. No M3 production code, original history or host source policy
+changed for this quota extension.

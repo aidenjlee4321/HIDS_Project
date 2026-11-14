@@ -2,12 +2,13 @@
 
 **Document version:** 0.5  
 **Status:** Initial design baseline  
-**Last updated:** November 6, 2026  
+**Last updated:** November 11, 2026 (implementation-context reconciliation)\
 **Applies to:** Detection rules, security alerts, and alert investigation
 
-This document defines evidence/interpretation principles, not implemented alert
-behavior. The repository has a native process adapter and offline tests, not an
-integrated HIDS pipeline. [Release scope](release-scope.md) and
+This document defines evidence/interpretation principles. M3 now has scoped
+Ubuntu pipeline evidence; M4 has fixture alert tests and a passing bounded real
+import trial, with real security rules still disabled. See
+[current state](current-state.md) for those implementation boundaries. [Release scope](release-scope.md) and
 [ADR-007](decisions/007-initial-release-scope.md) distinguish v0.1 single-event
 traceability from v0.2 multi-event supporting evidence and correlation. The
 prohibition on numerical and automatic qualitative confidence scoring is unchanged.

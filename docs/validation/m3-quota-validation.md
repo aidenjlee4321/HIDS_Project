@@ -89,9 +89,9 @@ This is not a finalized distribution, bit-for-bit packaging or license approval.
 This verifies selected real ext4 UID quota denial, atomic storage-core behavior
 and explicit recovery while global free space remains available. It does not add
 quota discovery or quota-aware proactive admission to HIDS, configure production
-quotas, prove every quota filesystem/project/inode/grace-time variation, or run the
-installed collector/Service transport under this specific quota fault. Existing
-service storage-error handling has separate evidence. The storage exception remains
+quotas, prove every quota filesystem/project/inode/grace-time variation, or prove the installed native collector/systemd sandbox under this specific
+quota fault. The later Service IPC extension below covers private normalized
+peer transport, separately from native parsing and installed live-source tests. The storage exception remains
 an exception; no successful durable acceptance is invented while writes fail.
 
 Production code is unchanged from `f6c0259`; the prior 17-phase full live checkpoint
@@ -121,3 +121,49 @@ loop devices and temporary mounts are gone, and the private UID hard limit was
 restored to its original unlimited value. No global quota or source policy,
 production file, Mac setting/software/credential or original history changed.
 The owner approved committing/pushing this checkpoint to `aidenjlee4321/HIDS_Project` on `main`; verify Git for publication status.
+
+## Service IPC extension and final closeout run
+
+The later extension `tests/integration/m3_quota_service_ubuntu.py` is invoked by
+this same named quota scope after the direct-storage case. It uses the installed
+Runtime/Service modules, an actual unprivileged `hids-ingest` backend and
+`hids-audit` peer, protected real Unix sockets, root-owned control listener
+inherited by the backend, and the normal root client ownership/peer/framing checks.
+The synthetic normalized input is not a native collector execution test.
+
+B is accepted and acknowledged; EOE-backed A is registered but not yet accepted.
+After checkpointing committed pages, root applies the private image's UID quota.
+A's acceptance request receives EOF rather than any success acknowledgement.
+Root status reports `storage_failure`, a possible gap and disconnected/not-ready
+collection despite normal sampled free space (56,774,656 bytes). Activation and
+leases are denied. B remains the only accepted event. Releasing quota alone leaves
+the failure latched and activation denied. Explicit backend restart passes
+integrity_check, preserves B, marks A interrupted and denies an old lease without
+new authorization. Coordination hooks exist only in the test child; no production
+control operation was added. Root probe descriptors are closed before forking.
+
+The initial complete Service run passed `hids-m3-lab-aea84c878a77`, private
+`/root/hids-m3-quota.jcrrc_rp/report.json`. The final run after descriptor cleanup:
+
+- Job: `hids-m3-lab-5571cb8a78dc`.
+- Workflow report:
+  `/var/tmp/hids-m3-workflow/jobs/hids-m3-lab-5571cb8a78dc/run-20261112T010147Z-52bd1c95b1c9/report.json`.
+- Protected quota/Service report: `/root/hids-m3-quota.6g0gzlcs/report.json`.
+- Source snapshot SHA-256:
+  `fb193a787391ec2ce7dbe60016a88328c1d46e0e054d4137f541d974cc1cbd9d`.
+- All eight phases passed, 24.045 summed guest phase seconds; verified native cache
+  hit plus one fresh quota-helper compile. 87 M3 + 40 workflow tests, sanitizer
+  reconstruction, linked native contract, parser/allocation/API faults and 58
+  actual SIGKILL boundaries reran. Both direct-storage and Service quota cases passed.
+- Independent post-run inspection matched the original policy/plugins/rules,
+  all four original source inode/byte prefixes, 29 installed hashes, original
+  configuration/512 budget and protected state permissions. All 355 original
+  databases remain. Audit is active; all four M3/checker units are inactive.
+  Quota test directories/images/reports remain root-private, no associated loop
+  devices or temporary quota mounts/endpoints remain. No original evidence was removed.
+
+These test/documentation changes remain uncommitted pending specific publication
+approval. The earlier `d921a2b` direct-storage checkpoint is published. See the
+[finite closeout](../implementation/m3-closeout.md) for bounded M4 entry versus
+preserved release requirements. No production module changed for this extension;
+the 17-phase full live checkpoint on `f6c0259` remains applicable to that code.

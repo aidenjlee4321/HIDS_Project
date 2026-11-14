@@ -1,5 +1,10 @@
 # M2 offline component validation
 
+This readme preserves the original offline scope and commands. Later
+[owner-reported Ubuntu runtime acceptance](../../docs/validation/m2-runtime-acceptance/ubuntu-runtime-acceptance.md)
+records execution/cleanup with its own limits; the original pending-deployment
+wording below is historical, not a revocation of later authorization.
+
 Scope is the [approved M2 specification](../../docs/implementation/m2-journald-spec.md).
 Production lifecycle entry points are now wired; **deployment and Ubuntu/live
 acceptance remain unauthorized and unverified**.

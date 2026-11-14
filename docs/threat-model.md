@@ -2,7 +2,7 @@
 
 **Document version:** 0.4.0  
 **Status:** Initial threat-model baseline  
-**Last updated:** November 7, 2026  
+**Last updated:** November 11, 2026 (scoped implementation reconciliation)\
 **Target platform:** Ubuntu 26.04 LTS
 
 ## 1. Purpose
@@ -11,8 +11,22 @@ This document records the initial security assumptions, trust boundaries, privil
 
 The HIDS is a security application, so its own architecture must avoid introducing unnecessary security risks.
 
-These are requirements and design assumptions, not implemented protections. The repository includes temporary research tools and a narrow native C++ process
-adapter with offline tests; integrated HIDS protection remains unimplemented. This is an initial baseline, not a complete threat analysis. Detailed attacker capabilities, attack trees, and risk ratings remain to be developed.
+This model combines requirements with scoped implemented protections. M3 now has
+actual Ubuntu evidence for separated reader/backend identities, authenticated IPC,
+root activation, bounded parsing, durable storage/recovery and a separate checker.
+M4 has read-only source access, a private destination and backend-identity
+sandbox evidence, followed by an approved bounded 16-event real import trial. [Current state](current-state.md) and linked
+validation records distinguish those scopes from the unfinished product/API/UI.
+This is not a complete threat analysis; detailed attacker capabilities, attack
+trees and risk ratings remain to be developed.
+
+The checker's CAP_AUDIT_CONTROL is broader than its fixed query and remains a
+residual risk. The M4 worker shares the backend UID: direct-path read-only sandbox
+tests do not establish protection from compromised same-UID/root processes or
+shared CPU/storage interference. Base64 exe/comm is sensitive retained data, not
+encryption. M4 has since passed the approved bounded real-data import/storage trial;
+unattended monitoring, supported security rules and dashboard authentication
+remain gated. See [real-data evidence](validation/m4-real-data-trial.md).
 
 ## 2. Product Security Scope
 
@@ -187,7 +201,16 @@ This includes:
 
 Multiple-user access is explicitly outside the scope of the initial release.
 
-The precise definition of root-only access must be settled before authentication is implemented. In particular, the project must decide whether access means the root account (UID 0) exclusively or also includes users authorized through `sudo`. Ordinary local users must not receive access by default.
+**Owner decision D-12a, November 12, 2026:** each new dashboard session may be
+authorized by an explicit HIDS access action executed as UID 0, including through
+OS-authorized `sudo`. Ordinary local access, administrator-group membership and
+prior sessions grant no automatic access. This does not prove the initiating
+human identity or require a fresh password prompt when OS sudo policy permits
+cached authorization. No sudo/PAM policy change is implied. The
+[accepted eligibility record](implementation/dashboard-access-eligibility-review.md)
+and separately accepted [synthetic-only mechanism](implementation/dashboard-session-mechanism-review.md)
+now have [bounded acceptance evidence](validation/dashboard-session-pilot.md).
+Real-data routes and production origin trust still require review before exposure.
 
 ### 7.2 Database and file protection
 
@@ -217,7 +240,17 @@ Requirements:
 - Localhost-only network binding must not be treated as sufficient authentication.
 - Authentication failures must not reveal sensitive information.
 
-The exact authentication mechanism remains undecided and must be specified before dashboard implementation.
+D-12a/D-12b define the accepted root/sudo synthetic session mechanism; its bounded
+acceptance alone does not authorize real-data exposure. Owner-accepted
+[D-12c](implementation/m4-history-view-review.md) separately authorizes a bounded,
+frozen view of selected retained data over verified HTTPS, with direct peer trust
+in an isolated ordinary-user Chromium HOME/NSS/user-data environment.
+[Acceptance](validation/m4-history-view-acceptance.md) verified per-route history
+scope, read-only mounts, closed database before serving, lossless/text-only detail,
+logout/stale-response handling, TLS negatives and production preservation. No CA,
+normal-profile trust, collection or unattended deployment follows authentication.
+The ordinary browser/account and backend UID remain entrusted; same-UID malware,
+root/backend/browser compromise and previously copied data are outside this claim.
 
 ### 7.4 Independent process observation
 

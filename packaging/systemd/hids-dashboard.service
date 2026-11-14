@@ -1,0 +1,37 @@
+[Unit]
+Description=HIDS frozen stored dashboard
+Requires=hids-dashboard-http.socket hids-dashboard-control.socket
+After=hids-dashboard-http.socket hids-dashboard-control.socket
+[Service]
+Type=simple
+User=hids-ingest
+Group=hids-ingest
+SupplementaryGroups=
+WorkingDirectory=/opt/hids-dashboard/code
+ExecStart=/opt/hids-dashboard/venv/bin/python3 -I -B -c 'import sys; sys.path.insert(0,"/opt/hids-dashboard/code"); from api.dashboard_service import main; raise SystemExit(main())'
+Sockets=hids-dashboard-http.socket hids-dashboard-control.socket
+Restart=no
+RuntimeMaxSec=35min
+TimeoutStopSec=8
+KillMode=control-group
+UMask=0077
+LimitCORE=0
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET
+TemporaryFileSystem=/var/lib/hids:ro /etc/hids:ro
+BindReadOnlyPaths=-/var/lib/hids/m4/store -/var/lib/hids/process /etc/hids/dashboard.json /etc/hids/dashboard-tls
+InaccessiblePaths=-/run/hids/m3
+MemoryMax=256M
+TasksMax=32
+StandardOutput=null
+StandardError=journal

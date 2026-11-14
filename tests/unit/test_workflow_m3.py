@@ -42,6 +42,17 @@ class M3WorkflowTests(unittest.TestCase):
         self.assertEqual(set(manifest['files']),{'packaging/systemd/hids-m3-health.timer','packaging/hids-audit-launcher',
                                               'tests/fixtures/audit/structural-exec.log'})
 
+    def test_snapshot_includes_pilot_build_inputs_without_generated_outputs(self):
+        repo=self.root/'repo';repo.mkdir()
+        wanted={'frontend/src/pilot.tsx','frontend/src/pilot.css','frontend/index.html',
+                'frontend/tsconfig.json','frontend/package-lock.json','api/requirements-pilot.txt',
+                'api/requirements-pilot.in','packaging/hids-dashboard-access'}
+        for name in wanted | {'frontend/node_modules/private.js','frontend/dist/output.js'}:
+            path=repo/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('synthetic\n')
+        path,sha,_=dev.create_snapshot(repo,self.root/'state','pilot')
+        manifest,_=dev.verify(path,sha)
+        self.assertEqual(set(manifest['files']),wanted)
+
     def test_archive_omits_host_clock_and_identity_metadata(self):
         import tarfile
         info=tarfile.TarInfo('synthetic');info.mtime=2**32;info.uid=501;info.uname='host-user'

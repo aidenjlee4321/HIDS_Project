@@ -1,0 +1,23 @@
+{
+  "name": "hids-synthetic-session-pilot",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "test": "node --test ../tests/frontend/test_session_client.ts",
+    "build:history": "tsc --noEmit && vite build --config vite.history.config.ts",
+    "build:setup": "tsc --noEmit && vite build --config vite.setup.config.ts",
+    "build:dashboard": "tsc --noEmit && vite build --config vite.dashboard.config.ts"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0"
+  }
+}

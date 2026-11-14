@@ -17,7 +17,11 @@ configure audit rules during installation. Throughout the initial release, HIDS 
 Privilege separation remains accepted: root-only human access to the initial
 dashboard and security data is distinct from service privileges. Python remains
 an unprivileged service account; collector permissions are evaluated per adapter.
-Authentication and whether sudo-authorized administrators qualify remain open.
+**November 12 amendment:** D-12a accepts explicit UID-0 authorization per session,
+including OS-authorized sudo; group membership alone grants nothing. D-12b
+separately accepts the [synthetic-only session pilot](../implementation/dashboard-session-mechanism-review.md),
+now tested. Real-data routes and production origin trust remain subject to review.
+[Executed scope](../validation/dashboard-session-pilot.md).
 
 ## Decision (current)
 

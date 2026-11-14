@@ -1,0 +1,12 @@
+[Unit]
+Description=HIDS synthetic dashboard pilot root authorization listener
+[Socket]
+ListenStream=/run/hids-dashboard-pilot/control.sock
+SocketUser=root
+SocketGroup=root
+SocketMode=0600
+DirectoryMode=0700
+FileDescriptorName=control
+Service=hids-dashboard-pilot.service
+Backlog=8
+RemoveOnStop=yes

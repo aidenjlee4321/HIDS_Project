@@ -1,0 +1,31 @@
+[Unit]
+Description=HIDS private process event backend
+[Service]
+Type=simple
+User=hids-ingest
+Group=hids-ingest
+ExecStart=/usr/bin/python3 -I -B -c 'import sys; sys.path.insert(0,"/opt/hids-process-pipeline/code"); from engine.ingestion.process_backend import main; raise SystemExit(main())' /run/hids/process-backend/current.json
+Sockets=hids-process-backend.socket
+RestrictAddressFamilies=AF_UNIX
+InaccessiblePaths=-/var/lib/hids/m3 -/var/lib/hids/m4 -/run/hids/m3 -/etc/hids
+ReadWritePaths=/var/lib/hids/process /run/hids/process-backend
+Restart=no
+UMask=0077
+LimitCORE=0
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SupplementaryGroups=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+TimeoutStopSec=8
+MemoryMax=128M
+TasksMax=8
+StandardOutput=null
+StandardError=null

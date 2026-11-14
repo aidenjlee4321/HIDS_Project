@@ -1,5 +1,10 @@
 # M2 journald implementation specification
 
+Original fixture authorization and proposals are preserved below. Later lifecycle
+implementation and [owner-reported runtime acceptance](../validation/m2-runtime-acceptance/ubuntu-runtime-acceptance.md)
+record subsequent scope. The original no-live-authorization header applies to its
+checkpoint; it does not override later explicit owner approvals.
+
 **Status:** Owner-approved for fixture-based M2 implementation; deployment/live acceptance not authorized
 **Recorded:** November 7, 2026
 **Scope:** One local SSH-journal source → C++ → Unix stream/JSON Lines → independent Python validation → Python-owned SQLite/retrieval

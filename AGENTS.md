@@ -1,6 +1,122 @@
 # Repository guidance
 
+Current update: the first informational rule and v2 migration are approved and
+implemented; bounded acceptance and post-cleanup independent preservation checks
+passed. No missing HIDS state was identified. Read [the incident and observed results](docs/validation/m4-first-rule-acceptance.md)
+for the current state and correction of the earlier VM identity concern.
+
+D-12a/D-12b now accept explicit root/sudo authorization and the synthetic-only
+session pilot. Its root/backend/ordinary-browser/expiry acceptance passed.
+D-12c separately authorizes the bounded retained-history surface below; broader
+security-data HTTP remains outside that trial. See [pilot evidence](docs/validation/dashboard-session-pilot.md)
+and [build workflow](api/README.md). No default enablement, persistent grant or
+collection follows authentication.
+
+Review follow-up: UI stale-response/timer fixes and bounded SQLite value guards
+passed synthetic/component/browser regressions. Firefox rejected peer-only leaf trust. Owner-authorized comparison subsequently
+proved sandboxed Chromium direct-leaf TLS and the actual synthetic HTTPS dashboard
+flow; [evidence/isolation limits](docs/validation/no-ca-browser-comparison.md).
+Firefox is optional; a CA is not needed for that tested path. Keep Chromium HOME/NSS
+and user-data isolated. Owner D-12c is now accepted for its exact bounded, frozen read-only history
+trial, including the existing two bindings, fields, budgets and isolated Chromium
+direct-leaf HTTPS path. Collection stays stopped. CA trust remains unapproved.
+Implement and verify synthetic gates before the real trial; do not infer broader
+collection, deployment or write authority. The first protected history view is now
+implemented and passed synthetic/real Linux 2 acceptance: 19 events, one finding,
+16 old events still unevaluated. All activations are stopped.
+[History evidence and remaining gates](docs/validation/m4-history-view-acceptance.md).
+
+Owner D-14a now accepts remembered source choices, fresh root/sudo activation
+after restart, browser-staged drafts with root CLI confirmation/start/stop, and
+confirmed stop before active-selection edits in the first build. Implement the
+[bounded first-run contract](docs/implementation/first-run-control-review.md),
+synthetic gates before actual trial. No CA, OS logging changes, unattended source
+restart, general cn_proc/journal live authorization or Git publication is implied. The
+bounded setup implementation/real empty-selection acceptance now passed; saved
+preferences were empty at revision 2 at that checkpoint. The newer process
+pipeline evidence below records revision 6; no source is active. [Evidence and remaining source gates](docs/validation/first-run-acceptance.md).
+The rotation-aware lab guard preserves exact original inodes and prefix hashes;
+it is never a product preflight function.
+
+The owner subsequently approved one [intended-account cn_proc trial](docs/implementation/process-adapter-trial-review.md).
+It passed with the dedicated zero-capability `hids-process` identity and owned-child
+fork/exec/exit only; [limits and preservation](docs/validation/process-adapter-live-trial.md).
+No ACK was observed; IGNORE completion remains unconfirmed. That trial installed no process service. Its authority alone did not grant
+general process retention, normalized IPC/storage or setup eligibility; the
+separate C-01–04 approval below does. The next owner priority is the
+first installable Ubuntu build, then reassessment before extras.
+
+Owner subsequently approved the [live process pipeline contract](docs/implementation/process-live-pipeline-review.md),
+C-01–04: explicit selected-source lifecycle retention, the exact versioned native/
+ECS-based subset, stable retry IDs, absent wall activity time and a separate bounded
+private store. Implementation and synthetic/installed acceptance are authorized;
+this does not authorize new enrichment, rule meanings, broader HTTP/TLS scopes,
+automatic deletion/restart or Git publication. The earlier one-shot-only limit
+above describes that historical trial, not a veto of this later approval.
+
+The bounded installed process pipeline now passed actual root confirmation,
+separate zero-capability services, owned-child fork/exec/exit → private SQLite,
+scoped stop and no-grant restart refusal. [Evidence and limits](docs/validation/process-pipeline-acceptance.md).
+All services retain RestrictSUIDSGID; the coordinator is reduced to CAP_CHOWN.
+The VM interruption/restart preserved three process events, all old M3/M4 state
+and empty saved preferences at revision 6. Additional failure/boot-directory
+corrections passed the final 83-test checkpoint and stopped update. C-01–04 alone
+does not authorize process HTTP/UI or production access lifecycle; the later
+P-01–P-04 authorization below governs those additions.
+
+Owner then directed continuation after the [P-01–P-04 dashboard review](docs/implementation/first-build-dashboard-review.md)
+request: a closed dashboard:read view of approved stored fields, bounded frozen
+process/M4 presentation, explicit-root local leaf lifecycle and local development
+packaging. Existing tokens do not gain new scopes. No new source/rule meanings,
+CA, global browser trust, automatic collection/deletion or Mac system changes are
+included. Synthetic gates precede actual stored-data/browser/install acceptance.
+
+
+The first local installable development checkpoint now passed P-01–P-04. See
+[final evidence and limits](docs/validation/combined-dashboard-acceptance.md) and
+[operator guide](packaging/DEVELOPMENT.md). The final Ubuntu arm64 `.6` artifact
+passed 161 Python/24 client tests, actual retained-data/browser/explicit-root
+launch, leaf renewal, external browser preparation and independent copy-on-write
+installation/restart/version-upgrade/downgrade-refusal acceptance. This is not a
+fresh full-VM boot test or full v0.1 release. Fresh installs have process Activity,
+not a new process detector; optional M4 presentation requires existing history.
+All sources are stopped and old state preserved. The owner requested reassessment
+at this first installable checkpoint; do not start extras or infer new source/rule
+meanings, publication or Mac system authority. The immutable artifact source and
+newer handoff documentation are distinguished in the evidence record.
+
 ## Purpose and current state
+
+Current user-trial checkpoint: `.15` is installed normally on Linux 2 after an
+explicit archived manual-install transition. Loader review, closed-store guards,
+native owned-child retention, packaged/browser/restart/upgrade and independent
+preservation passed. Six process records now exist (three old plus three new),
+old M3/M4 remain intact, choices are empty at revision 8, and all sources/viewer
+are stopped. The desktop `HIDS First Build` folder is ready for the owner.
+[Trial guide](docs/USER_TRIAL.md) and [evidence](docs/validation/first-build-ready.md).
+Do not infer a full v0.1 release or start extras before the requested user trial.
+Git publication remains separately gated.
+
+The preceding verification added actual synthetic HTTPS session expiry/revocation
+and concurrent redemption to the named development workflow (13 phases). Copilot
+and independent transport checks found no concrete runtime defect; `.14` remained
+the artifact at that checkpoint. [Evidence and limits](docs/validation/dashboard-session-transport.md).
+
+The preceding `.14` maintenance checkpoint added exact pending-grant cancellation
+and live invocation-bound process Stop, with source-free root/systemd acceptance
+and Copilot follow-up. See [source control evidence](docs/validation/source-control-safety.md)
+and [internal metadata compatibility](docs/implementation/source-control-status.md).
+The preceding `.13` TLS staging retains its
+[permission/fault evidence](docs/validation/tls-staging-safety.md).
+The earlier atomic dashboard publication retains its
+[installed process-kill/retry evidence](docs/validation/dashboard-publication-safety.md).
+The preceding interruption/owned-child and temporary-policy cleanup retains its
+[source-free systemd/Chromium acceptance](docs/validation/dashboard-cleanup-safety.md).
+
+The later `.9` development-build review fixes and installed configuration
+interruption/retry checks are recorded in
+[upgrade safety](docs/validation/installer-upgrade-crash-safety.md). They preserve
+the existing first-build scope and add no source/rule/publication authority.
 
 Build a functional, local-first Host-Based Intrusion Detection System for an
 individual's computer, initially supporting **Ubuntu 26.04 LTS only**, with a local
@@ -14,15 +130,23 @@ limits and a separate metadata health checker. See the chronological evidence an
 current limits in [M3 verification](tests/integration/M3-README.md). Tests of selected
 paths do not establish complete native coverage, continuous monitoring or release
 readiness. Proactive storage admission, distinct event metadata and bounded root rejection
-diagnostics are implemented; broader workloads, hard filesystem quotas, release
-thresholds, reproducible distribution and other acceptance gates remain open.
+diagnostics are implemented. Selected real filesystem-full/read-only and per-user
+quota paths passed; other quota/VFS variants, broader workloads, release thresholds
+and reproducible distribution remain open. The owner accepted M3's bounded
+integration closeout and the M4 fixture/read-only-handoff direction. The synthetic
+M4 implementation passed synthetic/backend sandbox checks. The owner subsequently
+approved the exact storage/budget/bounded real-data scope: 53 M4 tests, 87 M3
+regressions and the 16-event real import trial passed with restoration. The worker
+is stopped and real rules remain disabled. Unattended operation, supported security
+rules and release gates remain open. See current-state for exact evidence.
 
 M1/M2 validation remains separate: consult [M1 validation](docs/validation/m1-pilot-validation.md),
 [M2 lifecycle validation](docs/validation/m2-lifecycle-validation.md) and their test
 readmes before claiming those milestones complete. The process adapter's own
 [Ubuntu validation](docs/validation/collector-ubuntu-validation.md) is distinct from
-M3 Audit execution. A usable dashboard, detection rules and completed product
-packaging are still later work. Do not describe planned behavior as implemented
+M3 Audit execution. M4 has a tested synthetic demo path, one approved informational
+rule and a bounded protected stored-history view. Broad rule coverage, the complete
+monitoring dashboard and product packaging remain later work. Do not describe planned behavior as implemented
 or treat a passing test count as proof of all milestone requirements.
 
 ## Decision authority and reading order
@@ -65,7 +189,7 @@ FastAPI → local dashboard.
 | `api/` | FastAPI routes and API schemas; initially modules within the Python service |
 | `frontend/` | React + TypeScript dashboard, Vite tooling, SSE for initial live updates |
 | `shared/schemas/` | Planned shared, versioned event contracts and schema fixtures |
-| `packaging/` | M2/M3 systemd/configuration artifacts; complete Debian packaging remains planned |
+| `packaging/` | M2/M3 systemd/configuration and local development Debian packaging; distribution release gates remain open |
 | `tests/` | Native/Python unit and integration suites, sanitized fixtures and explicit Ubuntu acceptance harnesses; detection coverage remains planned |
 | `docs/` | Architecture, security requirements, schema work, evidence policy, and ADRs |
 
@@ -138,6 +262,12 @@ actual acceptance thresholds established after measurement, not invented budgets
   privilege separation: this does not require a root browser or root backend.
   Python runs as an unprivileged service account with necessary data access;
   collector privileges must be justified per adapter. Do not run everything as root.
+- Owner D-12a (November 12, 2026) permits explicit UID-0 authorization, including
+  OS-authorized sudo, for each new dashboard session. Group membership alone
+  grants no access. D-12b is now accepted for the documented synthetic-only
+  session pilot. D-12c separately accepts the documented frozen selected-history
+  HTTPS trial; do not extend it to live collection, unrestricted records, new
+  scopes or deployment. Every history route independently requires history:read.
 - Bind the API to localhost. Localhost is not authentication: enforce backend
   authentication and authorization on sensitive endpoints, with Host/Origin
   validation and appropriate CSRF protection. Expose no arbitrary shell, SQL, or
@@ -226,12 +356,14 @@ and network coverage require further design or source validation.
 M3 now has tested choices for Audit plugin integration, reader/backend identities,
 scoped IPC, current-tail authorization, bounded assembly and interruption recovery.
 Consult the M3 specification and executed evidence before reopening those decisions.
-Broader source coverage, system-wide isolation/availability guarantees, hard filesystem quotas and broader disk safeguards, release thresholds, general schema compatibility, reproducible
+Broader source coverage, system-wide isolation/availability guarantees, additional quota/VFS variants and disk safeguards, release thresholds, general schema compatibility, reproducible
 packaging, production asset serving, missing/unreliable activity times for other
 sources, and encryption/key management remain open. A tested M3 component does not
 settle these questions for every source or for the whole application.
-Root-only authentication must be designed before dashboard implementation;
-whether sudo-authorized administrators qualify alongside UID 0 is explicitly open.
+D-12a accepts explicit root/sudo authorization per session; D-12b accepts the
+synthetic pilot. D-12c separately accepts the bounded frozen selected-history
+HTTPS view, which passed its trial. Broader real-data routes, setup/control scopes
+and production origin/lifecycle still need their own review.
 Do not broaden access by assumption. AI assistance, remote monitoring/evidence,
 additional distributions, eBPF, ML, and YARA are future possibilities.
 
@@ -251,6 +383,14 @@ repository state or newer owner approvals, reconcile the specific stale statemen
 without weakening accepted architecture, privacy or evidence requirements.
 
 ## Working constraints
+
+The owner requested Copilot collaboration and authorized continued build review.
+Use the [bounded Copilot review workflow](docs/implementation/copilot-collaboration.md)
+for focused selected-source reviews when useful. No model tools, native security
+records, credentials, direct implementation authority or Git publication authority
+are delegated. Independently verify findings and use focused checks before a new
+artifact. Latest review/fix evidence is in
+[the build follow-up](docs/validation/copilot-build-followup.md).
 
 Prefer understandable, maintainable implementations and small, justified changes.
 Research instead of guessing; preserve historical reasoning and user work. The

@@ -1,5 +1,13 @@
 # HIDS Documentation
 
+First-build user trial: [instructions](USER_TRIAL.md) and
+[final packaged/installed acceptance](validation/first-build-ready.md).
+
+Current update: the first informational rule and v2 migration are approved and
+implemented; bounded acceptance and post-cleanup independent preservation checks
+passed. No missing HIDS state was identified. Read [the incident and observed results](validation/m4-first-rule-acceptance.md)
+for the current state and correction of the earlier VM identity concern.
+
 HIDS is the working name for a lightweight, local-first Linux Endpoint Security
 Platform, initially targeting Ubuntu 26.04 LTS. The
 [architecture](architecture.md#1-project-overview) records its intended monitoring,
@@ -7,8 +15,9 @@ assessment, detection engineering, investigation and eventual controlled-hardeni
 capabilities, CIS/ATT&CK/SSDF alignment and lightweight design principles.
 
 The owner reports M1 synthetic-pipeline Ubuntu acceptance passed; M2 has separate
-component/lifecycle/runtime validation records. Current approved work is M3 Audit
-execution. Its [verification record](../tests/integration/M3-README.md) documents
+component/lifecycle/runtime validation records. M3 has reached its bounded integration closeout; current M4 work is a tested
+synthetic pilot and read-only handoff, followed by an approved, passing bounded real-data import trial.
+Start with [current state](current-state.md). The M3 [verification record](../tests/integration/M3-README.md) documents
 implemented behavior, installed Ubuntu tests, and open acceptance gates. The
 [roadmap](implementation/v0.1-implementation-plan.md#l-implementation-milestones)
 remains the milestone plan; a working M3 component is not a completed release.
@@ -18,8 +27,38 @@ Historical validation records are retained.
 
 | File | Purpose |
 |---|---|
+| [validation/documentation-review.md](validation/documentation-review.md) | Repository-wide consistency/link review, corrected stale summaries and preserved historical evidence |
+| [implementation/m4-production-review.md](implementation/m4-production-review.md) | Approved storage/copy policy and bounded real-data scope; trial evidence linked |
 | [current-state.md](current-state.md) | Compact current checkpoint, standing approvals, VM prerequisites and next work; start here when resuming |
-| [validation/m3-quota-validation.md](validation/m3-quota-validation.md) | Real private-image UID quota denial, SQLite write rollback/recovery, privileged-helper fences and limits |
+| [implementation/m3-closeout.md](implementation/m3-closeout.md) | Finite M3 integration evidence, preserved release gates and accepted fixture M4 entry |
+| [implementation/m4-pilot-contract.md](implementation/m4-pilot-contract.md) | Approved fixture-only one-event/rule/alert semantics; production contract remains open |
+| [implementation/m4-handoff-contract.md](implementation/m4-handoff-contract.md) | Accepted handoff direction; implemented synthetic adapter/worker, preserved production approval gates |
+| [implementation/m4-first-rule-review.md](implementation/m4-first-rule-review.md) | Proposed opt-in informational root-shell condition, minimal history-preserving schema upgrade and explicit activation semantics |
+| [validation/m4-first-rule-proposal.md](validation/m4-first-rule-proposal.md) | Existing real-data aggregates, 15 test-only semantic/migration cases, crash/backup evidence and unchanged live store |
+| [validation/m4-recovery-contention.md](validation/m4-recovery-contention.md) | V2 process-crash boundaries, SQLite busy/full retry, WAL visibility and independent preservation |
+| [validation/m4-ipc-contention.md](validation/m4-ipc-contention.md) | Installed Service/peer IPC ACKs beside sandboxed M4 contention, measured observations and VM identity guard |
+| [validation/m4-continuous-polling.md](validation/m4-continuous-polling.md) | Actual bounded scheduler idle/burst observations, held-reader checkpoint/reclamation and restart |
+| [validation/m4-filesystem-failures.md](validation/m4-filesystem-failures.md) | Real private-image critical-space/FULL rollback, pending-finding retry, readonly startup and fenced cleanup |
+| [validation/m4-budget-admission.md](validation/m4-budget-admission.md) | Runtime backup-accounting fix, actual WAL/state refusal/recovery and 96 M4 + 87 M3 regressions |
+| [validation/m4-binding-isolation.md](validation/m4-binding-isolation.md) | Actual sandbox failure isolation, per-binding backoff, paginated healthy progress and recovery |
+| [implementation/m4-acceptance-review.md](implementation/m4-acceptance-review.md) | Bounded backend evidence matrix and preserved release/access gates |
+| [implementation/dashboard-access-eligibility-review.md](implementation/dashboard-access-eligibility-review.md) | Accepted D-12a explicit root/sudo dashboard eligibility; D-12c separately scopes retained-history access |
+| [implementation/dashboard-session-mechanism-review.md](implementation/dashboard-session-mechanism-review.md) | Accepted D-12b one-use bootstrap/tab session; synthetic-only implementation and threat boundary |
+| [validation/no-ca-browser-comparison.md](validation/no-ca-browser-comparison.md) | Sandboxed Chromium direct-leaf trust and actual synthetic HTTPS authorization; no CA or real data |
+| [validation/dashboard-security-fixes.md](validation/dashboard-security-fixes.md) | Implemented UI/size fixes, real browser race and exact TLS blocker evidence |
+| [implementation/dashboard-ca-trust-amendment.md](implementation/dashboard-ca-trust-amendment.md) | Proposed replacement for unsupported Firefox leaf-peer trust; new profile only |
+| [validation/first-run-acceptance.md](validation/first-run-acceptance.md) | Actual setup/draft/root-terminal implementation, crash/VFS/peer/M3-control tests, real empty preferences and preserved-state cleanup |
+| [validation/first-run-design-validation.md](validation/first-run-design-validation.md) | Thirty synthetic D-14a model tests and current VM metadata; no production setup implementation |
+| [implementation/first-run-control-review.md](implementation/first-run-control-review.md) | Accepted D-14a remembered choices/fresh root activation, browser drafts/root CLI controls and bounded implementation contract |
+| [implementation/m4-history-view-review.md](implementation/m4-history-view-review.md) | Accepted D-12c bounded direct-leaf HTTPS, frozen selected records/pages/budgets and trial contract |
+| [validation/m4-history-view-acceptance.md](validation/m4-history-view-acceptance.md) | Protected selected-history implementation, synthetic/real browser acceptance and independent preservation |
+| [validation/dashboard-session-pilot.md](validation/dashboard-session-pilot.md) | Actual root/backend/browser pilot, expiry, failures/fixes and preserved-state evidence |
+| [../api/README.md](../api/README.md) | Separate synthetic/history APIs, pinned private VM builds and explicit bounded acceptance workflows |
+| [validation/m4-real-data-trial.md](validation/m4-real-data-trial.md) | 53-test M4 / 87-test M3 pass, fixed-path sandbox, 16 actual executions imported, preservation/restoration and next detection gate |
+| [validation/m4-handoff-implementation-validation.md](validation/m4-handoff-implementation-validation.md) | 19 adapter cases, 49-test M4 / 87-test M3 pass, actual backend sandbox, late-commit recovery and remaining live gates |
+| [validation/m4-handoff-design-validation.md](validation/m4-handoff-design-validation.md) | Seven synthetic ordering cases, Ubuntu 30-test M4 / 87-test M3 pass and honest local low-space failure |
+| [validation/m4-pilot-validation.md](validation/m4-pilot-validation.md) | Implemented synthetic event/rule/alert pilot, 23 tests, actual crash recovery, Ubuntu evidence and next boundary |
+| [validation/m3-quota-validation.md](validation/m3-quota-validation.md) | Real private-image UID quota denial, SQLite rollback/recovery, Service IPC failure latch, privileged-helper fences and limits |
 | [validation/m3-readonly-status-validation.md](validation/m3-readonly-status-validation.md) | Root metadata status under read-only state, WAL availability, collection denial and explicit restart |
 | [validation/m3-filesystem-validation.md](validation/m3-filesystem-validation.md) | Private bounded ext4: real reserve pressure, SQLITE_FULL rollback, read-only rejection, recovery and limits |
 | [validation/m3-native-workload-validation.md](validation/m3-native-workload-validation.md) | Real execution forms, quoted PROCTITLE and shared-stream native framing corrections, retained failures and scoped acceptance |
@@ -76,14 +115,18 @@ Historical validation records are retained.
 
 ## Current status and decision boundaries
 
-As of November 11, 2026, the M3 pipeline has actual Ubuntu evidence for root-only
-activation, separate identities, native execution parsing/transport/storage,
-interruption/suppression, resource limits, parser faults and isolated health
-metadata. See the [focused review](../tests/integration/M3-README.md#focused-m3-build-review)
-for remaining storage, event-provenance and rejection-diagnostic gaps. These scoped
-results do not establish complete native coverage or release readiness. Existing
-owner approvals supersede older task-only restrictions, as recorded in
-[repository guidance](../AGENTS.md#working-constraints).
+M3's supported plugin → C++ → protected IPC → Python/SQLite integration has
+scoped Ubuntu acceptance and an owner-accepted [bounded closeout](implementation/m3-closeout.md).
+Later storage safeguards, actual quota, metadata/rejection diagnostics and root
+read-only status supersede limitations in the earlier focused-review record.
+The [M4 fixture pilot](validation/m4-pilot-validation.md) and
+[synthetic handoff/actual backend sandbox](validation/m4-handoff-implementation-validation.md)
+are implemented and tested; the latest full component scope of 96 M4 tests, 87 M3 Python regressions and demo passed
+on Ubuntu. A bounded fixed-path entry and [16-event real import trial](validation/m4-real-data-trial.md)
+now pass; no unattended monitoring, supported threat rules, API/dashboard or
+finished distribution is enabled. See [current state](current-state.md) for exact
+checkpoints, standing approvals and remaining gates. Test counts describe executed
+scopes, not complete native coverage, continuous monitoring or release readiness.
 
 ### Historical November 6 baseline
 
@@ -125,7 +168,9 @@ fixtures, validated mappings, and comprehensive event-family research remain pen
   optional AI interpretation, additional distributions and remote monitoring.
   Automatic remediation is excluded from the initial release.
 
-Authentication, sudo-authorized administrator eligibility, custom namespace,
+D-12a eligibility now permits explicit root/sudo authorization per session; D-12b
+selects the tested synthetic-only mechanism. Production origin trust/real-data
+API access, custom namespace,
 permissions, IPC reliability details, retention, and encryption remain undecided.
 Missing/unreliable activity-time handling and the mechanisms for source isolation,
 concurrency and supervision also remain open. Do not infer approval from an example
@@ -195,3 +240,13 @@ The accepted release-scope revision in ADR-007 distinguishes a usable v0.1 from
 future correlation/evidence work. Earlier architectural descriptions remain as
 labeled v0.2 plans; existing ADR-001–006 and technology decisions are unchanged.
 This reconciliation adds documentation only and does not advance implementation.
+
+Current process source gate: [approved bounded trial](implementation/process-adapter-trial-review.md),
+[offline preparation](validation/process-adapter-trial-preparation.md),
+[actual intended-account evidence](validation/process-adapter-live-trial.md).
+
+Next proposed integration boundary: [first-build process pipeline](implementation/process-live-pipeline-review.md)
+(identity/live consent, event/ID/time contract and bounded private persistence).
+
+Current process pipeline implementation and actual installed evidence:
+[process pipeline acceptance](validation/process-pipeline-acceptance.md).

@@ -1,0 +1,29 @@
+[Unit]
+Description=HIDS selected zero-capability process collector
+[Service]
+Type=simple
+User=hids-process
+Group=hids-process
+ExecStart=/opt/hids-process-pipeline/process-collector /run/hids/process/current.json
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+InaccessiblePaths=-/var/lib/hids -/etc/hids
+Restart=no
+UMask=0077
+LimitCORE=0
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SupplementaryGroups=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+TimeoutStopSec=8
+MemoryMax=128M
+TasksMax=8
+StandardOutput=null
+StandardError=null

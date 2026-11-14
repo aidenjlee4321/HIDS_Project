@@ -1,5 +1,10 @@
 # Native C++ process-source milestone
 
+This readme describes the cn_proc adapter specifically. It does not describe all
+collector functionality now present: M3's separate Audit plugin/native pipeline has
+[its own Ubuntu evidence](../tests/integration/M3-README.md). M4 has a synthetic
+Python handoff; neither upgrades the cn_proc adapter's unvalidated live runtime.
+
 This directory now contains a narrow production-oriented C++20 process connector
 adapter. It is separate from the [temporary research tools](../scripts/research/README.md)
 and based on the scoped [Ubuntu evidence](../docs/research/process-connector.md)
@@ -171,8 +176,9 @@ validate this separately implemented adapter.
 The owner now reports successful strict Ubuntu ARM64 compilation, both offline
 suites and complete production linking with GCC 15.2.0; see the
 [validation record](../docs/validation/collector-ubuntu-validation.md). This is
-separate from the earlier local sanitizer evidence. Live production connector
-operation, intended service-account access and runtime reliability remain unvalidated.
+separate from the earlier local sanitizer evidence. A later owner-approved bounded trial validated intended zero-capability account
+access and the owned child lifecycle; [evidence and limits](../docs/validation/process-adapter-live-trial.md).
+Sustained runtime reliability and deployed source operation remain unvalidated.
 
 ## Not yet implemented / unresolved
 
@@ -193,3 +199,24 @@ do not repeat the temporary kernel experiment merely to change a sequence counte
 The [v0.1 implementation-readiness plan](../docs/implementation/v0.1-implementation-plan.md)
 records next integration tasks and unresolved contract/permission decisions; it
 neither expands this adapter's implemented scope nor authorizes a live experiment.
+
+## Intended-account trial preparation
+
+A test-only bounded driver now exists at
+`tests/integration/process_adapter_trial.cpp`; default/`--self-test` mode is
+offline. Strict Ubuntu compilation and offline checks passed. Its live mode
+requires the exact proposed identity and a fresh root-private report descriptor.
+The [trial packet](../docs/implementation/process-adapter-trial-review.md) was
+explicitly approved and one intended-account live trial passed. Do not repeat
+subscriptions or treat this test driver as a deployed collector; broader live
+retention and normalized integration still need their own contract.
+
+## Approved process pipeline
+
+`src/process/` adds the separately approved closed lifecycle normalizer, bounded
+queue, Unix stream and root-lease runtime. The bounded installed owned-child
+trial passed through independent Python validation and private SQLite.
+[Evidence/limits](../docs/validation/process-pipeline-acceptance.md). No live
+payload-printing CLI, enrichment or automatic restart is added. The actual
+production source remains explicitly selected/root-started; sustained operation,
+protected process UI and complete distribution are still later gates.

@@ -1,0 +1,9 @@
+[Unit]
+Description=HIDS selected process event socket
+[Socket]
+ListenStream=/run/hids/process/events.sock
+SocketUser=root
+SocketGroup=hids-process
+SocketMode=0660
+RemoveOnStop=yes
+Backlog=1

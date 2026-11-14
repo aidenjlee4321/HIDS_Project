@@ -1,0 +1,30 @@
+# Bounded, manually selected trial only. No installation/automatic startup target.
+[Unit]
+Description=HIDS bounded committed-event import trial
+
+[Service]
+Type=exec
+User=hids-ingest
+Group=hids-ingest
+SupplementaryGroups=
+WorkingDirectory=/usr/lib/hids
+ExecStart=/usr/bin/python3 -B -m engine.detection.m4_service
+Restart=no
+UMask=0077
+LimitCORE=0
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX
+ReadOnlyPaths=/var/lib/hids/m3
+ReadWritePaths=/var/lib/hids/m4
+InaccessiblePaths=/run/hids/m3
+StandardOutput=null
+StandardError=journal

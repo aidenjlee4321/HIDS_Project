@@ -1,16 +1,17 @@
 # HIDS TODO
 
-Documentation reconciled November 5, 2026. Completed documentation tasks do not
-mean source behavior has been researched or functionality implemented. Currently
-documentation, empty application scaffolding and temporary research utilities exist;
-a narrow native C++ process adapter and offline tests are implemented, while
-integration remains pending. Owner-reported sudo, SSH and cn_proc experiments are documented; raw fixtures and validated mappings remain pending.
+Current implementation: M1 owner-reported acceptance; separate M2 runtime evidence;
+M3 bounded integration closeout; implemented/tested M4 fixture rule/alert/handoff,
+actual backend sandbox and approved bounded 16-event real import. [Current state](docs/current-state.md) links exact
+scopes and remaining gates. This backlog mixes historical design tasks and later
+evidence; dated counts are historical runs. Checked documentation is not feature
+acceptance, and superseded file-tail work is not a plugin requirement.
 
 Release planning follows [release scope](docs/release-scope.md) and
 [ADR-007](docs/decisions/007-initial-release-scope.md). v0.1 is the minimal complete
 pipeline with individual-event rules; v0.2 correlation/evidence work is planned,
-not committed. Planning labels below do not authorize implementation in the
-current documentation-only task.
+not committed. Planning labels below do not grant implementation authority;
+current explicit owner approvals and recorded scope govern ongoing work.
 
 ## Completed documentation
 
@@ -147,11 +148,103 @@ broader native coverage and external source-retention guarantees remain open.
   late suppression. Fence the root-only test helper to its private image and
   reject unsafe devices/mounts/images/limits/backing inodes. [Quota evidence](docs/validation/m3-quota-validation.md).
   Project/inode/grace-time quota variants, quota-aware proactive admission,
-  installed transport under this quota and broader VFS faults remain separate.
+  native installed collector/systemd quota variants and broader VFS faults remain separate.
+- [x] Exercise actual private Service/root-client and reader/backend quota IPC:
+  withhold success ACK, latch failure after release, deny activation/leases and
+  preserve B/interrupt A on restart. See the appended quota evidence.
+- [x] Document a [finite M3 integration closeout](docs/implementation/m3-closeout.md),
+  separating M4 entry from preserved release gates.
+- [x] Owner accepted the [M4 fixture pilot contract](docs/implementation/m4-pilot-contract.md)
+  after its walkthrough; implement/test the one-event, one-rule, saved demo-alert
+  path. 23 pilot tests, three actual SIGKILL cases, 87 M3 regressions and the demo
+  passed locally and on Ubuntu. [Evidence](docs/validation/m4-pilot-validation.md).
+- [x] Prepare [M3→M4 handoff proposal](docs/implementation/m4-handoff-contract.md)
+  and reproduce/test the late-commit cursor issue against synthetic M3 ledgers.
+  Seven design cases + 23 pilot tests, 87 M3 regressions and demo passed on Ubuntu.
+  [Design evidence and local low-space limitation](docs/validation/m4-handoff-design-validation.md).
+- [x] Owner accepted independent read-only worker/separate destination, explicit
+  activation selection and frontier-safe sweep for synthetic implementation.
+- [x] Implement/test the handoff and actual backend-identity/read-only sandbox:
+  19 new adapter tests, all 49 M4 + 87 M3 regressions and demo passed on Ubuntu;
+  four transient worker starts preserve late A after B with rules disabled.
+  [Evidence](docs/validation/m4-handoff-implementation-validation.md).
+- [x] Audit repository documentation/status/local links and preserve dated evidence;
+  [review record](docs/validation/documentation-review.md).
+- [x] Prepare [exact production storage/trial packet](docs/implementation/m4-production-review.md)
+  from tested DDL and existing admission rules; statically validate proposed limits.
+- [x] Owner accepted D-07/D-09 schema/protected copy/bounded trial scope.
+- [x] Implement fixed-path real entry and verify 53 M4 + 87 M3 tests, synthetic
+  production-shaped sandbox and 16 actual kernel executions imported exactly once;
+  preserve all 355 old databases plus one new activation and restore policy.
+  [Evidence](docs/validation/m4-real-data-trial.md). Real rules remain disabled.
+- [x] Prepare [first non-demo rule/schema proposal](docs/implementation/m4-first-rule-review.md)
+  from retained native/real-trial data; verify 15 test-only semantic/migration cases,
+  including WAL-aware backup and two actual migration SIGKILL cuts. Ubuntu scope
+  passed 68 M4 + 87 M3 tests and demo; real v1 store remains unchanged/unevaluated.
+- [x] Owner accepted D-08/D-07 review of the opt-in informational root-shell condition,
+  schema-v2 migration and frozen prospective rule plans before implementation/live
+  findings; no unattended-monitoring approval.
+
+- [x] Implement the approved v2 rule/migration/frozen-plan scope; observed 86 M4
+  and 87 M3 tests, namespace checks and bounded one-finding live trial passed.
+- [x] Resolve VM identity/history concern: guest UUID, all 357 M3 databases, v2 M4
+  store/v1 backup, original 16 events, installed files and key reports verified; [incident/evidence](docs/validation/m4-first-rule-acceptance.md).
+
+- [x] Verify v2 worker crash boundaries and synthetic SQLite writer-lock/page-full/
+  pinned-reader recovery: 93 M4 + 87 M3 tests and actual sandboxed SIGKILL scope
+  passed; [evidence/remaining limits](docs/validation/m4-recovery-contention.md).
+
+- [x] Verify selected installed M3 Service/real peer IPC correctness beside M4
+  destination lock and pinned source reader; record finite ACK/WAL/CPU/RSS
+  observations and require exact guest UUID before setup. [Evidence and limits](docs/validation/m4-ipc-contention.md).
+
+- [x] Measure the actual bounded M4 polling loop under idle/burst and held source
+  snapshot conditions; prove private-fixture checkpoint recovery and duplicate-free
+  cap restart. [Short measurement and limits](docs/validation/m4-continuous-polling.md).
+
+- [x] Exercise M4 normal admission against real private-image critical space,
+  genuine full-write errors at import/finding boundaries and readonly startup;
+  preserve pending/history and verify retry, namespace fences and loop cleanup.
+  [Evidence/limits](docs/validation/m4-filesystem-failures.md).
+
+- [x] Fix runtime retained-backup accounting and verify normal WAL/aggregate
+  admission, blocked progress/pending work and recovery; 96 M4 + 87 M3 tests,
+  actual sandbox/crash/budget and real-filesystem regressions passed.
+  [Evidence/remaining limits](docs/validation/m4-budget-admission.md).
+
+- [x] Verify actual sandbox per-binding failure/backoff/recovery and healthy-source
+  one-event pagination with unchanged fixture bytes and duplicate-free sweeps.
+  [Evidence](docs/validation/m4-binding-isolation.md).
+- [x] Reconcile [bounded M4 acceptance](docs/implementation/m4-acceptance-review.md)
+  and prepare the reserved [dashboard eligibility decision](docs/implementation/dashboard-access-eligibility-review.md).
+
+- [x] Fix stale UI responses/timing and add bounded SQLite value guards; synthetic
+  tests, actual Firefox race and existing regressions passed.
+  [Evidence/TLS blocker](docs/validation/dashboard-security-fixes.md).
+- [x] Compare compatible no-CA browsers: sandboxed Chromium direct-leaf verification
+  and synthetic HTTPS authorization passed. [Evidence](docs/validation/no-ca-browser-comparison.md).
+  Firefox is optional; the [CA branch](docs/implementation/dashboard-ca-trust-amendment.md)
+  remains unapproved and unnecessary for the tested Chromium path.
 
 ## Open design decisions — require explicit resolution
 
-- [ ] Select root-only authentication; decide whether sudo-authorized administrators qualify.
+- [x] Owner D-12a: accept explicit UID-0 authorization per new session, including
+  OS-authorized sudo; group membership alone grants nothing.
+- [x] Owner approved [D-12b session mechanism](docs/implementation/dashboard-session-mechanism-review.md);
+  implement/test the synthetic-only pilot, including actual Firefox/expiry and preservation.
+  [Executed scope](docs/validation/dashboard-session-pilot.md).
+- [x] Owner accepted [D-12c](docs/implementation/m4-history-view-review.md); implement
+  and verify the exact bounded frozen HTTPS history view in an isolated ordinary
+  browser. [Synthetic/real acceptance](docs/validation/m4-history-view-acceptance.md)
+  passed; collection stayed stopped, all history preserved and activation removed.
+- [x] Owner accepted [D-14a consent/control](docs/implementation/first-run-control-review.md);
+  implement/test bounded source setup, volatile browser drafts and root confirmation,
+  immutable preferences, no automatic resume and stop-before-edit behavior.
+  [Actual bounded acceptance](docs/validation/first-run-acceptance.md) passed.
+- [ ] Validate/deploy a usable native source under its intended identity and the new
+  controller; current real setup trial is empty/blocked, not live-source acceptance.
+- [ ] Production access/certificate lifecycle, normal-browser setup and first-run
+  source-confirmation/health UX remain separate work; no CA or collection is implied.
 - [ ] Finalize custom namespace only if ECS gaps justify custom fields; `hids.*` remains provisional.
 - [ ] Define event contracts, raw-record representation, and schema compatibility strategy.
 - [ ] Research missing/unreliable activity timestamps and explicitly decide representation/handling; no invented time or silent collection-time fallback.
@@ -174,14 +267,14 @@ broader native coverage and external source-retention guarantees remain open.
 - [x] Record successful Ubuntu 26.04.1 / kernel 7.0.0-42-generic / aarch64 / GCC 15.2.0 strict compilation, both offline unit suites and complete production link smoke test; [validation evidence](docs/validation/collector-ubuntu-validation.md).
 - [ ] Validate live production connector operation, intended service-account access, shutdown and runtime reliability under a separately approved bounded plan; neither offline tests nor the research experiment closes this gate.
 - [x] Owner approved constrained synthetic M1 P-01–08 on November 7, 2026; broader production decisions remain in the [readiness register](docs/implementation/v0.1-implementation-plan.md#decision-register).
-- [ ] Complete [M1 acceptance](docs/validation/m1-pilot-validation.md): synthetic implementation and local boundary tests exist; actual Ubuntu two-process/failure-suite and retrieval evidence remain pending.
+- [x] Record owner-reported M1 Ubuntu acceptance; preserve the historical local/pre-acceptance [M1 record](docs/validation/m1-pilot-validation.md). This is not an independently reconstructed private transcript.
 - [ ] Design best-effort `/proc` enrichment, process/boot identity and privacy policy; no automatic collection of arguments or environments.
 - [ ] Resolve shared normalization/IPC contracts and integration after the native milestone.
 
 - [ ] Define machine-readable schemas after source validation.
-- [ ] Implement the first C++ journald collector/native parsing/normalization and Python normalized-event receipt/contract validation, with validation on both IPC endpoints.
-- [ ] Implement reliable transport and SQLite persistence.
-- [ ] Implement simple deterministic individual-event rules/basic categorization with positive, negative and incomplete tests; no event counts/windows/sequences.
+- [x] Implement M2 journald/native and Python validation with separate lifecycle and owner-reported runtime evidence; broader supported datasets remain open.
+- [x] Implement scoped M1/M2/M3 transport and SQLite persistence with recorded failure/recovery tests; complete-product integration and distribution remain open.
+- [x] Implement/test the synthetic one-event rule/alert pilot, including positive/negative/unknown cases. Supported real-data security rules/basic categorization remain open; no counts/windows/sequences.
 - [ ] Link each v0.1 alert to its one triggering event and generating rule; explain the matched condition, provenance and limitations without a multi-event evidence manager.
 - [ ] Implement separate metadata-only discovery, availability assessment, explained usable-source recommendations and individual draft selection/confirmation under root-only authorization; no payload sampling or collector initialization before confirmation.
 - [ ] Enforce selected-only collector start in backend/C++ orchestration, test failed initialization/subset operation and expose actual runtime status separately from static support/configuration.
@@ -273,3 +366,29 @@ Do not infer product-release sign-off from completion of these tooling tasks.
   release-threshold and packaging/distribution gates before claiming M3/release readiness.
 
 Current results and pending scope: [performance record](docs/validation/m3-performance-validation.md).
+
+### Intended-account process adapter gate
+
+- [x] Prepare bounded native trial driver and target offline compilation/tests.
+- [x] Document proposed zero-capability identity and exact transient/retained data scope.
+- [x] Obtain owner decision on the [trial packet](docs/implementation/process-adapter-trial-review.md).
+- [x] After approval, implement/verify the private supervisor and perform one bounded live trial.
+- [x] Evaluate native evidence and obtain the separate process pipeline approval.
+
+First installable-build priority: review the [narrow live-pipeline contract](docs/implementation/process-live-pipeline-review.md),
+then implement/test normalization→IPC→storage→selected runtime before protected
+display and packaging. Existing broader v0.1 completion criteria remain in force.
+
+### First installable process pipeline
+
+- [x] Owner-approved native/normalized/ID/time/private-store contract C-01–04.
+- [x] C++/Python validators, bounded queue/IPC, commit ACK and separate WAL store.
+- [x] Actual root confirmation, separate zero-capability service identities and one-use lease.
+- [x] Bounded installed owned-child live trial and no-grant restart refusal.
+- [x] Recover final evidence after interruption; recheck three stored events and old preservation.
+- [x] Complete the final focused failure/boot-directory checkpoint and stopped package update.
+- [x] Review and obtain authorization for protected process presentation/access lifecycle (P-01–P-04).
+- [x] Implement and validate the combined dashboard and installable development build; [scoped evidence and remaining release work](docs/validation/combined-dashboard-acceptance.md).
+- [ ] Reassess further project investment at the first installable development checkpoint before extras.
+
+[Exact evidence and remaining boundaries](docs/validation/process-pipeline-acceptance.md).

@@ -1,5 +1,11 @@
 # M2 component implementation checkpoint
 
+Historical preparation/component record: the pending/unauthorized statements
+below describe that checkpoint. Later [owner-reported Ubuntu runtime acceptance](m2-runtime-acceptance/ubuntu-runtime-acceptance.md)
+supersedes its pending-execution status within that report's explicit limits.
+Preserve the original evidence; later live negative-control authorization remains
+unverified rather than being inferred from the runbook.
+
 **Recorded:** November 7, 2026
 **Status:** Fixture-testable components; M2 incomplete; no Ubuntu acceptance authorized/performed
 

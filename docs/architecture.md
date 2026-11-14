@@ -3,27 +3,30 @@
 
 **Document version:** 0.4.0
 **Status:** Initial design baseline  
-**Last updated:** November 9, 2026 (M3 master-decision consolidation)\
+**Last updated:** November 11, 2026 (implementation-status reconciliation)\
 **Target platform:** Ubuntu 26.04 LTS  
 **Project name:** HIDS (working name; permanent name undecided)
 
 ## Status and interpretation
 
-Documentation, empty application scaffolding and temporary
-[research utilities](../scripts/research/README.md) exist; the utilities are separate
-from the HIDS application. A narrow production C++ process-source adapter and
-offline tests now exist. Owner-reported Ubuntu ARM64/GCC 15.2.0 strict compilation,
-unit suites and production linking passed; [validation record](validation/collector-ubuntu-validation.md).
-Live production operation, service-account access and runtime reliability remain
-unvalidated.
-The synthetic M1 normalization/Unix socket/JSON Lines/Python validation/SQLite
-persistence and retrieval pilot is complete, with Ubuntu acceptance passed as
-reported by the owner. This does not establish live-source readiness. Historical
-M1 validation evidence is preserved unchanged; detection, API and dashboard remain
-unimplemented. Accepted technology choices are
-an architecture baseline, not working functionality. Detailed fields, endpoints,
-tables, rules, and layouts below are proposals unless explicitly identified as
-requirements. Milestones after M1 remain planned work, not implementation authority.
+The repository contains the owner-reported accepted synthetic M1 pipeline,
+separate M2 component/lifecycle and owner-reported runtime evidence, and an
+implemented M3 Audit execution pipeline with scoped Ubuntu acceptance and an
+owner-accepted bounded integration closeout. M4's one-event fixture pilot and
+read-only handoff are implemented/tested with synthetic input and an actual
+backend-identity sandbox. [Current state](current-state.md) links exact scopes.
+
+The cn_proc production adapter's own live/service-account reliability remains
+unvalidated; M3 evidence does not upgrade that adapter. A bounded 16-event real-data M4 import trial has now passed after owner approval;
+[trial evidence](validation/m4-real-data-trial.md). Unattended M4 monitoring,
+meaningful security-rule coverage, the protected API/dashboard, completed packaging
+and release resource thresholds remain unfinished. The separately approved
+[D-12c stored-history view](validation/m4-history-view-acceptance.md) now passes
+bounded real-data HTTPS/browser acceptance; this does not complete the full
+monitoring dashboard or change the accepted source/engine responsibilities.
+Detailed fields/endpoints/layouts
+below remain proposals outside explicitly approved contracts; accepted stack and
+roadmap choices do not establish working product features.
 
 Initial-release requirements: consume existing Ubuntu logging and auditing without
 modifying journald configuration, PAM configuration, auditd configuration, or Linux
@@ -298,96 +301,52 @@ logging changes, `/proc` enrichment or database writes are introduced. Source
 failure is local to the adapter; whole-service supervision remains open.
 
 The owner now prioritizes this process adapter before the earlier journald-first
-implementation sequence. Journal collection remains planned and the reliable
-end-to-end pipeline remains the integration priority. Source-native monotonic time
+implementation sequence. M2 journald components/lifecycle have separate owner-reported runtime evidence;
+that does not validate this process adapter. Reliable end-to-end integration
+remains the priority. Source-native monotonic time
 is preserved without wall-clock substitution; sequence gaps are not a loss count.
 
 #### Audit adapter
 
-The proposed adapter consumes existing Linux Audit records where available. Do not assume auditd is installed, enabled, or recording a particular activity. Missing sources or fields must be reported as visibility limitations, not interpreted as absence of activity.
+The current M3 input is the owner-approved **outbound auditd plugin**, with EOE as
+the only completion marker. Actual local Audit files did not provide the EOE
+boundary required by the accepted design; the later plugin decision supersedes
+file-tail acquisition, file-generation replay/retirement and source-file offset
+identity. The [canonical M3 specification](implementation/m3-linux-audit-spec.md)
+preserves that history explicitly. Do not compete with auditd for the kernel stream.
 
-Candidate activities, subject to existing records and source validation:
+The implemented path uses a capability-free native reader, bounded C++ reconstruction
+and semantic validation, protected protocol-3 IPC, independent Python validation
+and Python-owned atomic SQLite persistence/progress. Root authorizes current-tail
+activation; restart interrupts the old interval and requires fresh authorization.
+Incomplete/interrupted groups cannot be reconstructed into acceptance. Complete B
+may commit while earlier A remains unresolved. Scoped identity and suppression
+persist; no automatic source/history deletion or lossless-delivery promise exists.
 
-- Process execution.
-- User and privilege information.
-- Relevant security-sensitive operations.
+Supported AArch64 execve/execveat records preserve required identities and native
+provenance, byte-preserving exe/comm Base64 and bounded presence/count metadata.
+Arguments and CWD/PATH/PROCTITLE contents are not retained. Unknown execution fields
+and invalid/incomplete groups reject; unrelated stream families have separate
+bounded framing. The 16 MiB/event and 32 MiB aggregate ceilings remain provisional,
+with 4096/256 decoded-byte exe/comm limits. See the specification for exact bounds.
 
-The existing audit daemon (`auditd`) should manage the kernel audit interface.
+A separate owner-approved short-lived checker has CAP_AUDIT_CONTROL only for its
+fixed status query. This is a broad kernel capability, not a kernel-enforced
+read-only grant; [checker evidence](implementation/m3-linux-audit-spec.md#owner-approved-health-checker-and-source-health-evidence)
+records its isolation and residual risk. Reader/backend remain capability-free.
 
-The collector must not attempt to compete with `auditd` for ownership of the audit event stream. Initial integration must use an already available read path, such as an existing audit log, without changing auditd or Audit rules. A dispatcher requiring configuration changes is a future option, not an initial installation step.
+[Finite closeout](implementation/m3-closeout.md) links live/native, durability,
+crash/reboot, actual rotation, resource/storage and health evidence, including
+actual full/read-only filesystems and per-user quota. Those are scoped tests;
+release thresholds, distribution and broader native/workload/VFS claims remain
+open. External Audit retention remains host-administered. Historical archival
+and original-generation preservation goals do not reintroduce file-tail mechanics.
 
-The [canonical M3 specification](implementation/m3-linux-audit-spec.md) separates
-four classifications: **Owner-approved**, **Provisional** (approved initial policy,
-validation/tuning pending), **Evidence-dependent**, and **Future goal**. These are
-design decisions, not implementation authorization or claims of M3 acceptance.
-
-**Owner-approved:** local RAW Audit files, native AArch64 execve/execveat attempts
-only with complete supported records, EOE-only completion, and rejection of absent/
-incomplete EXECVE even on failed attempts. Explicit root activation starts at a
-verified current file end, excludes/reports overlap and performs no backfill.
-Re-enable creates a new interval; crash replay is confined to the same still-
-authorized interval with proven continuity. Preserve native timestamp/serial/opaque
-node grouping separately from source/generation/first-offset physical identity.
-
-C++ uses fresh BUFFER with EOE excluded and temporary three-digit truncation;
-original bytes/time/positions stay authoritative. Required uid/euid/suid/fsuid/auid/
-session_id preserve explicit unset separately; no normalized GIDs or argc/arguments.
-Retain full decoded exe/comm bytes as Base64 in IPC/storage, optional PATH presence/
-count and singleton CWD/PROCTITLE presence, discarding their contents. Reject unknown
-fields/duplicate singleton fields. No root parser or capabilities merely to parse;
-verify actual configuration/log accesses before adding justified filesystem controls.
-
-**Owner-approved:** additive M3 routing within existing Python ingestion, independent
-activation/validation/lease/configuration/health, protocol 3 and separate M3 SQLite
-with WAL/Python-only writes. Persist event/rejection and contiguous progress atomically,
-use sanitized finalization/interruption decisions, and never amend finalized events.
-Interrupted payload is discarded and reported, never reconstructed into acceptance;
-conservative source re-reading is limited to position/continuity/discard accounting.
-No automatic deletion/cleanup/overwrite of M3 evidence. Pause/degrade M3 on
-unsafe resource/storage conditions while preserving core/M2 availability; report
-oversized events and continue later events whenever safe. Host stability precedes
-core uptime, which precedes M3 availability. No lossless-delivery promise.
-
-The [M3 state-machine addendum](implementation/m3-linux-audit-spec.md#12-owner-approved-evidence-and-state-machine-addendum)
-now records independent collection/event lifecycles, durable sanitized progress
-registration **before** accepted assembly, interruption suppression/tombstones,
-verified generation transitions and compact resolved ranges. Later complete B can
-commit while earlier A blocks the frontier. Same resolved position is a replay
-duplicate; a new position for finalized A is a late diagnostic, never an amendment.
-Two monotonic event deadlines freeze during intentional backpressure; aggregate
-pressure has a bounded discard/rejection fallback to avoid waiting on unread EOE.
-Missing/ambiguous suppression or unavailable durable progress pauses/degrades M3.
-Exact durations, ledger write costs, schema/range/protocol mechanics and native
-behavior remain **Evidence-dependent**; no source change or test is claimed.
-
-**Owner-approved:** original Audit generations are evidence too. Preserve unprocessed
-sources; retirement eligibility requires verified terminal coverage, durable
-position dispositions and committed ranges/frontiers. Eligibility never authorizes
-automatic deletion or cleanup. Open descriptors alone are not durable preservation.
-Budget source storage as well as SQLite; report pressure and possible Auditd
-suspension while preserving core uptime. The owner-observed finite ROTATE policy
-creates a potential conflict: actual retention/external cleanup and a compatible
-preservation design remain **Evidence-dependent**, with no configuration changes
-authorized. Verified archival handoff is a **Future goal**, not initial work; see
-[the canonical preservation policy](implementation/m3-linux-audit-spec.md#64-original-source-evidence-and-retirement-eligibility).
-
-**Provisional:** owner-approved 16 MiB/event and 32 MiB aggregate assembly ceilings;
-exe/comm decoded-byte limits are 4096/256. These supersede earlier smaller candidates,
-not an invitation to change fixture defaults. Initial transport is bounded at 64 KiB
-request, 2 KiB response, 4096-byte chunks, one outstanding delivery and no default spool.
-
-**Evidence-dependent:** current Audit coverage/permissions, dependency/license/API,
-fragment grammar, ranges/sentinels, remaining bounds/thresholds, source generations,
-exact frontier/router/DDL/activation implementation mechanics and actual
-service/filesystem controls.
-The source/protocol/database directions are approved; their implementation details
-are not established. Do not alter M1/M2 or ADR-006 or grant permissions to fit them.
-
-**Future goal:** incomplete/alternative failed-execution representations, PROCTITLE
-completion, validated-discard unknown fields, encryption/key management for exe/comm,
-compressed archives, a reviewed fallback worker and independent sensitive-category
-retention/collection controls. Toggle details and later archival remain deferred;
-none changes initial privacy or no-automatic-deletion policy.
+Product installation/startup/runtime still must not change Audit/journal/PAM
+policy. Explicitly authorized isolated lab experiments preserve/restore their
+baseline; they do not authorize automatic production logging setup. On an ordinary
+host, a plugin feed and execution coverage may be unavailable under existing
+configuration; report that limitation honestly.
 
 #### Filesystem adapter
 
@@ -572,7 +531,7 @@ The API should:
 
 - Bind to localhost only.
 - Validate incoming Host and Origin headers.
-- Enforce root-only human access to dashboard and security data through backend authentication and authorization, with appropriate CSRF protections. Authentication and whether sudo-authorized administrators qualify remain undecided. Localhost binding alone is insufficient.
+- Enforce root-only human access to dashboard and security data through backend authentication and authorization, with appropriate CSRF protections. D-12a accepts explicit root/sudo authorization per new session; D-12b accepts the tested synthetic-only bootstrap/tab-session pilot. Real-data HTTP and production origin trust remain separately gated. [Evidence](validation/dashboard-session-pilot.md). Localhost binding alone is insufficient.
 - Keep the backend unprivileged and grant collector permissions only as required per source; root-only human access does not require root services or a root browser.
 - Avoid exposing privileged system operations.
 - Validate user-supplied queries and configuration changes.
@@ -675,15 +634,17 @@ The repository should contain documentation for architectural decisions and shar
 The owner-approved sequence below replaces the earlier phase numbering. Each
 milestone must deliver an independently testable increment; detailed gates remain
 in the [implementation plan](implementation/v0.1-implementation-plan.md#l-implementation-milestones).
-Only M1 is complete. This roadmap authorizes no implementation beyond existing
-explicit approvals and does not amend the M1 contract or interfaces.
+M1 has owner-reported acceptance; M2 retains its own scoped evidence. M3 has an
+accepted integration closeout, and M4 fixture/handoff implementation passes
+synthetic acceptance. Full milestone/release claims require their own gates.
+This roadmap does not amend contracts or grant new implementation authority.
 
 | Milestone | Increment / exit evidence |
 |---|---|
 | M1 — Synthetic pipeline | Complete; owner reports Ubuntu acceptance passed for fixture → C++ → Unix socket/JSON Lines → Python validation → SQLite → retrieval. No live-source claim |
 | M2 — Journald integration | Supported real journal records traverse the existing pipeline; test access, cursors, rotation, duplicates and unavailable-source health |
-| M3 — Linux Audit execution | Owner-approved local RAW execution/semantic/persistence direction; native access, grammar and interruption/suppression recovery evidence still required. Preserve provisional cn_proc and defer broader process/authentication expansion beyond this initial scope |
-| M4 — Initial detection / ATT&CK | Deterministic individual-event rules, triggering-event/rule traceability and tested Linux technique mappings; no correlation |
+| M3 — Linux Audit execution | Implemented outbound plugin/current-tail integration; bounded closeout accepted with scoped Ubuntu evidence. Broader native/workload, distribution and release thresholds remain open; preserve provisional cn_proc |
+| M4 — Initial detection / ATT&CK | Fixture rule/alert and read-only handoff implemented/tested; approved bounded real import passed. Unattended monitoring, supported security rules and ATT&CK claims remain gated; no correlation |
 | M5 — CIS assessment | Selected Ubuntu 26.04 LTS recommendations with documented read-only verification and limitations; no remediation |
 | M6 — Dashboard / investigation | Protected FastAPI/React interface, source discovery/confirmation, event history, alerts and actual collection health; root-only human access |
 | M7 — Correlation / explanations | v0.2 planning: time windows, sequences, cross-source relationships, supporting evidence and richer explanations |
@@ -784,7 +745,7 @@ the [master decision register](implementation/m3-linux-audit-spec.md#11-owner-de
 distinguishes approved policy from remaining evidence gates; these broad questions
 do not reopen its source, protocol/database, provisional-ceiling or no-deletion choices.
 
-1. How are M3's owner-approved existing local RAW Audit-file policy and verified rename rotation implemented under actual non-root permissions? The initial source choice is no longer open; exact access/continuity proof is evidence-dependent.
+1. Which additional native/workload coverage and measured release budgets should be supported beyond M3's accepted plugin integration closeout? Preserve the tested source/privilege/recovery choices; do not revive superseded file-tail acquisition.
 2. What minimum privileges does each collector adapter require?
 3. What storage budgets and warning/critical/exhaustion thresholds should be established while preserving the no-automatic-deletion policy?
 4. What exact protocol-3 envelope, control messages, acknowledgment semantics and validation requirements are needed?

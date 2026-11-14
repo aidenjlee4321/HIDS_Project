@@ -1,0 +1,7 @@
+[Unit]
+Description=HIDS history trial loopback listener
+[Socket]
+ListenStream=127.0.0.1:18765
+FileDescriptorName=http
+Service=hids-dashboard-setup.service
+Backlog=16

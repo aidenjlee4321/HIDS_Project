@@ -1,0 +1,35 @@
+[Unit]
+Description=HIDS bounded source-setup trial
+Requires=hids-dashboard-setup-http.socket hids-dashboard-setup-control.socket
+After=hids-dashboard-setup-http.socket hids-dashboard-setup-control.socket
+[Service]
+Type=simple
+User=hids-ingest
+Group=hids-ingest
+SupplementaryGroups=
+WorkingDirectory=/opt/hids-dashboard-setup/code
+ExecStart=/opt/hids-dashboard-setup/venv/bin/python3 -I -B -c 'import sys; sys.path.insert(0,"/opt/hids-dashboard-setup/code"); from api.setup_service import main; raise SystemExit(main())'
+Sockets=hids-dashboard-setup-http.socket hids-dashboard-setup-control.socket
+Restart=no
+RuntimeMaxSec=10min
+TimeoutStopSec=8
+KillMode=control-group
+UMask=0077
+LimitCORE=0
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET
+InaccessiblePaths=-/var/lib/hids -/run/hids/m3 -/run/hids-setup
+MemoryMax=256M
+TasksMax=32
+StandardOutput=null
+StandardError=journal

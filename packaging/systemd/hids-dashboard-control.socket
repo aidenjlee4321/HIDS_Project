@@ -1,0 +1,12 @@
+[Unit]
+Description=HIDS dashboard root authorization listener
+[Socket]
+ListenStream=/run/hids-dashboard/control.sock
+SocketUser=root
+SocketGroup=root
+SocketMode=0600
+DirectoryMode=0700
+FileDescriptorName=control
+Service=hids-dashboard.service
+Backlog=8
+RemoveOnStop=yes

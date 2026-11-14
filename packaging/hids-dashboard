@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /usr/bin/python3 -I -B -c 'import sys; sys.path.insert(0,"/opt/hids-dashboard/code"); from api.dashboard_launch import main; raise SystemExit(main())' "$@"

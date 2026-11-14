@@ -1,5 +1,11 @@
 # M1 synthetic fixture-to-database validation
 
+This readme covers M1 only. For current source/handoff verification use
+[M2](M2-README.md), [M3](M3-README.md), and
+[M4 workflow/sandbox evidence](../../docs/validation/m4-handoff-implementation-validation.md).
+M1 acceptance is subsequently owner-reported; its original gate wording below
+remains the scope of that runner, not current global project status.
+
 This harness implements only the [approved M1 contract](../../docs/implementation/m1-pilot-contract.md).
 It never starts the native collector or opens a netlink subscription. No real
 security records, accounts, elevated privileges, configuration changes, HTTP,

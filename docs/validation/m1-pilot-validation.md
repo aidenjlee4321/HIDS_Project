@@ -1,5 +1,10 @@
 # M1 pilot implementation and validation status
 
+Historical November 7 checkpoint: the original pending status/tests below are
+preserved. Later repository summaries record owner-reported Ubuntu M1 acceptance;
+see [current state](../current-state.md). That report does not turn the local
+results below into an independently inspected Ubuntu transcript.
+
 **Recorded:** November 7, 2026  
 **Status:** Implemented synthetic pilot; local boundary checks passed; Ubuntu acceptance pending  
 **Authority:** Owner approved P-01–08 and authorized M1 implementation only
